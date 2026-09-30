@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
-"""Refresh the bundled Simplified Chinese UI font subset (network required).
+"""Refresh the bundled Simplified Chinese UI font subsets.
 
 Downloads a regular-weight Noto Sans SC WOFF2 containing the Chinese characters
 and punctuation authored in static HTML/JS. The application serves the resulting
 font locally; this optional maintenance command is its only network dependency.
 Run after adding Chinese translations: python3 scripts/update_ui_font.py
+For an offline supplement, provide --local-font and --local-license. This mode
+requires optional FontTools/Brotli maintenance dependencies and makes no requests.
 """
 from __future__ import annotations
 
 import hashlib
+import argparse
 import json
 import re
 import urllib.parse
 import urllib.request
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -45,7 +49,61 @@ def fetch(url: str, limit: int) -> bytes:
     return data
 
 
+def local_supplement(source: Path, license_path: Path) -> None:
+    """Subset an already available OFL font locally, without any network requests."""
+    from fontTools import subset
+    from fontTools.ttLib import TTFont
+
+    primary = json.loads((DESTINATION / 'source.json').read_text(encoding='utf-8'))
+    characters = ''.join(sorted(set(interface_characters()) - set(primary['characters'])))
+    if not characters:
+        print('The primary font already covers every authored interface character')
+        return
+    license_text = license_path.read_text(encoding='utf-8')
+    if 'SIL Open Font License' not in license_text and 'SIL OPEN FONT LICENSE' not in license_text:
+        raise ValueError('Supply the source font’s SIL Open Font License')
+    font = TTFont(source)
+    family = font['name'].getDebugName(1)
+    missing = set(map(ord, characters)) - font.getBestCmap().keys()
+    if missing:
+        raise ValueError(f'The supplied font lacks {len(missing)} required characters')
+    options = subset.Options()
+    options.flavor = 'woff2'
+    subsetter = subset.Subsetter(options=options)
+    subsetter.populate(text=characters)
+    subsetter.subset(font)
+    # Name the derivative explicitly; retain the upstream copyright/license records.
+    names = {1:'Analog Factory CJK Supplement', 2:'Regular', 3:'AnalogFactoryCJKSupplement-Regular',
+             4:'Analog Factory CJK Supplement Regular', 6:'AnalogFactoryCJKSupplement-Regular',
+             16:'Analog Factory CJK Supplement', 17:'Regular'}
+    for record in font['name'].names:
+        if record.nameID in names:
+            record.string = names[record.nameID].encode(record.getEncoding())
+    filename = 'cjk-ui-supplement.woff2'
+    font.flavor = 'woff2'
+    font.save(DESTINATION / filename)
+    data = (DESTINATION / filename).read_bytes()
+    shutil.copyfile(license_path, DESTINATION / 'CJK-supplement-OFL.txt')
+    metadata = {'family':family, 'source_file':source.name,
+                'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
+                'license':'SIL Open Font License 1.1', 'file':filename,
+                'sha256':hashlib.sha256(data).hexdigest(), 'bytes':len(data),
+                'characters':characters, 'character_count':len(characters)}
+    (DESTINATION / 'cjk-supplement-source.json').write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    print(f'Locally bundled {len(characters)} missing characters in {len(data):,} bytes')
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--local-font', type=Path, help='Build a local supplement from an existing OFL font')
+    parser.add_argument('--local-license', type=Path, help='License distributed with the local source font')
+    args = parser.parse_args()
+    if args.local_font or args.local_license:
+        if not (args.local_font and args.local_license):
+            parser.error('--local-font and --local-license must be supplied together')
+        local_supplement(args.local_font, args.local_license)
+        return
     characters = interface_characters()
     if not characters:
         raise ValueError('No Chinese interface text found')

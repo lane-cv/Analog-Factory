@@ -8,6 +8,8 @@ const {t, html} = window.AFI18n;
 const preferences = window.AFPreferences;
 let preferencesSaving = false;
 let providerSaving = false;
+let waveformResizeObserver = null;
+const treeFolders = new Map();
 const state = {
   status: null, settings: {}, projects: [], project: null, files: [], runs: [], tab: 'overview',
   file: null, content: '', savedContent: '', dirty: false, context: new Set(), run: null, log: '',
@@ -17,6 +19,8 @@ const state = {
   providerTest: null, providerModels: [], projectRequest: 0
 };
 const traceColors = Array.from({length:6}, (_, index) => `var(--trace-${index + 1})`);
+const traceDashes = [[], [8,4], [2,3], [10,3,2,3], [5,3], [12,5]];
+const waveformMargin = {left:84, right:34, top:27, bottom:40};
 const themeColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const terminalStatuses = new Set(['succeeded', 'completed', 'success', 'passed', 'failed', 'cancelled', 'canceled', 'timeout', 'timed_out', 'error', 'unavailable']);
 const editorLaunches = new Set();
@@ -34,7 +38,8 @@ const pdk = () => state.status?.toolchain?.pdk || {available:false, diagnostic:t
 function badge(status, label) {
   const s = String(status || 'unknown');
   const type = ['succeeded', 'completed', 'success', 'passed', 'available', 'implemented'].includes(s) ? 'ok' : ['failed','error','unavailable','timed_out','timeout'].includes(s) ? 'error' : ['running','queued','starting'].includes(s) ? 'running' : 'warning';
-  return html`<span class="badge ${type}">${esc(label || t(s).replaceAll('_', ' '))}</span>`;
+  const paths = {ok:'M3 8l3 3 7-7',error:'M4 4l8 8M12 4l-8 8',running:'M8 3v5l3 2',warning:'M8 3v6M8 12h.01'};
+  return html`<span class="badge ${type}"><svg class="badge-icon" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="7"/><path d="${paths[type]}"/></svg>${esc(label || t(s).replaceAll('_', ' '))}</span>`;
 }
 function reasonFor(kind) {
   if (!state.project) return t('Create or select a project first.');
@@ -111,11 +116,21 @@ function updateChrome() {
   updateContext();
 }
 function renderTree() {
-  if (!state.project) { $('#file-tree').innerHTML = html('<p class="empty-small">Your design files will appear here.</p>'); return; }
-  const folders = new Map();
+  const tree = $('#file-tree'), active = document.activeElement;
+  const focus = tree.contains(active) ? {file:active.dataset.file, context:active.dataset.context, folder:active.closest('[data-folder]')?.dataset.folder} : null;
+  const previousProject = tree.dataset.project;
+  if (previousProject) treeFolders.set(previousProject, new Map($$('details[data-folder]',tree).map(folder => [folder.dataset.folder,folder.open])));
+  tree.dataset.project = state.project?.id || '';
+  if (!state.project) { tree.innerHTML = html('<p class="empty-small">Your design files will appear here.</p>'); return; }
+  const folders = new Map(), expanded = treeFolders.get(state.project.id) || new Map();
   for (const file of state.files) { const split = file.path.lastIndexOf('/'); const folder = split < 0 ? '' : file.path.slice(0, split); if (!folders.has(folder)) folders.set(folder, []); folders.get(folder).push(file); }
-  $('#file-tree').innerHTML = [...folders.entries()].map(([folder, files]) => html`<details class="tree-folder" open><summary>${esc(folder || t('Project root'))}</summary>${files.map(file => html`<div class="file-row ${state.file === file.path ? 'selected' : ''}"><button data-file="${esc(file.path)}" title="${esc(file.path)}"><span class="file-symbol">${/\.(cir|spice|sp)$/.test(file.path) ? '∿' : /\.(sch|mag)$/.test(file.path) ? '◇' : '≡'}</span>${esc(file.path.split('/').pop())}</button><input type="checkbox" data-context="${esc(file.path)}" ${state.context.has(file.path) ? 'checked' : ''} aria-label="${esc(t('Include {path} in AI context', {path:file.path}))}"></div>`).join('')}</details>`).join('') || html('<p class="empty-small">This project has no source files.</p>');
+  tree.innerHTML = [...folders.entries()].map(([folder, files]) => html`<details class="tree-folder" data-folder="${esc(folder)}" ${expanded.get(folder) === false ? '' : 'open'}><summary>${esc(folder || t('Project root'))}</summary>${files.map(file => html`<div class="file-row ${state.file === file.path ? 'selected' : ''}"><button data-file="${esc(file.path)}" ${state.file === file.path ? 'aria-current="true"' : ''} title="${esc(file.path)}"><span class="file-symbol" aria-hidden="true">${/\.(cir|spice|sp)$/.test(file.path) ? '∿' : /\.(sch|mag)$/.test(file.path) ? '◇' : '≡'}</span>${esc(file.path.split('/').pop())}</button><input type="checkbox" data-context="${esc(file.path)}" ${state.context.has(file.path) ? 'checked' : ''} aria-label="${esc(t('Include {path} in AI context', {path:file.path}))}"></div>`).join('')}</details>`).join('') || html('<p class="empty-small">This project has no source files.</p>');
+  if (focus && previousProject === state.project.id) {
+    const restored = focus.file !== undefined ? $$('[data-file]',tree).find(item => item.dataset.file === focus.file) : focus.context !== undefined ? $$('[data-context]',tree).find(item => item.dataset.context === focus.context) : $$('[data-folder]',tree).find(item => item.dataset.folder === focus.folder)?.querySelector('summary');
+    restored?.focus({preventScroll:true});
+  }
 }
+
 function updateContext() {
   $('#context-count').textContent = t('{count} files', {count:number(state.context.size)});
   $('#context-files').innerHTML = state.context.size ? [...state.context].map(path => html`<span class="context-chip" title="${esc(path)}">${esc(path.split('/').pop())}<button data-remove-context="${esc(path)}" aria-label="${esc(t('Remove {path} from context', {path}))}">×</button></span>`).join('') : html('<small>No files selected. Use the explorer checkboxes.</small>');
@@ -144,8 +159,9 @@ async function selectProject(id) {
   } finally { if (request === state.projectRequest) state.loadingProject = false; }
 }
 function render() {
+  waveformResizeObserver?.disconnect();
   const simulationForm = state.tab === 'simulation' && $('#simulation-form') ? Object.fromEntries(new FormData($('#simulation-form'))) : null;
-  $$('.tabs button').forEach(button => button.classList.toggle('active', button.dataset.tab === state.tab));
+  $$('.tabs button').forEach(button => { const active = button.dataset.tab === state.tab; button.classList.toggle('active', active); if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
   const drawing = state.tab === 'desktop';
   $('#main-content').hidden = drawing;
   $('#desktop-panel').hidden = !drawing;
@@ -269,7 +285,7 @@ function runsTable(runs) {
 function editorView() {
   return heading(t('DESIGN SOURCES'), t('A direct line to your circuit.'), t('Edit project files locally. Every save records a revision; changes invalidate previous results.')) +
     html`<div class="editor-toolbar"><select id="editor-file" aria-label="File to edit"><option value="">Select a file</option>${state.files.map(file => html`<option value="${esc(file.path)}" ${file.path === state.file ? 'selected' : ''}>${esc(file.path)}</option>`).join('')}</select><button class="secondary-button" data-action="new-file">＋ Add file</button><button class="secondary-button" data-action="history" ${!state.file ? 'disabled' : ''}>◷ History</button><button id="save-file" class="primary-button" data-action="save-file" ${!state.file || state.file === 'project.json' ? 'disabled' : ''}>Save file <span class="small">⌘S</span></button></div>` +
-    `${state.file ? html`<div class="editor-surface"><pre class="line-numbers" aria-hidden="true">${lineNumbers(state.content)}</pre><textarea id="code-editor" class="code-editor" ${state.file === 'project.json' ? 'readonly' : ''} aria-label="${esc(t('Source editor for {path}', {path:state.file}))}" spellcheck="false" autocomplete="off" autocapitalize="off">${esc(state.content)}</textarea></div><div class="editor-status"><span id="file-save-status">${state.file === 'project.json' ? t('Project metadata · read only') : state.dirty ? t('Unsaved changes') : t('Saved locally')}</span><span>${esc(state.file)} · UTF-8</span></div><div id="file-history">${historyHTML()}</div>` : html('<div class="empty-state"><span class="empty-symbol">⌘</span><p>Select a source file from the explorer.</p></div>')}`;
+    `${state.file ? html`<div class="editor-surface"><pre class="line-numbers" aria-hidden="true">${lineNumbers(state.content)}</pre><textarea id="code-editor" class="code-editor" ${state.file === 'project.json' ? 'readonly' : ''} aria-label="${esc(t('Source editor for {path}', {path:state.file}))}" aria-describedby="editor-keyboard-hint" spellcheck="false" autocomplete="off" autocapitalize="off">${esc(state.content)}</textarea></div><p id="editor-keyboard-hint" class="editor-keyboard-hint">Tab moves to the next control. Ctrl+] inserts two spaces.</p><div class="editor-status"><span id="file-save-status">${state.file === 'project.json' ? t('Project metadata · read only') : state.dirty ? t('Unsaved changes') : t('Saved locally')}</span><span>${esc(state.file)} · UTF-8</span></div><div id="file-history">${historyHTML()}</div>` : html('<div class="empty-state"><span class="empty-symbol">⌘</span><p>Select a source file from the explorer.</p></div>')}`;
 }
 function lineNumbers(content) { return Array.from({length:content.split('\n').length}, (_, index) => index + 1).join('\n'); }
 function historyHTML() {
@@ -295,7 +311,7 @@ async function saveFile() {
 }
 function simulationView() {
   return heading(t('SIMULATION LAB'), t('See how your circuit behaves.'), t('Configure an analysis, inspect real output, and compare measurements with their source evidence.')) +
-    html`<div class="card"><div class="card-head"><h2>Waveform viewer</h2><small id="waveform-title">${esc(state.waveform?.title || t('Actual simulator output'))}</small></div><div class="simulation-toolbar"><select id="waveform-run" aria-label="Execution for waveform"><option value="">Select a simulation execution</option>${state.runs.filter(run => run.kind === 'simulate').map(run => html`<option value="${esc(run.id)}" ${run.id === state.run?.id ? 'selected' : ''}>${esc(runName(run))}${run.stale ? t(' · stale inputs') : ''}</option>`).join('')}</select><button class="secondary-button" data-action="reset-waveform">Reset zoom</button><button class="secondary-button" data-action="export-waveform" ${!state.waveform?.points?.length ? 'disabled' : ''}>↓ CSV</button></div><div class="waveform-wrap"><canvas id="waveform" aria-label="Measured waveforms; scroll to zoom and move pointer for cursor readout" role="img"></canvas><div id="waveform-empty" class="waveform-empty" ${state.waveform?.points?.length ? 'hidden' : ''}><span class="empty-symbol">∿</span><strong>No waveform loaded</strong><span>Select a completed simulation with recorded waveform data.</span></div></div><div id="trace-controls" class="trace-controls"></div><div class="waveform-hint"><span>Scroll to zoom · drag to pan · hover for cursor</span><span id="waveform-cursor">No cursor</span></div>${state.run?.stale ? html('<div class="callout warning">These results use earlier inputs. Run the current design to obtain up-to-date evidence.</div>') : ''}</div>` +
+    html`<div class="card"><div class="card-head"><h2>Waveform viewer</h2><small id="waveform-title">${esc(state.waveform?.title || t('Actual simulator output'))}</small></div><div class="simulation-toolbar"><select id="waveform-run" aria-label="Execution for waveform"><option value="">Select a simulation execution</option>${state.runs.filter(run => run.kind === 'simulate').map(run => html`<option value="${esc(run.id)}" ${run.id === state.run?.id ? 'selected' : ''}>${esc(runName(run))}${run.stale ? t(' · stale inputs') : ''}</option>`).join('')}</select><button class="secondary-button" data-action="zoom-in-waveform" ${!state.waveform?.points?.length ? 'disabled' : ''}>Zoom in +</button><button class="secondary-button" data-action="zoom-out-waveform" ${!state.waveform?.points?.length ? 'disabled' : ''}>Zoom out −</button><button class="secondary-button" data-action="reset-waveform" ${!state.waveform?.points?.length ? 'disabled' : ''}>Reset zoom</button><button class="secondary-button" data-action="export-waveform" ${!state.waveform?.points?.length ? 'disabled' : ''}>↓ CSV</button></div><div class="waveform-wrap"><canvas id="waveform" tabindex="0" aria-label="Measured waveforms" aria-describedby="waveform-keyboard-hint waveform-summary" role="img"></canvas><div id="waveform-empty" class="waveform-empty" ${state.waveform?.points?.length ? 'hidden' : ''}><span class="empty-symbol">∿</span><strong>No waveform loaded</strong><span>Select a completed simulation with recorded waveform data.</span></div></div><div id="trace-controls" class="trace-controls"></div><div class="waveform-navigation" role="group" aria-label="Waveform navigation"><button class="secondary-button" data-action="pan-left-waveform" ${!state.waveform?.points?.length ? 'disabled' : ''}>Pan left</button><button class="secondary-button" data-action="pan-right-waveform" ${!state.waveform?.points?.length ? 'disabled' : ''}>Pan right</button><button class="secondary-button" data-action="previous-sample" ${!state.waveform?.points?.length ? 'disabled' : ''}>Previous sample</button><button class="secondary-button" data-action="next-sample" ${!state.waveform?.points?.length ? 'disabled' : ''}>Next sample</button></div><p id="waveform-keyboard-hint" class="waveform-hint">Chart keys: +/− zoom · ←/→ inspect samples · Shift+←/→ pan · Home reset. Scroll to zoom, drag to pan.</p><p id="waveform-summary" class="waveform-summary"></p><div class="waveform-hint"><span id="waveform-cursor" role="status" aria-live="polite" aria-atomic="true">No cursor</span></div>${state.run?.stale ? html('<div class="callout warning">These results use earlier inputs. Run the current design to obtain up-to-date evidence.</div>') : ''}</div>` +
     html`<div id="run-metrics">${metricsHTML()}</div>` +
     html`<details class="card" open><summary class="detail-summary">ANALYSIS CONFIGURATION <span class="muted">· ngspice</span></summary><form id="simulation-form" class="spaced"><div class="form-grid"><label>Analysis<select name="analysis" id="analysis-select"><option value="tran">Transient</option><option value="op">Operating point</option><option value="dc">DC sweep</option><option value="ac">AC frequency</option><option value="noise">Noise</option></select></label><label>Output testbench<input name="netlist" value="testbenches/configured.cir" required></label><div id="analysis-parameters" class="full-width form-grid">${analysisFields('tran')}</div><label class="full-width">Additional SPICE directives<textarea name="directives" class="directives" placeholder=".meas tran vout_mean AVG v(out) FROM=1m TO=2m"></textarea><small>Directives are written into the testbench. Review the generated file in the editor.</small></label></div><div class="form-actions"><button class="secondary-button" type="submit" name="action" value="save">Save testbench</button><button class="primary-button" type="submit" name="action" value="run" ${reasonFor('simulate') ? `disabled title="${esc(reasonFor('simulate'))}"` : ''}>Save & run ▶</button></div></form></details>` +
     html`<div class="card"><div class="card-head"><h2>Compare recorded results</h2><small>Pre / post-layout or two design iterations</small></div>${comparisonHTML()}</div>` +
@@ -363,7 +379,7 @@ function workflowView() {
   const workflow = state.workflow;
   return heading(t('VISUAL WORKFLOWS'),t('Connect a repeatable design loop.'), t('Build a versioned graph and execute bounded parameter tuning with real simulation evidence.'), badge('implemented',t('Experimental execution'))) +
     html`<div class="workflow-toolbar"><input id="workflow-name" value="${esc(workflow.name)}" aria-label="Workflow name" style="max-width:210px"><button class="secondary-button" data-action="save-workflow">Save</button><button class="secondary-button" data-action="load-workflow">Load saved</button><button class="secondary-button" data-action="export-workflow">↓ JSON</button><button class="secondary-button" data-action="import-workflow">↑ Import</button><input type="file" id="workflow-file" accept=".json,application/json" hidden><button class="primary-button" data-action="run-workflow" ${reasonFor('simulate') ? `disabled title="${esc(reasonFor('simulate'))}"` : ''}>▶ Run loop</button></div>` +
-    html`<div id="saved-workflows"></div><div class="workflow-board"><div id="workflow-plane" class="workflow-plane"><svg class="workflow-edges" id="workflow-edges" aria-hidden="true"></svg><div id="workflow-nodes"></div></div></div><p class="waveform-hint">Drag nodes to arrange · click a node to configure · graph saved as portable JSON</p>` +
+    html`<div id="saved-workflows"></div><div class="workflow-board"><div id="workflow-plane" class="workflow-plane"><svg class="workflow-edges" id="workflow-edges" aria-hidden="true"></svg><div id="workflow-nodes"></div></div></div><p id="workflow-keyboard-hint" class="waveform-hint">Drag or use arrow keys to arrange nodes. Press Enter to configure. Shift+arrow moves farther.</p>` +
     html`<div class="workflow-toolbar spaced"><select id="new-node-type" aria-label="Node type to add">${nodeCatalog.map(([type,label,implemented]) => html`<option value="${type}">${t(label)}${implemented ? '' : t(' (planned)')}</option>`).join('')}</select><button class="secondary-button" data-action="add-node">＋ Add node</button><select id="edge-from" aria-label="Connection source">${workflow.nodes.map(node => html`<option value="${esc(node.id)}">From: ${esc(node.config?.label || node.type)}</option>`).join('')}</select><select id="edge-to" aria-label="Connection destination">${workflow.nodes.map(node => html`<option value="${esc(node.id)}">To: ${esc(node.config?.label || node.type)}</option>`).join('')}</select><button class="secondary-button" data-action="add-edge">Connect →</button></div>` +
     html`<div id="node-configuration" class="workflow-configuration">${nodeConfiguration()}</div><div class="callout">Executable graph: specification → parameter → simulate → measure → condition → report. The engine runs a bounded resistor search. Other node types and arbitrary graph execution are planned and rejected by validation.</div>` +
     html`<div class="card"><div class="card-head"><h2>Search bounds & stopping conditions</h2><small>Circuit optimization · no model weight updates</small></div><div class="form-grid"><label>Parameter<input id="tuning-parameter" value="${esc(workflow.tuning.parameter)}"></label><label>Measurement<input id="tuning-metric" value="${esc(workflow.tuning.metric)}"></label><label>Minimum<input type="number" id="tuning-minimum" value="${workflow.tuning.minimum}" step="any"></label><label>Maximum<input type="number" id="tuning-maximum" value="${workflow.tuning.maximum}" step="any"></label><label>Target value<input type="number" id="tuning-target" value="${workflow.tuning.target}" step="any"></label><label>Absolute tolerance<input type="number" id="tuning-tolerance" value="${workflow.tuning.tolerance}" min="0" step="any"></label><label>Maximum iterations<input type="number" id="limit-iterations" value="${workflow.limits.iterations}" min="3" max="100"></label><label>Runtime limit (seconds)<input type="number" id="limit-runtime" value="${workflow.limits.runtime_seconds}" min="1" max="3600"></label><label class="full-width">Testbench<input id="tuning-netlist" value="${esc(workflow.tuning.netlist)}"></label></div></div>` +
@@ -372,21 +388,44 @@ function workflowView() {
 function nodeConfiguration() {
   const node = state.workflow.nodes.find(item => item.id === state.workflowSelection);
   if (!node) return html('<p class="footnote">Select a node to inspect its configuration. Connections are listed in the graph JSON.</p>');
-  return html`<div class="card"><div class="card-head"><h2>${esc(node.config?.label || node.type)}</h2><button class="text-button danger-button" data-action="delete-node">Remove node</button></div><div class="node-config"><label>Node ID<input value="${esc(node.id)}" readonly></label><label>Display label<input id="node-label" value="${esc(node.config?.label || '')}"></label><label style="grid-column:1/-1">Configuration JSON<textarea id="node-json" class="directives">${esc(pretty(node.config || {}))}</textarea></label></div><button class="secondary-button spaced" data-action="save-node">Apply node configuration</button><p class="node-description">Node type: ${esc(node.type)}. Execution settings come from the tuning bounds below. Only the supported chain is executable.</p>${state.workflow.edges.filter(edge => edge.source === node.id || edge.target === node.id).map((edge) => html`<div class="history-row"><span>${esc(edge.source)} → ${esc(edge.target)}</span><button class="text-button" data-remove-edge="${state.workflow.edges.indexOf(edge)}">Remove connection</button></div>`).join('')}</div>`;
+  return html`<div class="card"><div class="card-head"><h2>${esc(node.config?.label || node.type)}</h2><button class="text-button danger-button" data-action="delete-node">Remove node</button></div><div class="node-config"><label>Node ID<input value="${esc(node.id)}" readonly></label><label>Display label<input id="node-label" value="${esc(node.config?.label || '')}"></label><label>Horizontal position<input id="node-position-x" type="number" min="8" max="900" value="${Number(node.position?.x) || 0}"></label><label>Vertical position<input id="node-position-y" type="number" min="8" max="450" value="${Number(node.position?.y) || 0}"></label><label style="grid-column:1/-1">Configuration JSON<textarea id="node-json" class="directives">${esc(pretty(node.config || {}))}</textarea></label></div><button class="secondary-button spaced" data-action="save-node">Apply node configuration</button><p class="node-description">Node type: ${esc(node.type)}. Execution settings come from the tuning bounds below. Only the supported chain is executable.</p>${state.workflow.edges.filter(edge => edge.source === node.id || edge.target === node.id).map((edge) => html`<div class="history-row"><span>${esc(edge.source)} → ${esc(edge.target)}</span><button class="text-button" data-remove-edge="${state.workflow.edges.indexOf(edge)}">Remove connection</button></div>`).join('')}</div>`;
 }
 function drawWorkflow() {
   if (!$('#workflow-nodes')) return;
-  $('#workflow-nodes').innerHTML = state.workflow.nodes.map(node => html`<button class="workflow-node ${state.workflowSelection === node.id ? 'selected' : ''} ${nodeCatalog.find(item => item[0] === node.type)?.[2] ? '' : 'planned'}" data-node="${esc(node.id)}" style="left:${Number(node.position?.x) || 0}px;top:${Number(node.position?.y) || 0}px"><span class="node-label">${esc(node.config?.label || node.type)}</span><span class="node-type">${esc(node.type)} · ${esc(node.id)}</span></button>`).join('');
+  $('#workflow-nodes').innerHTML = state.workflow.nodes.map(node => html`<button class="workflow-node ${state.workflowSelection === node.id ? 'selected' : ''} ${nodeCatalog.find(item => item[0] === node.type)?.[2] ? '' : 'planned'}" data-node="${esc(node.id)}" aria-pressed="${state.workflowSelection === node.id}" aria-describedby="workflow-keyboard-hint" style="left:${Number(node.position?.x) || 0}px;top:${Number(node.position?.y) || 0}px"><span class="node-label">${esc(node.config?.label || node.type)}</span><span class="node-type">${esc(node.type)} · ${esc(node.id)}</span></button>`).join('');
   drawEdges();
-  $$('.workflow-node').forEach(element => element.addEventListener('pointerdown', event => {
+  $$('.workflow-node').forEach(element => {
+    element.addEventListener('click', event => {
+      const dragged = element.dataset.dragged === 'true'; delete element.dataset.dragged;
+      if (dragged && event.detail !== 0) return;
+      state.workflowSelection = element.dataset.node;
+      $('#node-configuration').innerHTML = nodeConfiguration();
+      $$('.workflow-node').forEach(item => { const selected = item === element; item.classList.toggle('selected', selected); item.setAttribute('aria-pressed',String(selected)); });
+      if (event.detail === 0) $('#node-label')?.focus();
+    });
+    element.addEventListener('keydown', event => {
+      if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+      event.preventDefault();
+      const node = state.workflow.nodes.find(item => item.id === element.dataset.node), step = event.shiftKey ? 40 : 10;
+      node.position = {x:Math.max(8,Math.min(900,(Number(node.position?.x) || 0) + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0))),y:Math.max(8,Math.min(450,(Number(node.position?.y) || 0) + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0)))};
+      element.style.left = `${node.position.x}px`; element.style.top = `${node.position.y}px`;
+      syncNodePositionFields(node); element.scrollIntoView({block:'nearest',inline:'nearest'}); drawEdges(); syncWorkflowJSON();
+    });
+    element.addEventListener('pointerdown', event => {
     if (event.button !== 0) return;
     const node = state.workflow.nodes.find(item => item.id === element.dataset.node); let moved = false;
     const origin = {x:event.clientX,y:event.clientY,left:node.position?.x || 0,top:node.position?.y || 0};
     element.setPointerCapture(event.pointerId);
-    const move = moveEvent => { if (Math.abs(moveEvent.clientX-origin.x)+Math.abs(moveEvent.clientY-origin.y)>3) moved = true; node.position = {x:Math.max(8, Math.min(900, origin.left + moveEvent.clientX-origin.x)),y:Math.max(8, Math.min(450, origin.top + moveEvent.clientY-origin.y))}; element.style.left = `${node.position.x}px`; element.style.top = `${node.position.y}px`; drawEdges(); };
-    const end = () => { element.removeEventListener('pointermove',move); element.removeEventListener('pointerup',end); if (!moved) { state.workflowSelection = node.id; $('#node-configuration').innerHTML = nodeConfiguration(); $$('.workflow-node').forEach(item => item.classList.toggle('selected', item.dataset.node === node.id)); } syncWorkflowJSON(); };
-    element.addEventListener('pointermove',move); element.addEventListener('pointerup',end,{once:true});
-  }));
+    const move = moveEvent => { if (Math.abs(moveEvent.clientX-origin.x)+Math.abs(moveEvent.clientY-origin.y)>3) moved = true; node.position = {x:Math.max(8, Math.min(900, origin.left + moveEvent.clientX-origin.x)),y:Math.max(8, Math.min(450, origin.top + moveEvent.clientY-origin.y))}; element.style.left = `${node.position.x}px`; element.style.top = `${node.position.y}px`; syncNodePositionFields(node); drawEdges(); };
+    const end = () => { element.removeEventListener('pointermove',move); element.removeEventListener('pointerup',end); element.removeEventListener('pointercancel',end); element.dataset.dragged = String(moved); syncWorkflowJSON(); };
+    element.addEventListener('pointermove',move); element.addEventListener('pointerup',end,{once:true}); element.addEventListener('pointercancel',end,{once:true});
+    });
+  });
+}
+function syncNodePositionFields(node) {
+  if (state.workflowSelection !== node.id) return;
+  if ($('#node-position-x')) $('#node-position-x').value = node.position.x;
+  if ($('#node-position-y')) $('#node-position-y').value = node.position.y;
 }
 function drawEdges() {
   $('#workflow-edges').innerHTML = html`<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--workflow-marker)"/></marker></defs>${state.workflow.edges.map(edge => { const source = state.workflow.nodes.find(node => node.id === edge.source), target = state.workflow.nodes.find(node => node.id === edge.target); if (!source || !target) return ''; const x1 = (Number(source.position?.x) || 0)+158,y1=(Number(source.position?.y)||0)+37,x2=(Number(target.position?.x)||0)-4,y2=(Number(target.position?.y)||0)+37, bend = Math.max(55,Math.abs(x2-x1)/2); return html`<path d="M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}" fill="none" stroke="var(--workflow-edge)" stroke-width="1.5" marker-end="url(#arrow)"/>`; }).join('')}`;
@@ -409,7 +448,7 @@ function validateWorkflowShape(workflow) {
 function jobHTML(job, evaluation = false) {
   if (!job) return '';
   const iterations = job.iterations || [];
-  return html`<div class="card"><div class="card-head"><h2>${evaluation ? t('Evaluation record') : t('Workflow execution')} <span class="muted mono small">${shortId(job.id)}</span></h2><div class="button-row">${badge(job.status)}${isActive(job) ? html`<button class="secondary-button danger-button" data-action="cancel-${evaluation ? 'evaluation' : 'workflow'}">Stop</button>` : ''}</div></div>${job.error ? html`<div class="callout error">${esc(job.error)}</div>` : ''}${iterations.length ? html`<table class="data-table"><thead><tr><th>Step</th><th>Parameter</th><th>Value</th><th>Metric</th><th>Evidence</th></tr></thead><tbody>${iterations.map((iteration,index) => html`<tr><td>${index+1}</td><td>${esc(iteration.parameter || '—')}</td><td>${esc(number(iteration.value))}</td><td>${esc(number(iteration.metric && typeof iteration.metric === 'object' ? iteration.metric.value : iteration.metric))}</td><td>${iteration.run_id ? html`<button class="run-select-link" data-run-id="${esc(iteration.run_id)}">${shortId(iteration.run_id)} ↗</button>` : '—'}</td></tr>`).join('')}</tbody></table>` : html`<p>${isActive(job) ? t('The engine is executing. Actual results will appear as each step completes.') : t('Inspect the record below for results and diagnostic evidence.')}</p>`}<details><summary class="detail-summary">Full execution record</summary><pre class="evidence-details">${esc(pretty(job))}</pre></details></div>`;
+  return html`<div class="card"><div class="card-head"><h2>${evaluation ? t('Evaluation record') : t('Workflow execution')} <span class="muted mono small">${shortId(job.id)}</span></h2><div class="button-row">${badge(job.status)}${isActive(job) ? html`<button class="secondary-button danger-button" data-action="cancel-${evaluation ? 'evaluation' : 'workflow'}">Stop</button>` : ''}</div></div><p class="job-progress" role="status" aria-live="polite" aria-atomic="true">${esc(t(evaluation ? '{count} recorded episodes' : '{count} recorded iterations', {count:number(iterations.length)}))}</p>${job.error ? html`<div class="callout error">${esc(job.error)}</div>` : ''}${iterations.length ? html`<div class="table-wrap"><table class="data-table"><thead><tr><th>Step</th><th>Parameter</th><th>Value</th><th>Metric</th><th>Evidence</th></tr></thead><tbody>${iterations.map((iteration,index) => html`<tr><td>${index+1}</td><td>${esc(iteration.parameter || '—')}</td><td>${esc(number(iteration.value))}</td><td>${esc(number(iteration.metric && typeof iteration.metric === 'object' ? iteration.metric.value : iteration.metric))}</td><td>${iteration.run_id ? html`<button class="run-select-link" data-run-id="${esc(iteration.run_id)}">${shortId(iteration.run_id)} ↗</button>` : '—'}</td></tr>`).join('')}</tbody></table></div>` : html`<p>${isActive(job) ? t('The engine is executing. Actual results will appear as each step completes.') : t('Inspect the record below for results and diagnostic evidence.')}</p>`}<details><summary class="detail-summary">Full execution record</summary><pre class="evidence-details">${esc(pretty(job))}</pre></details></div>`;
 }
 function jobHistoryHTML(kind, selected) {
   const jobs = state.jobs.filter(job => job.kind === kind);
@@ -621,6 +660,7 @@ async function selectRun(id, navigate = true) {
 function updateLog() {
   agentUI.render();
   $('#log-label').textContent = state.run ? `${runName(state.run)}${state.run.stale ? t(t(' · STALE')) : ''}` : t('No run selected');
+  if ($('#log-run-status')) { $('#log-run-status').hidden = !state.run; $('#log-run-status').innerHTML = state.run ? badge(state.run.status) : ''; }
   const log = $('#execution-log'), nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
   log.textContent = state.log || (state.run ? (isActive(state.run) ? t('Waiting for tool output…') : t('No log output was recorded.')) : t('Run a simulation or select an execution to inspect its actual tool output.'));
   if (nearBottom) log.scrollTop = log.scrollHeight;
@@ -664,7 +704,7 @@ function bindView() {
   if (state.tab === 'editor') {
     $('#code-editor')?.addEventListener('input', event => { state.content = event.target.value; state.dirty = state.content !== state.savedContent; $('.line-numbers').textContent = lineNumbers(state.content); $('#file-save-status').textContent = state.dirty ? t('Unsaved changes · save with Ctrl / ⌘ S') : t('Saved locally'); });
     $('#code-editor')?.addEventListener('scroll', event => { $('.line-numbers').scrollTop = event.target.scrollTop; });
-    $('#code-editor')?.addEventListener('keydown', event => { if (event.key === 'Tab') { event.preventDefault(); const editor = event.target, start = editor.selectionStart, end = editor.selectionEnd; editor.setRangeText('  ',start,end,'end'); editor.dispatchEvent(new Event('input')); } });
+    $('#code-editor')?.addEventListener('keydown', event => { if (event.ctrlKey && event.key === ']' && !event.target.readOnly) { event.preventDefault(); const editor = event.target, start = editor.selectionStart, end = editor.selectionEnd; editor.setRangeText('  ',start,end,'end'); editor.dispatchEvent(new Event('input')); } });
     $('#editor-file')?.addEventListener('change', event => safely(() => openFile(event.target.value,false)));
   }
   if (state.tab === 'simulation') {
@@ -760,9 +800,6 @@ function bindGlobal() {
   $('#project-select').addEventListener('change', event => safely(() => selectProject(event.target.value)));
   $('#refresh-project').addEventListener('click', () => safely(() => refreshProject()));
   $('#run-primary').addEventListener('click', () => safely(() => startRun('simulate')));
-  $('#toggle-tree').addEventListener('click', () => document.body.classList.toggle('show-tree'));
-  $('#toggle-ai').addEventListener('click', () => { if (innerWidth <= 1000) document.body.classList.toggle('show-ai'); else document.body.classList.toggle('hide-ai'); requestAnimationFrame(drawWaveform); });
-  $('#toggle-logs').addEventListener('click', () => $('.log-panel').classList.toggle('collapsed'));
   $('#copy-log').addEventListener('click', () => safely(async () => { await navigator.clipboard.writeText(state.log || $('#execution-log').textContent); toast(t('Execution log copied.')); }));
   $('#run-cancel').addEventListener('click', () => safely(async () => { state.run = await api(projectURL(`/runs/${encoded(state.run.id)}/cancel`),{method:'POST',body:{}}); updateLog(); toast(t('Cancellation requested.')); }));
   $('#run-retry').addEventListener('click', () => safely(async () => { const run = await api(projectURL(`/runs/${encoded(state.run.id)}/retry`),{method:'POST',body:{}}); state.runs.unshift(run); await selectRun(run.id); toast(t('Retry started as a new execution record.')); }));
@@ -791,6 +828,7 @@ function bindGlobal() {
   $('#chat-input').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); safely(sendChat); } });
 }
 async function handleAction(action) {
+  if (action.endsWith('-waveform') || ['previous-sample','next-sample'].includes(action)) $('#waveform-cursor')?.setAttribute('aria-live','polite');
   switch (action) {
     case 'reload-desktop': state.status = await api('/api/status'); renderDesktop(true); break;
     case 'new-project': $('#new-project-dialog').showModal(); break;
@@ -798,7 +836,13 @@ async function handleAction(action) {
     case 'export': location.href = projectURL('/export'); break;
     case 'save-file': await saveFile(); break;
     case 'history': state.history = asArray(await api(projectURL(`/history?path=${encoded(state.file)}`)),'revisions'); $('#file-history').innerHTML = historyHTML(); break;
-    case 'reset-waveform': state.zoom = [0,1]; drawWaveform(); break;
+    case 'zoom-in-waveform': zoomWaveform(0.8); break;
+    case 'zoom-out-waveform': zoomWaveform(1.25); break;
+    case 'pan-left-waveform': panWaveform(-0.2); break;
+    case 'pan-right-waveform': panWaveform(0.2); break;
+    case 'previous-sample': moveWaveformCursor(-1); break;
+    case 'next-sample': moveWaveformCursor(1); break;
+    case 'reset-waveform': state.zoom = [0,1]; state.cursor = null; drawWaveform(); break;
     case 'export-waveform': if (state.waveform) download([state.waveform.variables.map(variable => `${variable.name}${variable.unit ? ` (${variable.unit})` : ''}`).join(','), ...state.waveform.points.map(point => point.join(','))].join('\n'),`waveform-${shortId(state.run?.id)}.csv`,'text/csv'); break;
     case 'save-workflow': captureWorkflow(); await api(projectURL('/workflows'),{method:'POST',body:{workflow:state.workflow}}); await refreshProject(false); toast(t('Workflow saved to project.')); break;
     case 'load-workflow': state.savedWorkflows = asArray(await api(projectURL('/workflows')),'workflows'); $('#saved-workflows').innerHTML = state.savedWorkflows.length ? html`<div class="card">${state.savedWorkflows.map((entry,index) => html`<div class="history-row"><span>${esc(entry.name || entry.workflow?.name || entry.path || entry)}</span><button class="secondary-button" data-workflow-load="${index}">Load</button></div>`).join('')}</div>` : html('<div class="callout">No saved workflows yet. Save the current graph to add one.</div>'); break;
@@ -807,7 +851,7 @@ async function handleAction(action) {
     case 'apply-workflow-json': state.workflow = validateWorkflowShape(JSON.parse($('#workflow-json').value)); state.workflowSelection = null; render(); break;
     case 'add-node': { captureWorkflow(); const type = $('#new-node-type').value; const label = nodeCatalog.find(item => item[0] === type)?.[1] || type; const id = `n${Date.now().toString(36)}`; state.workflow.nodes.push({id,type,position:{x:45,y:365},config:{label}}); state.workflowSelection = id; render(); break; }
     case 'add-edge': { captureWorkflow(); const source = $('#edge-from').value,target = $('#edge-to').value; if (source === target) throw new Error(t('Connect two distinct nodes.')); if (state.workflow.edges.some(edge => edge.source === source && edge.target === target)) throw new Error(t('This connection already exists.')); state.workflow.edges.push({source,target}); drawEdges(); syncWorkflowJSON(); break; }
-    case 'save-node': { const node = state.workflow.nodes.find(item => item.id === state.workflowSelection); const config = JSON.parse($('#node-json').value); if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error(t('Node configuration must be a JSON object.')); node.config = {...config,label:$('#node-label').value}; drawWorkflow(); syncWorkflowJSON(); toast(t('Node configuration applied.')); break; }
+    case 'save-node': { const node = state.workflow.nodes.find(item => item.id === state.workflowSelection); const config = JSON.parse($('#node-json').value); if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error(t('Node configuration must be a JSON object.')); node.config = {...config,label:$('#node-label').value}; node.position = {x:Math.max(8,Math.min(900,Number($('#node-position-x').value) || 8)),y:Math.max(8,Math.min(450,Number($('#node-position-y').value) || 8))}; drawWorkflow(); syncWorkflowJSON(); toast(t('Node configuration applied.')); break; }
     case 'delete-node': captureWorkflow(); state.workflow.nodes = state.workflow.nodes.filter(node => node.id !== state.workflowSelection); state.workflow.edges = state.workflow.edges.filter(edge => edge.source !== state.workflowSelection && edge.target !== state.workflowSelection); state.workflowSelection = null; render(); break;
     case 'run-workflow': captureWorkflow(); if (state.dirty) await saveFile(); state.job = await api(projectURL('/workflows/run'),{method:'POST',body:{workflow:state.workflow}}); $('#workflow-job').innerHTML = jobHTML(state.job); toast(t('Bounded workflow started.')); break;
     case 'cancel-workflow': state.job = await api(projectURL(`/jobs/${encoded(state.job.id)}/cancel`),{method:'POST',body:{}}); $('#workflow-job').innerHTML = jobHTML(state.job); break;
@@ -821,29 +865,67 @@ async function handleAction(action) {
 }
 async function sendChat() { await agentUI.send(); }
 function renderChat() { agentUI.render(); }
+function zoomWaveform(factor, position = 0.5) {
+  if (!state.waveform?.points?.length) return;
+  const oldWidth = state.zoom[1]-state.zoom[0], width = Math.min(1,Math.max(0.001,oldWidth*factor));
+  const center = state.zoom[0]+position*oldWidth, start = Math.max(0,Math.min(1-width,center-position*width));
+  state.zoom = [start,start+width]; drawWaveform();
+}
+function panWaveform(amount) {
+  if (!state.waveform?.points?.length) return;
+  const width = state.zoom[1]-state.zoom[0], start = Math.max(0,Math.min(1-width,state.zoom[0]+width*amount));
+  state.zoom = [start,start+width]; drawWaveform();
+}
+function moveWaveformCursor(direction) {
+  const points = state.waveform?.points?.filter(point => Number.isFinite(point[0]));
+  if (!points?.length) return;
+  const minimum = points[0][0], range = points[points.length-1][0]-minimum || 1;
+  const firstVisible = Math.max(0,points.findIndex(point => point[0]>=minimum+state.zoom[0]*range));
+  const index = state.cursor?.index === undefined ? firstVisible : Math.max(0,Math.min(points.length-1,state.cursor.index+direction));
+  state.cursor = {index};
+  const position = (points[index][0]-minimum)/range, width = state.zoom[1]-state.zoom[0];
+  if (position < state.zoom[0] || position > state.zoom[1]) { const start = Math.max(0,Math.min(1-width,position-width/2)); state.zoom = [start,start+width]; }
+  $('#waveform-cursor')?.setAttribute('aria-live','polite'); drawWaveform();
+}
 function setupWaveform() {
   const canvas = $('#waveform'); if (!canvas) return;
   const waveform = state.waveform;
-  $('#trace-controls').innerHTML = waveform?.variables?.slice(1).map((variable,index) => html`<label style="color:${traceColors[index%traceColors.length]}"><input type="checkbox" data-trace="${index+1}" ${state.traces.has(index+1) ? 'checked' : ''}>${esc(variable.name)}${variable.unit ? ` [${esc(variable.unit)}]` : ''}</label>`).join('') || '';
+  $('#trace-controls').innerHTML = waveform?.variables?.slice(1).map((variable,index) => html`<label><input type="checkbox" data-trace="${index+1}" ${state.traces.has(index+1) ? 'checked' : ''}><svg width="28" height="12" viewBox="0 0 28 12" aria-hidden="true"><path d="M0 6h28" stroke="${traceColors[index%traceColors.length]}" stroke-width="2" stroke-dasharray="${traceDashes[index%traceDashes.length].join(' ')}"/></svg>${esc(variable.name)}${variable.unit ? ` [${esc(variable.unit)}]` : ''}</label>`).join('') || '';
   $$('[data-trace]').forEach(input => input.addEventListener('change', () => { input.checked ? state.traces.add(Number(input.dataset.trace)) : state.traces.delete(Number(input.dataset.trace)); drawWaveform(); }));
   let drag = null;
+  canvas.addEventListener('keydown', event => {
+    if (event.ctrlKey || event.metaKey || event.altKey || !waveform?.points?.length) return;
+    if (!['+','=','-','Home','ArrowLeft','ArrowRight','Escape'].includes(event.key)) return;
+    event.preventDefault();
+    $('#waveform-cursor').setAttribute('aria-live','polite');
+    if (event.key === '+' || event.key === '=') zoomWaveform(0.8);
+    else if (event.key === '-') zoomWaveform(1.25);
+    else if (event.key === 'Home') { state.zoom = [0,1]; state.cursor = null; drawWaveform(); }
+    else if (event.key === 'Escape') { state.cursor = null; drawWaveform(); }
+    else if (event.shiftKey) panWaveform(event.key === 'ArrowLeft' ? -0.2 : 0.2);
+    else moveWaveformCursor(event.key === 'ArrowLeft' ? -1 : 1);
+  });
   canvas.addEventListener('wheel', event => {
     if (!state.waveform?.points?.length) return;
-    event.preventDefault(); const rect = canvas.getBoundingClientRect(), position = Math.max(0,Math.min(1,(event.clientX-rect.left-58)/(rect.width-81)));
-    const oldWidth = state.zoom[1]-state.zoom[0], width = Math.min(1,Math.max(0.001,oldWidth * (event.deltaY > 0 ? 1.25 : 0.8)));
-    const center = state.zoom[0]+position*oldWidth, start = Math.max(0,Math.min(1-width,center-position*width)); state.zoom = [start,start+width]; drawWaveform();
+    event.preventDefault(); const rect = canvas.getBoundingClientRect(), position = Math.max(0,Math.min(1,(event.clientX-rect.left-waveformMargin.left)/Math.max(1,rect.width-waveformMargin.left-waveformMargin.right)));
+    zoomWaveform(event.deltaY > 0 ? 1.25 : 0.8,position);
   },{passive:false});
-  canvas.addEventListener('pointerdown', event => { drag = {x:event.clientX,zoom:[...state.zoom]}; canvas.setPointerCapture(event.pointerId); });
+  canvas.addEventListener('pointerdown', event => { if (event.button !== 0 || !waveform?.points?.length) return; drag = {x:event.clientX,zoom:[...state.zoom]}; canvas.setPointerCapture(event.pointerId); });
   canvas.addEventListener('pointermove', event => {
+    if (!waveform?.points?.length) return;
     const rect = canvas.getBoundingClientRect();
-    if (drag) { const width = drag.zoom[1]-drag.zoom[0], difference = (event.clientX-drag.x)/(rect.width-81)*width, start = Math.max(0,Math.min(1-width,drag.zoom[0]-difference)); state.zoom = [start,start+width]; }
+    if (drag) { const width = drag.zoom[1]-drag.zoom[0], difference = (event.clientX-drag.x)/Math.max(1,rect.width-waveformMargin.left-waveformMargin.right)*width, start = Math.max(0,Math.min(1-width,drag.zoom[0]-difference)); state.zoom = [start,start+width]; }
+    $('#waveform-cursor').setAttribute('aria-live','off');
     state.cursor = {x:event.clientX-rect.left,y:event.clientY-rect.top}; drawWaveform();
   });
   canvas.addEventListener('pointerup', () => { drag = null; });
   canvas.addEventListener('pointercancel', () => { drag = null; });
-  canvas.addEventListener('pointerleave', () => { if (!drag) { state.cursor = null; drawWaveform(); } });
+  canvas.addEventListener('pointerleave', () => { if (!drag && state.cursor?.index === undefined) { state.cursor = null; drawWaveform(); } });
+  waveformResizeObserver?.disconnect();
+  if (window.ResizeObserver) { waveformResizeObserver = new ResizeObserver(() => requestAnimationFrame(drawWaveform)); waveformResizeObserver.observe(canvas); }
   requestAnimationFrame(drawWaveform);
 }
+
 function axisNumber(value) {
   if (!Number.isFinite(value)) return '—';
   const absolute = Math.abs(value);
@@ -861,9 +943,9 @@ function drawWaveform() {
   const ratio = devicePixelRatio || 1; canvas.width = Math.round(width*ratio); canvas.height = Math.round(height*ratio);
   const traceColors = Array.from({length:6}, (_, index) => themeColor(`--trace-${index + 1}`));
   const context = canvas.getContext('2d'); context.scale(ratio,ratio); context.clearRect(0,0,width,height);
-  const waveform = state.waveform; if (!waveform?.points?.length || waveform.points.length < 2) return;
+  const waveform = state.waveform; if (!waveform?.points?.length || waveform.points.length < 2) { $('#waveform-summary').textContent = t('No waveform loaded'); return; }
   const points = waveform.points.filter(point => Number.isFinite(point[0])); if (points.length < 2) return;
-  const margin = {left:58,right:23,top:27,bottom:40}, plotW=width-margin.left-margin.right,plotH=height-margin.top-margin.bottom;
+  const margin = waveformMargin, plotW=width-margin.left-margin.right,plotH=height-margin.top-margin.bottom;
   const fullMin=points[0][0],fullMax=points[points.length-1][0], range=fullMax-fullMin || 1;
   const minX=fullMin+range*state.zoom[0],maxX=fullMin+range*state.zoom[1], visible=points.filter(point => point[0]>=minX && point[0]<=maxX);
   let minY=Infinity,maxY=-Infinity;
@@ -871,17 +953,25 @@ function drawWaveform() {
   if (!Number.isFinite(minY)) { minY=-1; maxY=1; }
   const pad=(maxY-minY)*0.1 || Math.abs(maxY)*0.1 || 1; minY-=pad; maxY+=pad;
   const x = value => margin.left+(value-minX)/(maxX-minX)*plotW, y = value => margin.top+(maxY-value)/(maxY-minY)*plotH;
-  context.font='9px ui-monospace, monospace'; context.lineWidth=1;
-  for (let index=0;index<=5;index++) { const gx=margin.left+plotW*index/5,gy=margin.top+plotH*index/5; context.strokeStyle=themeColor('--chart-grid'); context.beginPath(); context.moveTo(gx,margin.top); context.lineTo(gx,margin.top+plotH); context.stroke(); context.beginPath(); context.moveTo(margin.left,gy); context.lineTo(margin.left+plotW,gy); context.stroke(); context.fillStyle=themeColor('--chart-text'); context.textAlign='center'; context.fillText(axisNumber(minX+(maxX-minX)*index/5),gx,height-21); context.textAlign='right'; context.fillText(axisNumber(maxY-(maxY-minY)*index/5),margin.left-9,gy+3); }
+  $('#waveform-summary').textContent = t('{count} visible samples · {start} to {end} {unit} · {traces}', {count:number(visible.length),start:axisNumber(minX),end:axisNumber(maxX),unit:waveform.variables?.[0]?.unit || waveform.variables?.[0]?.name || '',traces:[...state.traces].map(index => waveform.variables?.[index]?.name).join(', ') || t('No traces selected')});
+  $('[data-action="pan-left-waveform"]').disabled = state.zoom[0] <= 0;
+  $('[data-action="pan-right-waveform"]').disabled = state.zoom[1] >= 1;
+  $('[data-action="zoom-out-waveform"]').disabled = state.zoom[1]-state.zoom[0] >= 1;
+  $('[data-action="zoom-in-waveform"]').disabled = state.zoom[1]-state.zoom[0] <= 0.001;
+  context.font='11px ui-monospace, monospace'; context.lineWidth=1;
+  const ticks = plotW < 360 ? 3 : 5;
+  for (let index=0;index<=ticks;index++) { const gx=margin.left+plotW*index/ticks,gy=margin.top+plotH*index/ticks; context.strokeStyle=themeColor('--chart-grid'); context.beginPath(); context.moveTo(gx,margin.top); context.lineTo(gx,margin.top+plotH); context.stroke(); context.beginPath(); context.moveTo(margin.left,gy); context.lineTo(margin.left+plotW,gy); context.stroke(); context.fillStyle=themeColor('--chart-text'); context.textAlign='center'; context.fillText(axisNumber(minX+(maxX-minX)*index/ticks),gx,height-21); context.textAlign='right'; context.fillText(axisNumber(maxY-(maxY-minY)*index/ticks),margin.left-9,gy+3); }
   context.fillStyle=themeColor('--chart-axis'); context.textAlign='left'; context.fillText(waveform.variables?.[0]?.unit || waveform.variables?.[0]?.name || 'x',width-margin.right-13,height-7);
   const units=[...new Set([...state.traces].map(index => waveform.variables?.[index]?.unit).filter(Boolean))]; context.fillText(units.join(' / ') || t('signal'),margin.left,15);
   context.save(); context.beginPath(); context.rect(margin.left,margin.top,plotW,plotH); context.clip();
   const stride=Math.max(1,Math.floor(points.length/(plotW*4)));
-  for (const index of state.traces) { context.strokeStyle=traceColors[(index-1)%traceColors.length]; context.lineWidth=1.7; context.beginPath(); let started=false; for (let n=0;n<points.length;n+=stride) { const point=points[n]; if (!Number.isFinite(point[index])) { started=false; continue; } if (!started) { context.moveTo(x(point[0]),y(point[index])); started=true; } else context.lineTo(x(point[0]),y(point[index])); } context.stroke(); }
-  if (state.cursor && state.cursor.x>=margin.left && state.cursor.x<=width-margin.right) {
-    const target=minX+(state.cursor.x-margin.left)/plotW*(maxX-minX);
+  for (const index of state.traces) { context.strokeStyle=traceColors[(index-1)%traceColors.length]; context.setLineDash(traceDashes[(index-1)%traceDashes.length]); context.lineWidth=1.7; context.beginPath(); let started=false; for (let n=0;n<points.length;n+=stride) { const point=points[n]; if (!Number.isFinite(point[index])) { started=false; continue; } if (!started) { context.moveTo(x(point[0]),y(point[index])); started=true; } else context.lineTo(x(point[0]),y(point[index])); } context.stroke(); }
+  context.setLineDash([]);
+  const cursorX = state.cursor?.index !== undefined && points[state.cursor.index] ? x(points[state.cursor.index][0]) : state.cursor?.x;
+  if (Number.isFinite(cursorX) && cursorX>=margin.left && cursorX<=width-margin.right) {
+    const target=minX+(cursorX-margin.left)/plotW*(maxX-minX);
     let low=0,high=points.length-1; while (low<high) { const middle=Math.floor((low+high)/2); if (points[middle][0]<target) low=middle+1; else high=middle; }
-    const point=points[low],cx=x(point[0]); context.strokeStyle=themeColor('--chart-crosshair'); context.setLineDash([3,4]); context.beginPath(); context.moveTo(cx,margin.top); context.lineTo(cx,margin.top+plotH); context.stroke(); context.setLineDash([]);
+    const point=points[state.cursor?.index ?? low],cx=x(point[0]); context.strokeStyle=themeColor('--chart-crosshair'); context.setLineDash([3,4]); context.beginPath(); context.moveTo(cx,margin.top); context.lineTo(cx,margin.top+plotH); context.stroke(); context.setLineDash([]);
     for (const index of state.traces) { if (!Number.isFinite(point[index])) continue; context.fillStyle=traceColors[(index-1)%traceColors.length]; context.beginPath(); context.arc(cx,y(point[index]),3,0,Math.PI*2); context.fill(); }
     $('#waveform-cursor').textContent=`${axisNumber(point[0])}${waveform.variables?.[0]?.unit || ''} · ${[...state.traces].map(index => `${waveform.variables?.[index]?.name}: ${axisNumber(point[index])}${waveform.variables?.[index]?.unit || ''}`).join(' · ')}`;
   } else if ($('#waveform-cursor')) $('#waveform-cursor').textContent = t('{count} visible samples', {count:number(visible.length)});

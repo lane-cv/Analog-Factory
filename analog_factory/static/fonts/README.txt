@@ -20,3 +20,13 @@ source.json records exact download URLs, included characters, size and SHA-256.
 To refresh after adding Chinese interface text, run from the repository root:
     python3 scripts/update_ui_font.py
 This optional maintenance command needs network access. Runtime use does not.
+
+cjk-ui-supplement.woff2 supplies UI characters added after the primary subset.
+It is generated offline from Sarasa Mono SC, with the original copyright and
+license retained in CJK-supplement-OFL.txt. cjk-supplement-source.json records
+the source font hash, derivative hash, and covered characters. It is loaded
+only when the primary subset does not contain a required UI character.
+
+Offline maintenance (optional FontTools and Brotli build dependencies):
+    python3 scripts/update_ui_font.py --local-font /path/to/SarasaMonoSC-Regular.woff2 --local-license /path/to/SarasaMono-LICENSE.txt
+This mode sends no interface text or files to a network service.

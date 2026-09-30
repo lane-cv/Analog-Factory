@@ -11,7 +11,8 @@ adapters and run records. Only actual executions produce results; unavailable in
 are explicitly unavailable. Ubuntu 24.04 LTS is the initial deployment target; validation
 on the development host (Ubuntu 26.04 LTS) is recorded separately.
 
-Use a Python 3.12+ modular monolith, standard-library HTTP server bound to loopback,
+Use a Python 3.12+ modular monolith, standard-library HTTP server bound to loopback by default
+(with an explicit `--host` option for a trusted LAN IPv4 address),
 plain JavaScript/CSS workspace, and independent subprocess groups for EDA tasks.
 This has no mandatory package installation and fits later Python training adapters.
 Compared with Qt it avoids a core desktop runtime dependency; compared with Electron

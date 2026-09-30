@@ -1,4 +1,5 @@
-"""Single-user loopback transport. Never expose this server on a public interface."""
+"""Single-user HTTP transport: loopback by default, explicit trusted LAN opt-in."""
+import ipaddress
 import json
 import mimetypes
 import os
@@ -15,7 +16,10 @@ STATIC = Path(__file__).parent / 'static'
 BODY_LIMIT = 4 * 1024 * 1024
 
 
-def create_server(workspace, port=8765, desktop_url=None):
+def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
+    address = ipaddress.IPv4Address(host)
+    if address.is_unspecified or address.is_multicast or host == '255.255.255.255':
+        raise ValueError('Choose a concrete local IPv4 address, not a wildcard or broadcast address')
     desktop_url = os.environ.get('AF_DESKTOP_URL', '') if desktop_url is None else desktop_url
     desktop = DesktopProxy(desktop_url) if desktop_url else None
 
@@ -56,7 +60,8 @@ def create_server(workspace, port=8765, desktop_url=None):
                     self.wfile.write(chunk)
 
         def _guard(self):
-            hosts = {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}
+            hosts = {f'{name}:{self.server.server_port}'
+                     for name in ('127.0.0.1', 'localhost', self.server.server_address[0])}
             if self.headers.get('Host') not in hosts:
                 raise PermissionError('Only this local workspace origin is allowed')
             origin = self.headers.get('Origin')
@@ -217,4 +222,4 @@ def create_server(workspace, port=8765, desktop_url=None):
                 desktop.close()
             super().server_close()
 
-    return WorkspaceServer(('127.0.0.1', port), Handler)
+    return WorkspaceServer((str(address), port), Handler)

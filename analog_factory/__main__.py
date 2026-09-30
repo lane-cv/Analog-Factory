@@ -14,6 +14,8 @@ def main(argv=None):
     parser.add_argument('--workspace', type=Path, default=Path.cwd() / '.workspace', help='Data directory (default: ./.workspace)')
     sub = parser.add_subparsers(dest='command', required=True)
     serve = sub.add_parser('serve', help='Launch local browser workspace')
+    serve.add_argument('--host', default='127.0.0.1',
+                       help='Local IPv4 address to bind (default: 127.0.0.1); LAN access is unauthenticated')
     serve.add_argument('--port', type=int, default=8765)
     serve.add_argument('--open', action='store_true', help='Open the browser')
     sub.add_parser('doctor', help='Report tools, PDK, desktop and integration readiness')
@@ -43,8 +45,8 @@ def main(argv=None):
     try:
         if args.command == 'serve':
             from .server import create_server
-            server = create_server(workspace, args.port)
-            url = f'http://127.0.0.1:{server.server_port}'
+            server = create_server(workspace, args.port, host=args.host)
+            url = f'http://{server.server_address[0]}:{server.server_port}'
             print(f'Analog-factory: {url}\nWorkspace: {workspace.root}', flush=True)
             if args.open:
                 webbrowser.open(url)

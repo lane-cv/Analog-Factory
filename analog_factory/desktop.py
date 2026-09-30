@@ -73,11 +73,12 @@ class DesktopProxy:
             handler.send_header('Cache-Control', 'no-store')
             handler.send_header('X-Content-Type-Options', 'nosniff')
             handler.send_header('Referrer-Policy', 'no-referrer')
-            port = handler.server.server_port
+            # The workspace Host guard has already validated this authority.
+            authority = handler.headers['Host']
             handler.send_header('Content-Security-Policy',
                 "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data: blob:; "
-                f"connect-src 'self' ws://127.0.0.1:{port} ws://localhost:{port}; "
+                f"connect-src 'self' ws://{authority}; "
                 "frame-ancestors 'self'; base-uri 'none'; form-action 'self'")
             handler.end_headers()
             handler.wfile.write(body)

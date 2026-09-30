@@ -35,8 +35,22 @@ python3 -m analog_factory --workspace /path/to/data serve --port 8765
 
 Keep one workspace server per data directory. Stop with Ctrl+C after cancelling
 active jobs. EDA programs run as the current user; run trusted design inputs only.
-The local API rejects foreign browser origins and is bound to loopback. It is not
-a remotely hosted or multi-user service.
+The API rejects foreign browser origins and binds to loopback by default.
+
+To access the workspace from another computer on your trusted LAN, explicitly bind
+to the server's LAN IPv4 address (replace this example with your server's address):
+
+```bash
+python3 -m analog_factory serve --host 192.168.1.14 --port 8765
+# With the existing graphical EDA desktop:
+./scripts/serve_with_desktop.sh --host 192.168.1.14 --port 8765
+```
+
+Open **http://192.168.1.14:8765** from the other computer. Choose one launch command
+and stop the previous workspace server first. Use a concrete address; `0.0.0.0`
+and IPv6 listeners are not supported. LAN access has no login: anyone able to reach
+the port can edit projects, run tools and access the configured desktop. Use it only
+on a trusted network; this is not a public or multi-user service.
 
 ## Reproduce a real result
 

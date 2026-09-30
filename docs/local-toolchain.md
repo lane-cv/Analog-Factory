@@ -146,11 +146,11 @@ server restart.
 
 ## Remote editor desktop
 
-This host's existing `iic-osic-tools_xvnc_uid_1000` container provides an authenticated
-desktop at **port 8081**. The workspace's **Drawing desktop / 图形桌面** tab now
+This host's existing `iic-osic-tools_xvnc_uid_1000` container provides a password-free
+browser desktop at **port 8081**, as requested by the workspace owner. The workspace's **Drawing desktop / 图形桌面** tab now
 displays it inside the original page. Clicking the schematic or layout action
 opens that tab automatically; an already-running editor for the same file is
-reused. Enter your existing desktop password when noVNC requests it.
+reused. noVNC connects directly without requesting a desktop password.
 
 The workspace proxies the desktop page and WebSocket through its existing port
 8765. SSH access therefore needs only the workspace's existing tunnel. The desktop
@@ -159,7 +159,12 @@ Use **Reconnect desktop** to reconnect explicitly. Native editor saves still wri
 to the original project files.
 
 You may alternatively open the same server address with port 8081 to view the full
-desktop separately. The standalone desktop keeps its existing password.
+desktop separately. Both browser entry points use the same password-free desktop.
+The container's startup command persists `-localhost yes -SecurityTypes None`:
+raw VNC listens only on container loopback, and noVNC proxies that connection.
+X11 authorization still uses its private cookie. After changing this mode, the
+desktop was restarted, its X11 connection refreshed, and the unchanged Magic
+layout reopened. Fresh browser sessions verified both entry points without a password.
 
 For that optional standalone page over SSH, forward the desktop port from your client computer:
 

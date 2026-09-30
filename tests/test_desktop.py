@@ -67,8 +67,8 @@ class DesktopTests(unittest.TestCase):
         self.upstream_url = f'http://127.0.0.1:{self.upstream.server_port}/'
         self.server = self.start_workspace(self.upstream_url)
 
-    def start_workspace(self, desktop_url):
-        server = create_server(WorkspaceStub(), port=0, desktop_url=desktop_url)
+    def start_workspace(self, desktop_url, **kwargs):
+        server = create_server(WorkspaceStub(), port=0, desktop_url=desktop_url, **kwargs)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
@@ -99,6 +99,20 @@ class DesktopTests(unittest.TestCase):
         server = self.start_workspace('')
         self.assertNotIn('browser_url', json.loads(self.request('/api/status', server=server)[2])['toolchain']['desktop'])
         self.assertEqual(self.request('/desktop/vnc.html', server=server)[0], 404)
+
+    def test_explicit_address_allows_its_desktop_websocket_in_csp_and_handshake(self):
+        server = self.start_workspace(self.upstream_url, host='127.0.0.2')
+        connection = http.client.HTTPConnection('127.0.0.2', server.server_port, timeout=3)
+        self.addCleanup(connection.close)
+        connection.request('GET', '/desktop/vnc.html')
+        response = connection.getresponse()
+        self.assertEqual(response.status, 200)
+        self.assertIn(f"ws://127.0.0.2:{server.server_port}", response.getheader('Content-Security-Policy'))
+        response.read()
+        websocket = self.websocket(server)
+        self.assertEqual(websocket.recv(14), b'\x82\x0cRFB 003.008\n')
+        websocket.close()
+        self.assertTrue(self.disconnected.wait(2))
 
     def test_environment_configuration_and_explicit_disable(self):
         with patch.dict(os.environ, {'AF_DESKTOP_URL': self.upstream_url}):
@@ -139,11 +153,13 @@ class DesktopTests(unittest.TestCase):
             server = self.start_workspace(f'http://127.0.0.1:{reserved.getsockname()[1]}/')
             self.assertEqual(self.request('/desktop/vnc.html', server=server)[0], 502)
 
-    def websocket(self):
-        connection = socket.create_connection(('127.0.0.1', self.server.server_port), timeout=3)
+    def websocket(self, server=None):
+        server = server or self.server
+        authority = f'{server.server_address[0]}:{server.server_port}'
+        connection = socket.create_connection(server.server_address, timeout=3)
         self.addCleanup(connection.close)
-        request = (f'GET /desktop/websockify HTTP/1.1\r\nHost: 127.0.0.1:{self.server.server_port}\r\n'
-                   f'Origin: http://127.0.0.1:{self.server.server_port}\r\nUpgrade: websocket\r\n'
+        request = (f'GET /desktop/websockify HTTP/1.1\r\nHost: {authority}\r\n'
+                   f'Origin: http://{authority}\r\nUpgrade: websocket\r\n'
                    'Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n'
                    'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n')
         connection.sendall(request.encode())

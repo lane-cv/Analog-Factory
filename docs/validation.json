@@ -1,0 +1,648 @@
+{
+  "generated_at": "2026-09-30T11:13:15.975483+00:00",
+  "host": {
+    "system": "Linux-7.0.0-28-generic-x86_64-with-glibc2.43",
+    "python": "3.14.4"
+  },
+  "toolchain": {
+    "tools": {
+      "ngspice": {
+        "available": true,
+        "path": "/usr/local/bin/ngspice",
+        "version": "ngspice-46 : Circuit level simulation program",
+        "diagnostic": "Detected executable and version"
+      },
+      "xschem": {
+        "available": false,
+        "path": null,
+        "version": null,
+        "diagnostic": "xschem executable not found; configure tools.xschem or add it to PATH"
+      },
+      "magic": {
+        "available": false,
+        "path": null,
+        "version": null,
+        "diagnostic": "magic executable not found; configure tools.magic or add it to PATH"
+      },
+      "netgen": {
+        "available": false,
+        "path": null,
+        "version": null,
+        "diagnostic": "netgen executable not found; configure tools.netgen or add it to PATH"
+      },
+      "codex": {
+        "available": true,
+        "path": "/home/lien/.local/npm/bin/codex",
+        "version": "codex-cli 0.159.2",
+        "diagnostic": "Detected executable and version"
+      },
+      "claude": {
+        "available": true,
+        "path": "/home/lien/.local/npm/bin/claude",
+        "version": "2.1.280 (Claude Code)",
+        "diagnostic": "Detected executable and version"
+      }
+    },
+    "pdk": {
+      "available": false,
+      "root": null,
+      "variant": "sky130A",
+      "version": null,
+      "paths": {
+        "xschem": null,
+        "magic": null,
+        "netgen": null,
+        "models": null
+      },
+      "configuration_hashes": {},
+      "diagnostic": "Prepared SKY130 assets missing: xschem, magic, netgen, models"
+    },
+    "desktop": {
+      "available": false,
+      "display": null,
+      "wayland_display": null,
+      "diagnostic": "No X11 DISPLAY is configured; xschem and Magic GUI need X11 or XWayland"
+    }
+  },
+  "executable_sha256": {
+    "ngspice": "5fd4ed85c2f84f152b772749894fb6a4693ef9a2fb0630679832ab09dcbd7b66",
+    "codex": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70",
+    "claude": "1e08503dbdf3c2cb0d706d32f3408277388d1c76ef108673e8fe42c1b322925b"
+  },
+  "full_toolchain_compatibility_validated": false,
+  "project_id": "2043e510620c4b7e9ff8a05fef715671",
+  "project_path": "/home/lien/eda/designs/Analog-Factory/.validation/projects/2043e510620c4b7e9ff8a05fef715671",
+  "archive": "/home/lien/eda/designs/Analog-Factory/.validation/2043e510620c4b7e9ff8a05fef715671.zip",
+  "archive_sha256": "1bce9dd37d94af3e0dd5ff3a31f091ae2336b028b6787c2de66d22e8aea12453",
+  "baseline": {
+    "schema_version": 1,
+    "id": "ec8f6be14aea466c93472f3cbf0c480b",
+    "kind": "simulate",
+    "status": "succeeded",
+    "project": "/home/lien/eda/designs/Analog-Factory/.validation/projects/2043e510620c4b7e9ff8a05fef715671",
+    "parent_id": null,
+    "created_at": "2026-09-30T11:13:14.595165+00:00",
+    "started_at": "2026-09-30T11:13:14.596675+00:00",
+    "ended_at": "2026-09-30T11:13:14.647701+00:00",
+    "exit_code": 0,
+    "error": null,
+    "command": [
+      "/usr/local/bin/ngspice",
+      "-n",
+      "-b",
+      "-o",
+      "/home/lien/eda/designs/Analog-Factory/.validation/projects/2043e510620c4b7e9ff8a05fef715671/.af/runs/ec8f6be14aea466c93472f3cbf0c480b/output/ngspice.log",
+      "af_scripts/simulate.cir"
+    ],
+    "command_template": [
+      "/usr/local/bin/ngspice",
+      "-n",
+      "-b",
+      "-o",
+      "{output}/ngspice.log",
+      "af_scripts/simulate.cir"
+    ],
+    "timeout": 60.0,
+    "environment": {
+      "HOME": "/home/lien",
+      "LANG": "en_US.UTF-8",
+      "XDG_RUNTIME_DIR": "/run/user/1000",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/home/lien/.local/npm/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path:/home/lien/.local/bin:/home/lien/.codex/tmp/arg0/codex-arg0X9oqzu:/home/lien/.local/npm/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path:/home/lien/.local/bin:/home/lien/.local/npm/bin:/home/lien/.local/npm/bin:/home/lien/.vscode-server/cli/servers/Stable-4fe60c8b1cdac1c4c174f2fb180d0d758272d713/server/bin/remote-cli:/home/lien/.local/bin:/home/lien/.local/npm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+      "SPICE_ASCIIRAWFILE": "1"
+    },
+    "source_hashes": {
+      "project.json": "e42a4fa795ece72dbde66e0623f586189c9e44ffbfe04f1fc4e5939dc4c4c0cf",
+      "specifications.json": "43e08d033b0ef24fe936eb3abbfc6791f31028aaeccc3ac5ce5bf161f5bbbfaf",
+      "layout/README.txt": "1af800da9c0e72f7bc5cff10420bf8fd5b2a65144f80b0fc691c4770b8bb6fc5",
+      "netlists/amplifier.cir": "f0e85bec7d6f8c7adae6f95d6446b91dc2d59661724ca6c2a00cbe59cfafe8e6",
+      "reports/README.txt": "8e17fdcd19b453e5e9894b81387ce776e7e0f82abff8fbee48d98cebb5a61bb9",
+      "schematics/README.txt": "796dc1a34feb8d598ff7a3beac101f652a0862d0efee296d6e4cf1cb91f2a331",
+      "testbenches/pre.cir": "c3c0c3016d8f1df94964ca65c3a7ccbbb214cc95a5fb07e4c7032f5ba2e1c73f",
+      "workflows/bias-tuning.json": "abb217b3537f27d7f333cb6a0c227df752ecb3ebdb52860a26e553592f1c32f3"
+    },
+    "input_hashes": {
+      "project.json": "e42a4fa795ece72dbde66e0623f586189c9e44ffbfe04f1fc4e5939dc4c4c0cf",
+      "specifications.json": "43e08d033b0ef24fe936eb3abbfc6791f31028aaeccc3ac5ce5bf161f5bbbfaf",
+      "af_scripts/circuit.cir": "c3c0c3016d8f1df94964ca65c3a7ccbbb214cc95a5fb07e4c7032f5ba2e1c73f",
+      "af_scripts/simulate.cir": "ab4123388693ef26105c06acea16791336693efa5ae714e60fae29830e5bbbf1",
+      "layout/README.txt": "1af800da9c0e72f7bc5cff10420bf8fd5b2a65144f80b0fc691c4770b8bb6fc5",
+      "netlists/amplifier.cir": "f0e85bec7d6f8c7adae6f95d6446b91dc2d59661724ca6c2a00cbe59cfafe8e6",
+      "reports/README.txt": "8e17fdcd19b453e5e9894b81387ce776e7e0f82abff8fbee48d98cebb5a61bb9",
+      "schematics/README.txt": "796dc1a34feb8d598ff7a3beac101f652a0862d0efee296d6e4cf1cb91f2a331",
+      "testbenches/pre.cir": "c3c0c3016d8f1df94964ca65c3a7ccbbb214cc95a5fb07e4c7032f5ba2e1c73f",
+      "workflows/bias-tuning.json": "abb217b3537f27d7f333cb6a0c227df752ecb3ebdb52860a26e553592f1c32f3"
+    },
+    "artifact_hashes": {
+      "ngspice.log": "3f8a54afc1632ebcd4a295a38050e6e14b843c203b2f1bf7d865df6d8d5aabc7",
+      "process.log": "9fb4469e7c9eaec689d1c5ccd7d60b43844369eac4df9374069aa308a81f84fc",
+      "waveforms.raw": "3a462b9b5cb192e0e801301c95753912f338774f65a3c742b01e6de30e0929fd"
+    },
+    "artifacts": [
+      {
+        "path": "ngspice.log",
+        "sha256": "3f8a54afc1632ebcd4a295a38050e6e14b843c203b2f1bf7d865df6d8d5aabc7"
+      },
+      {
+        "path": "process.log",
+        "sha256": "9fb4469e7c9eaec689d1c5ccd7d60b43844369eac4df9374069aa308a81f84fc"
+      },
+      {
+        "path": "waveforms.raw",
+        "sha256": "3a462b9b5cb192e0e801301c95753912f338774f65a3c742b01e6de30e0929fd"
+      }
+    ],
+    "metrics": {
+      "vout_mean": 2.43467,
+      "vout_pp": 0.0680892,
+      "vin_pp": 0.0199999,
+      "supply_current": -0.000262222,
+      "gain": 3.40448,
+      "power": 0.000865334
+    },
+    "metric_provenance": {
+      "vout_mean": {
+        "source": "ngspice.log",
+        "definition": {
+          "path": "testbenches/pre.cir",
+          "line": 5,
+          "text": ".meas tran vout_mean AVG v(out) FROM=1m TO=5m"
+        },
+        "conditions": {},
+        "run_id": "ec8f6be14aea466c93472f3cbf0c480b"
+      },
+      "vout_pp": {
+        "source": "ngspice.log",
+        "definition": {
+          "path": "testbenches/pre.cir",
+          "line": 6,
+          "text": ".meas tran vout_pp PP v(out) FROM=1m TO=5m"
+        },
+        "conditions": {},
+        "run_id": "ec8f6be14aea466c93472f3cbf0c480b"
+      },
+      "vin_pp": {
+        "source": "ngspice.log",
+        "definition": {
+          "path": "testbenches/pre.cir",
+          "line": 7,
+          "text": ".meas tran vin_pp PP v(in) FROM=1m TO=5m"
+        },
+        "conditions": {},
+        "run_id": "ec8f6be14aea466c93472f3cbf0c480b"
+      },
+      "supply_current": {
+        "source": "ngspice.log",
+        "definition": {
+          "path": "testbenches/pre.cir",
+          "line": 8,
+          "text": ".meas tran supply_current AVG i(VDD) FROM=1m TO=5m"
+        },
+        "conditions": {},
+        "run_id": "ec8f6be14aea466c93472f3cbf0c480b"
+      },
+      "gain": {
+        "source": "ngspice.log",
+        "definition": {
+          "path": "testbenches/pre.cir",
+          "line": 9,
+          "text": ".meas tran gain PARAM='vout_pp/vin_pp'"
+        },
+        "conditions": {},
+        "run_id": "ec8f6be14aea466c93472f3cbf0c480b"
+      },
+      "power": {
+        "source": "ngspice.log",
+        "definition": {
+          "path": "testbenches/pre.cir",
+          "line": 10,
+          "text": ".meas tran power PARAM='-3.3*supply_current'"
+        },
+        "conditions": {},
+        "run_id": "ec8f6be14aea466c93472f3cbf0c480b"
+      }
+    },
+    "verification": {
+      "status": "unknown",
+      "reason": "No recognized verification report",
+      "reports": []
+    },
+    "metadata": {
+      "tool_versions": {
+        "ngspice": "ngspice-46 : Circuit level simulation program"
+      },
+      "pdk": {
+        "available": false,
+        "root": null,
+        "variant": "sky130A",
+        "version": null,
+        "paths": {
+          "xschem": null,
+          "magic": null,
+          "netgen": null,
+          "models": null
+        },
+        "configuration_hashes": {},
+        "diagnostic": "Prepared SKY130 assets missing: xschem, magic, netgen, models"
+      },
+      "options": {},
+      "sources": {
+        "netlist": "testbenches/pre.cir"
+      },
+      "conditions": {},
+      "generated_files": {
+        "af_scripts/simulate.cir": "* Analog-factory simulation control driver\n.control\nset filetype=ascii\nsource af_scripts/circuit.cir\nrun\nwrite ../output/waveforms.raw all\nquit\n.endc\n.end\n"
+      },
+      "input_aliases": {
+        "af_scripts/circuit.cir": "testbenches/pre.cir"
+      }
+    },
+    "tool_versions": {
+      "ngspice": "ngspice-46 : Circuit level simulation program"
+    },
+    "pdk": {
+      "available": false,
+      "root": null,
+      "variant": "sky130A",
+      "version": null,
+      "paths": {
+        "xschem": null,
+        "magic": null,
+        "netgen": null,
+        "models": null
+      },
+      "configuration_hashes": {},
+      "diagnostic": "Prepared SKY130 assets missing: xschem, magic, netgen, models"
+    },
+    "owner_pid": 105,
+    "pid": 136,
+    "owner_identity": "bc4ffde9-7c59-45be-a235-193e3c4b617a:529496051",
+    "process_identity": "bc4ffde9-7c59-45be-a235-193e3c4b617a:529496068",
+    "external_dependencies": {},
+    "provenance": {
+      "complete": true,
+      "coverage": "Static SPICE .include/.inc/.lib dependency closure",
+      "limitations": []
+    },
+    "stale": false
+  },
+  "tuning": {
+    "workflow": {
+      "schema_version": 1,
+      "name": "Amplifier bias tuning",
+      "nodes": [
+        {
+          "id": "n0",
+          "type": "specification",
+          "position": {
+            "x": 40,
+            "y": 40
+          },
+          "config": {}
+        },
+        {
+          "id": "n1",
+          "type": "parameter",
+          "position": {
+            "x": 270,
+            "y": 40
+          },
+          "config": {}
+        },
+        {
+          "id": "n2",
+          "type": "simulate",
+          "position": {
+            "x": 500,
+            "y": 40
+          },
+          "config": {}
+        },
+        {
+          "id": "n3",
+          "type": "measure",
+          "position": {
+            "x": 40,
+            "y": 210
+          },
+          "config": {}
+        },
+        {
+          "id": "n4",
+          "type": "condition",
+          "position": {
+            "x": 270,
+            "y": 210
+          },
+          "config": {}
+        },
+        {
+          "id": "n5",
+          "type": "report",
+          "position": {
+            "x": 500,
+            "y": 210
+          },
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "target": "n1"
+        },
+        {
+          "source": "n1",
+          "target": "n2"
+        },
+        {
+          "source": "n2",
+          "target": "n3"
+        },
+        {
+          "source": "n3",
+          "target": "n4"
+        },
+        {
+          "source": "n4",
+          "target": "n5"
+        }
+      ],
+      "limits": {
+        "iterations": 8,
+        "runtime_seconds": 120.0
+      },
+      "tuning": {
+        "parameter": "RD",
+        "minimum": 1000.0,
+        "maximum": 10000.0,
+        "target": 1.5,
+        "tolerance": 0.05,
+        "metric": "vout_mean",
+        "netlist": "testbenches/pre.cir"
+      }
+    },
+    "id": "77c9439431ef496eb7fa8fd8d20b7b48",
+    "kind": "tuning",
+    "status": "succeeded",
+    "iterations": [
+      {
+        "iteration": 1,
+        "run_id": "d9f9180be9434f93a7d325b8791492dc",
+        "parameter": "RD",
+        "value": 1000.0,
+        "metric": 3.03477,
+        "metric_name": "vout_mean",
+        "score": {
+          "reward": -0.02317999999999998,
+          "satisfied": false,
+          "absolute_error": 1.53477,
+          "normalized_error": 1.02318,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded"
+      },
+      {
+        "iteration": 2,
+        "run_id": "d328b4859f504192991fc7fa092465b5",
+        "parameter": "RD",
+        "value": 10000.0,
+        "metric": 0.761513,
+        "metric_name": "vout_mean",
+        "score": {
+          "reward": 0.5076753333333333,
+          "satisfied": false,
+          "absolute_error": 0.738487,
+          "normalized_error": 0.4923246666666667,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded"
+      },
+      {
+        "iteration": 3,
+        "run_id": "a343a66c69444493910275b38ccef168",
+        "parameter": "RD",
+        "value": 5500.0,
+        "metric": 1.87323,
+        "metric_name": "vout_mean",
+        "score": {
+          "reward": 0.7511800000000001,
+          "satisfied": false,
+          "absolute_error": 0.37322999999999995,
+          "normalized_error": 0.24881999999999996,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded"
+      },
+      {
+        "iteration": 4,
+        "run_id": "397c47284d014260b2cb9b09f6e50623",
+        "parameter": "RD",
+        "value": 7750.0,
+        "metric": 1.31135,
+        "metric_name": "vout_mean",
+        "score": {
+          "reward": 0.8742333333333333,
+          "satisfied": false,
+          "absolute_error": 0.18864999999999998,
+          "normalized_error": 0.12576666666666667,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded"
+      },
+      {
+        "iteration": 5,
+        "run_id": "b58337449ad14ee4b859d28d6523d113",
+        "parameter": "RD",
+        "value": 6625.0,
+        "metric": 1.59076,
+        "metric_name": "vout_mean",
+        "score": {
+          "reward": 0.9394933333333334,
+          "satisfied": false,
+          "absolute_error": 0.09075999999999995,
+          "normalized_error": 0.06050666666666663,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded"
+      },
+      {
+        "iteration": 6,
+        "run_id": "534df2e1735b4811880d506c6d6cae31",
+        "parameter": "RD",
+        "value": 7187.5,
+        "metric": 1.45067,
+        "metric_name": "vout_mean",
+        "score": {
+          "reward": 0.9671133333333333,
+          "satisfied": true,
+          "absolute_error": 0.049330000000000096,
+          "normalized_error": 0.03288666666666673,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded"
+      }
+    ],
+    "created_at": "2026-09-30T11:13:14.653718+00:00",
+    "ended_at": "2026-09-30T11:13:15.255238+00:00",
+    "owner_pid": 105,
+    "owner_identity": "bc4ffde9-7c59-45be-a235-193e3c4b617a:529496051",
+    "active_node": "report",
+    "active_iteration": 6,
+    "active_run": "534df2e1735b4811880d506c6d6cae31",
+    "best": {
+      "iteration": 6,
+      "run_id": "534df2e1735b4811880d506c6d6cae31",
+      "parameter": "RD",
+      "value": 7187.5,
+      "metric": 1.45067,
+      "metric_name": "vout_mean",
+      "score": {
+        "reward": 0.9671133333333333,
+        "satisfied": true,
+        "absolute_error": 0.049330000000000096,
+        "normalized_error": 0.03288666666666673,
+        "failure": null,
+        "hard_constraints_met": true
+      },
+      "status": "succeeded"
+    },
+    "satisfied": true,
+    "termination": "specification_satisfied",
+    "duration_seconds": 0.5928934654220939,
+    "classification": "circuit_parameter_optimization",
+    "model_weights_updated": false
+  },
+  "evaluation": {
+    "id": "be77abdc00144763a8f96b9408887d83",
+    "kind": "evaluation",
+    "status": "succeeded",
+    "iterations": [
+      {
+        "episode": 0,
+        "run_id": "8bce98487037401a860d9b01642e3fd2",
+        "parameter": "RD",
+        "value": 6754.841186120953,
+        "metric": 1.55835,
+        "score": {
+          "reward": 0.9611000000000001,
+          "satisfied": false,
+          "absolute_error": 0.0583499999999999,
+          "normalized_error": 0.038899999999999935,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded",
+        "run_path": ".af/episodes/be77abdc00144763a8f96b9408887d83/0/.af/runs/8bce98487037401a860d9b01642e3fd2",
+        "observation": {
+          "specification": {
+            "metric": "vout_mean",
+            "target": 1.5,
+            "tolerance": 0.05,
+            "units": "V",
+            "conditions": {
+              "temperature_c": 27,
+              "model": "educational level-1"
+            }
+          }
+        },
+        "action": {
+          "RD": 6754.841186120953
+        }
+      },
+      {
+        "episode": 1,
+        "run_id": "490cc04a077f4a94bda4415d54e5af0b",
+        "parameter": "RD",
+        "value": 1225.0967970040024,
+        "metric": 2.97544,
+        "score": {
+          "reward": 0.016373333333333462,
+          "satisfied": false,
+          "absolute_error": 1.4754399999999999,
+          "normalized_error": 0.9836266666666665,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded",
+        "run_path": ".af/episodes/be77abdc00144763a8f96b9408887d83/1/.af/runs/490cc04a077f4a94bda4415d54e5af0b",
+        "observation": {
+          "specification": {
+            "metric": "vout_mean",
+            "target": 1.5,
+            "tolerance": 0.05,
+            "units": "V",
+            "conditions": {
+              "temperature_c": 27,
+              "model": "educational level-1"
+            }
+          }
+        },
+        "action": {
+          "RD": 1225.0967970040024
+        }
+      },
+      {
+        "episode": 2,
+        "run_id": "424d90732e5043f5a9df39088133ddf1",
+        "parameter": "RD",
+        "value": 3475.2638653220733,
+        "metric": 2.38949,
+        "score": {
+          "reward": 0.40700666666666674,
+          "satisfied": false,
+          "absolute_error": 0.8894899999999999,
+          "normalized_error": 0.5929933333333333,
+          "failure": null,
+          "hard_constraints_met": true
+        },
+        "status": "succeeded",
+        "run_path": ".af/episodes/be77abdc00144763a8f96b9408887d83/2/.af/runs/424d90732e5043f5a9df39088133ddf1",
+        "observation": {
+          "specification": {
+            "metric": "vout_mean",
+            "target": 1.5,
+            "tolerance": 0.05,
+            "units": "V",
+            "conditions": {
+              "temperature_c": 27,
+              "model": "educational level-1"
+            }
+          }
+        },
+        "action": {
+          "RD": 3475.2638653220733
+        }
+      }
+    ],
+    "created_at": "2026-09-30T11:13:15.269427+00:00",
+    "ended_at": "2026-09-30T11:13:15.602109+00:00",
+    "owner_pid": 105,
+    "owner_identity": "bc4ffde9-7c59-45be-a235-193e3c4b617a:529496051",
+    "completed_episodes": 3,
+    "seed": 42,
+    "baseline": "uniform_random_search",
+    "classification": "circuit_parameter_evaluation",
+    "model_weights_updated": false,
+    "successes": 0,
+    "episodes": 3,
+    "success_rate": 0.0,
+    "mean_reward": 0.4614933333333335,
+    "compute_seconds": 0.3280116328969598,
+    "evaluator_sha256": "c7accd0e36ac782558468f0fb46a0733e0b2fd2732b9f945d164cc024cb1d32a",
+    "training_status": "unavailable: no trainable model/framework configured",
+    "coverage": "single educational circuit, nominal conditions; no PVT robustness or held-out model training comparison"
+  },
+  "limitations": [
+    "No SKY130/toolchain GUI validation",
+    "No real model-provider inference",
+    "No DRC/LVS/extraction/post-layout evidence",
+    "No model-weight training"
+  ]
+}

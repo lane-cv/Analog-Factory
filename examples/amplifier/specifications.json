@@ -1,0 +1,10 @@
+{
+  "metric": "vout_mean",
+  "target": 1.5,
+  "tolerance": 0.05,
+  "units": "V",
+  "conditions": {
+    "temperature_c": 27,
+    "model": "educational level-1"
+  }
+}

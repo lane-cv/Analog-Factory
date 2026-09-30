@@ -1,0 +1,6 @@
+* SKY130 common-source amplifier; requires a prepared sky130A PDK
+* Set model library path in testbenches/pre.cir before simulation.
+VDD vdd 0 1.8
+VIN in 0 DC 0.8 AC 1
+RLOAD vdd out {RD}
+X1 out in 0 0 sky130_fd_pr__nfet_01v8 w=2 l=0.5

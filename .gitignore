@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+.workspace/
+*.egg-info/
+dist/
+build/
+.validation/
+node_modules/
+.tools/

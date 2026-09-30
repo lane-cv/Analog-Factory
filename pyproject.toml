@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "analog-factory"
+version = "0.1.0"
+description = "Local-first analog IC workspace with reproducible EDA runs"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+readme = "README.md"
+dependencies = []
+
+[project.scripts]
+analog-factory = "analog_factory.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["analog_factory*"]
+
+[tool.setuptools.package-data]
+analog_factory = ["static/*.html", "static/*.js", "static/*.css", "static/fonts/*"]

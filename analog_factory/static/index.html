@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101315">
+  <title data-i18n="Analog-factory · Local design workspace">Analog-factory · Local design workspace</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231c2425'/%3E%3Cpath d='M5 23L12 9l7 14 7-14' fill='none' stroke='%23e7ad68' stroke-width='3'/%3E%3C/svg%3E">
+  <script src="/preferences.js"></script>
+  <script src="/i18n.js" defer></script>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body inert aria-busy="true">
+  <header class="topbar">
+    <button id="toggle-tree" class="icon-button mobile-toggle" aria-label="Toggle project tree" data-i18n-aria-label="Toggle project tree">☰</button>
+    <a href="#overview" class="brand" aria-label="Analog-factory home" data-i18n-aria-label="Analog-factory home"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 23 11 7l10 18 8-16"/></svg><span>analog<span class="brand-light">factory</span><small><span data-i18n="LOCAL DESIGN WORKSPACE">LOCAL DESIGN WORKSPACE</span></small></span></a>
+    <span class="top-divider"></span>
+    <label class="project-switch"><span class="sr-only"><span data-i18n="Current project">Current project</span></span><select id="project-select"><option value="" data-i18n="Choose a project">Choose a project</option></select></label>
+    <button id="new-project" class="quiet-button" title="Create a project" data-i18n-title="Create a project">＋ <span><span data-i18n="New project">New project</span></span></button>
+    <div class="top-spacer"></div>
+    <span id="connection-status" class="connection"><i></i> <span data-i18n="Connecting">Connecting</span></span>
+    <button id="run-primary" class="primary-button" disabled><span data-i18n="▶ Run simulation">▶ Run simulation</span></button>
+    <button id="toggle-ai" class="icon-button" aria-label="Toggle assistant" title="Toggle assistant" data-i18n-aria-label="Toggle assistant" data-i18n-title="Toggle assistant">✧</button>
+  </header>
+  <div class="workspace">
+    <aside class="project-sidebar" aria-label="Project explorer" data-i18n-aria-label="Project explorer">
+      <div class="panel-heading"><span><span data-i18n="EXPLORER">EXPLORER</span></span><button id="refresh-project" class="icon-button" aria-label="Refresh project" data-i18n-aria-label="Refresh project">↻</button></div>
+      <div id="project-summary" class="project-summary"><span class="project-icon">◈</span><div><strong><span data-i18n="No project selected">No project selected</span></strong><small><span data-i18n="Create a workspace to begin">Create a workspace to begin</span></small></div></div>
+      <div class="tree-label"><span><span data-i18n="PROJECT FILES">PROJECT FILES</span></span><small><span data-i18n="☑ AI context">☑ AI context</span></small></div>
+      <div id="file-tree" class="file-tree"><p class="empty-small"><span data-i18n="Your design files will appear here.">Your design files will appear here.</span></p></div>
+      <div class="sidebar-bottom"><div class="panel-heading"><span><span data-i18n="LOCAL TOOLCHAIN">LOCAL TOOLCHAIN</span></span><button class="text-button" data-tab="settings"><span data-i18n="Configure ↗">Configure ↗</span></button></div><div id="tool-summary"></div><p class="sidebar-note"><span data-i18n="Your files and EDA runs stay in your local workspace.">Your files and EDA runs stay in your local workspace.</span></p></div>
+    </aside>
+    <section class="central-workspace">
+      <nav class="tabs" aria-label="Workspace views" data-i18n-aria-label="Workspace views">
+        <button data-tab="overview" class="active">◈ <span><span data-i18n="Overview">Overview</span></span></button>
+        <button data-tab="editor">⌘ <span><span data-i18n="Editor">Editor</span></span></button>
+        <button data-tab="desktop">▣ <span><span data-i18n="Drawing desktop">Drawing desktop</span></span></button>
+        <button data-tab="simulation">∿ <span><span data-i18n="Simulation">Simulation</span></span></button>
+        <button data-tab="verification">◇ <span><span data-i18n="Verification">Verification</span></span></button>
+        <button data-tab="workflows">⌁ <span><span data-i18n="Workflows">Workflows</span></span></button>
+        <button data-tab="evaluation">▥ <span><span data-i18n="Evaluation">Evaluation</span></span></button>
+        <button data-tab="settings">⚙ <span><span data-i18n="Settings">Settings</span></span></button>
+      </nav>
+      <main id="main-content" tabindex="-1"><div class="empty-state"><span class="loading-spinner"></span><h1><span data-i18n="Opening your workspace">Opening your workspace</span></h1><p><span data-i18n="Checking local projects and EDA tools.">Checking local projects and EDA tools.</span></p></div></main>
+      <section id="desktop-panel" class="desktop-panel" aria-label="Drawing desktop" data-i18n-aria-label="Drawing desktop" hidden>
+        <div id="desktop-toolbar" class="desktop-toolbar"></div>
+        <p id="desktop-status" class="desktop-status" role="status"></p>
+        <div id="desktop-frame-container" class="desktop-frame-container"></div>
+      </section>
+      <section class="log-panel" aria-label="Run evidence and logs" data-i18n-aria-label="Run evidence and logs">
+        <div class="log-header"><button id="toggle-logs" class="text-button"><span data-i18n="⌄   EXECUTION LOG">⌄   EXECUTION LOG</span></button><span id="log-label" class="muted"><span data-i18n="No run selected">No run selected</span></span><div class="top-spacer"></div><button id="run-cancel" class="text-button" hidden><span data-i18n="Stop run">Stop run</span></button><button id="run-retry" class="text-button" hidden><span data-i18n="Retry ↗">Retry ↗</span></button><button id="copy-log" class="icon-button" title="Copy execution log" aria-label="Copy execution log" data-i18n-title="Copy execution log" data-i18n-aria-label="Copy execution log">⧉</button></div>
+        <pre id="execution-log" tabindex="0"><span data-i18n="Run a simulation or select an execution to inspect its actual tool output.">Run a simulation or select an execution to inspect its actual tool output.</span></pre>
+      </section>
+      <footer class="statusbar"><span id="footer-project"><span data-i18n="No project">No project</span></span><span id="footer-runs"><span data-i18n="0 executions">0 executions</span></span><span class="top-spacer"></span><span><span data-i18n="Local-first · Manual tools always independent of AI">Local-first · Manual tools always independent of AI</span></span></footer>
+    </section>
+    <aside class="ai-sidebar" aria-label="Design assistant" data-i18n-aria-label="Design assistant">
+      <div class="panel-heading"><span><span data-i18n="✧   DESIGN ASSISTANT">✧   DESIGN ASSISTANT</span></span><span class="mini-badge">API</span></div>
+      <div class="assistant-model"><span class="assistant-avatar">✧</span><div><strong id="assistant-model"><span data-i18n="No model configured">No model configured</span></strong><small id="assistant-backend"><span data-i18n="Configure a provider to connect">Configure a provider to connect</span></small></div><button class="icon-button" data-tab="settings" aria-label="Configure assistant" data-i18n-aria-label="Configure assistant">⚙</button></div>
+      <div class="assistance-mode"><span class="dot teal"></span> <span data-i18n="Read-only assistance">Read-only assistance</span> <span class="mini-badge"><span data-i18n="SAFE">SAFE</span></span></div>
+      <div class="context-section"><div class="tree-label"><span data-i18n="SELECTED CONTEXT">SELECTED CONTEXT</span> <span id="context-count"><span data-i18n="0 files">0 files</span></span></div><div id="context-files" class="context-files"><small><span data-i18n="No files selected. Use the explorer checkboxes.">No files selected. Use the explorer checkboxes.</span></small></div><small><span data-i18n="Only selected file contents and your message are sent to the configured provider.">Only selected file contents and your message are sent to the configured provider.</span></small></div>
+      <div id="chat-messages" class="chat-messages" aria-live="polite"><div class="assistant-welcome"><span class="welcome-symbol">✧</span><h3><span data-i18n="A second set of eyes.">A second set of eyes.</span></h3><p><span data-i18n="Explore your circuit, understand a tool failure, or discuss your next design step.">Explore your circuit, understand a tool failure, or discuss your next design step.</span></p><p class="muted"><span data-i18n="AI is optional. Every design and verification action works independently.">AI is optional. Every design and verification action works independently.</span></p></div></div>
+      <form id="chat-form" class="chat-composer"><label for="chat-input" class="sr-only"><span data-i18n="Message the assistant">Message the assistant</span></label><textarea id="chat-input" rows="3" placeholder="Ask about your design…" data-i18n-placeholder="Ask about your design…"></textarea><div><span><span data-i18n="Suggestions require your review">Suggestions require your review</span></span><button id="chat-send" class="primary-button" type="submit" aria-label="Send message" data-i18n-aria-label="Send message">↑</button></div></form>
+      <div class="assistant-footnote"><span data-i18n="Usage:">Usage:</span> <span id="assistant-usage"><span data-i18n="unknown">unknown</span></span> <span data-i18n="· No autonomous file changes">· No autonomous file changes</span></div>
+    </aside>
+  </div>
+  <div id="toast-container" class="toast-container" role="status" aria-live="polite"></div>
+  <dialog id="new-file-dialog"><form id="new-file-form"><div class="dialog-title"><h2><span data-i18n="Add a project file">Add a project file</span></h2><button type="button" class="icon-button" id="close-file-dialog" aria-label="Close file dialog" data-i18n-aria-label="Close file dialog">×</button></div><p class="muted"><span data-i18n="Create a text source or import an existing schematic, layout, netlist, or testbench.">Create a text source or import an existing schematic, layout, netlist, or testbench.</span></p><label><span data-i18n="Project-relative path">Project-relative path</span><input name="path" id="new-file-path" required placeholder="testbenches/post.cir" autocomplete="off"></label><label><span data-i18n="Import text file (optional)">Import text file (optional)</span><input id="new-file-import" type="file" accept=".cir,.spice,.sp,.sch,.sym,.mag,.txt,.json,.tcl,.md,.yaml,.yml"></label><label><span data-i18n="Initial file contents">Initial file contents</span><textarea name="content" id="new-file-content" class="directives" rows="7" spellcheck="false" placeholder="Add source text here or import a file above." data-i18n-placeholder="Add source text here or import a file above."></textarea></label><p class="footnote"><span data-i18n="Text files up to 2 MiB. Existing files are edited in the source editor.">Text files up to 2 MiB. Existing files are edited in the source editor.</span></p><div class="dialog-actions"><button class="primary-button" type="submit"><span data-i18n="Create file ↗">Create file ↗</span></button></div></form></dialog>
+  <dialog id="new-project-dialog"><form id="new-project-form"><div class="dialog-title"><h2><span data-i18n="Create a project">Create a project</span></h2><button type="button" id="close-project-dialog" class="icon-button" aria-label="Close dialog" data-i18n-aria-label="Close dialog">×</button></div><p class="muted"><span data-i18n="Start with an executable circuit or a prepared SKY130 workspace.">Start with an executable circuit or a prepared SKY130 workspace.</span></p><label><span data-i18n="Project name">Project name</span><input name="name" required maxlength="80" placeholder="My amplifier" autocomplete="off" data-i18n-placeholder="My amplifier"></label><label><span data-i18n="Template">Template</span><select name="template"><option value="amplifier" data-i18n="Educational amplifier · no PDK required">Educational amplifier · no PDK required</option><option value="sky130" data-i18n="SKY130 · prepared PDK required">SKY130 · prepared PDK required</option></select></label><p class="callout"><span data-i18n="The educational amplifier uses a level-1 MOS model. Its results validate the workflow; they do not represent a fabrication process.">The educational amplifier uses a level-1 MOS model. Its results validate the workflow; they do not represent a fabrication process.</span></p><div class="dialog-actions"><button class="primary-button" type="submit"><span data-i18n="Create project ↗">Create project ↗</span></button></div></form></dialog>
+</body>
+</html>

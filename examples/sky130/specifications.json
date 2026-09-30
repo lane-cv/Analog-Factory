@@ -1,0 +1,10 @@
+{
+  "metric": "vout_mean",
+  "target": 0.9,
+  "tolerance": 0.05,
+  "units": "V",
+  "conditions": {
+    "temperature_c": 27,
+    "model": "sky130_fd_pr"
+  }
+}

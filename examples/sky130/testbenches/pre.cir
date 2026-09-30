@@ -1,0 +1,8 @@
+Analog-factory SKY130 amplifier - requires prepared PDK
+* Replace this explicit path with your installed model library.
+.lib "/REPLACE_WITH_PDK_ROOT/sky130A/libs.tech/ngspice/sky130.lib.spice" tt
+.param RD=10000
+.include "netlists/amplifier.cir"
+.tran 2u 5m
+.meas tran vout_mean AVG v(out) FROM=1m TO=5m
+.end

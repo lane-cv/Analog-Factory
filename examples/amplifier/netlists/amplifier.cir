@@ -1,0 +1,6 @@
+* Educational common-source amplifier; not a foundry device model
+.model AFNMOS NMOS (LEVEL=1 VTO=0.7 KP=200u LAMBDA=0.02)
+VDD vdd 0 3.3
+VIN in 0 DC 1.2 SIN(1.2 0.01 1k) AC 1
+RLOAD vdd out {RD}
+M1 out in 0 0 AFNMOS W=10u L=1u

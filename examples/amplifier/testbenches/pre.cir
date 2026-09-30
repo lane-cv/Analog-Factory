@@ -1,0 +1,11 @@
+Analog-factory educational amplifier - real ngspice transient
+.param RD=3300
+.include "netlists/amplifier.cir"
+.tran 2u 5m
+.meas tran vout_mean AVG v(out) FROM=1m TO=5m
+.meas tran vout_pp PP v(out) FROM=1m TO=5m
+.meas tran vin_pp PP v(in) FROM=1m TO=5m
+.meas tran supply_current AVG i(VDD) FROM=1m TO=5m
+.meas tran gain PARAM='vout_pp/vin_pp'
+.meas tran power PARAM='-3.3*supply_current'
+.end

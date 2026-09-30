@@ -14,7 +14,7 @@ const state = {
   waveform: null, traces: new Set(), zoom: [0, 1], cursor: null, workflow: null, workflowSelection: null,
   job: null, evaluation: null, jobs: [], chatting: false, chat: [], connected: false, polling: false,
   compare: ['', ''], assistantUsage: null, history: null, fileRequest: 0, runRequest: 0, loadingProject: false,
-  providerTest: null, providerModels: []
+  providerTest: null, providerModels: [], projectRequest: 0
 };
 const traceColors = Array.from({length:6}, (_, index) => `var(--trace-${index + 1})`);
 const themeColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -28,6 +28,7 @@ const pretty = value => JSON.stringify(value, null, 2);
 const number = value => typeof value === 'number' && Number.isFinite(value) ? (Math.abs(value) >= 100000 || (value !== 0 && Math.abs(value) < 0.001) ? value.toExponential(3) : Number(value.toPrecision(6)).toLocaleString(window.AFI18n.language(), {maximumFractionDigits:6})) : String(value ?? '—');
 const runTime = run => run.started_at || run.created_at || run.created;
 const runName = run => `${t(run.kind || 'run')} · ${shortId(run.id)} · ${t(run.status || 'unknown')}`;
+const agentUI = window.AFAgents.create({state, api, esc, t, html, formatDate, number, onSettled:refreshAgentProject});
 const tool = name => state.status?.toolchain?.tools?.[name] || {available:false, diagnostic:t('Tool detection has not completed.')};
 const pdk = () => state.status?.toolchain?.pdk || {available:false, diagnostic:t('No prepared PDK detected.')};
 function badge(status, label) {
@@ -85,6 +86,7 @@ async function initialize() {
   if (responses[0].status === 'fulfilled') { state.status = responses[0].value; state.connected = true; }
   if (responses[1].status === 'fulfilled') state.projects = asArray(responses[1].value, 'projects');
   if (responses[2].status === 'fulfilled') { state.settings = responses[2].value; preferences.apply(state.settings.ui); window.AFI18n.applyDOM(); }
+  await agentUI.refreshCapabilities();
   updateChrome();
   let projectId; try { projectId = localStorage.getItem('af-project'); } catch (_) { /* Optional browser cache. */ }
   const initial = state.projects.find(project => project.id === projectId) || state.projects[0];
@@ -105,13 +107,7 @@ function updateChrome() {
   $('#footer-runs').textContent = t('{count} executions', {count:number(state.runs.length)});
   $('#tool-summary').innerHTML = ['ngspice','xschem','magic','netgen'].map(name => html`<div class="tool-mini"><span class="dot ${tool(name).available ? 'teal' : ''}"></span><span>${name}</span><small>${tool(name).available ? t('available') : t('not detected')}</small></div>`).join('') + html`<div class="tool-mini"><span class="dot ${pdk().available ? 'teal' : ''}"></span><span>SKY130 PDK</span><small>${pdk().available ? esc(pdk().variant || t('available')) : t('not configured')}</small></div>`;
   const reason = reasonFor('simulate'); $('#run-primary').disabled = Boolean(reason); $('#run-primary').title = reason || t('Run testbenches/pre.cir with ngspice');
-  const provider = state.settings.provider || {};
-  $('#assistant-model').textContent = provider.model || t('No model configured');
-  $('#assistant-backend').textContent = provider.model ? `${provider.protocol || 'API'} · ${provider.base_url || t('endpoint unset')}` : t('Configure a provider to connect');
-  const usage = state.assistantUsage;
-  $('#assistant-usage').textContent = usage ? (usage.total_tokens != null ? t('{count} tokens', {count:number(usage.total_tokens)}) : JSON.stringify(usage)) : t('unknown');
-  $('#chat-send').disabled = !state.project || !provider.model || state.chatting;
-  $('#chat-send').title = !state.project ? t('Select a project first') : !provider.model ? t('Configure a model in Settings') : '';
+  agentUI.render();
   updateContext();
 }
 function renderTree() {
@@ -126,19 +122,26 @@ function updateContext() {
 }
 async function selectProject(id) {
   if (state.dirty) await saveFile();
-  if (!id) { state.project = null; state.files = []; state.runs = []; state.run = null; state.file = null; state.context.clear(); state.log = ''; state.chat = []; renderTree(); updateChrome(); renderChat(); updateLog(); render(); return; }
+  const request = ++state.projectRequest;
+  ++state.fileRequest; ++state.runRequest;
+  agentUI.selectProject(null);
+  if (!id) { state.loadingProject = false; state.project = null; state.files = []; state.runs = []; state.run = null; state.file = null; state.context.clear(); state.log = ''; state.chat = []; renderTree(); updateChrome(); renderChat(); updateLog(); render(); return; }
   state.loadingProject = true;
   try {
     const data = await api(`/api/projects/${encoded(id)}`);
+    if (request !== state.projectRequest) return;
     state.project = data.project; state.files = data.files || []; state.runs = data.runs || [];
     state.file = null; state.content = ''; state.savedContent = ''; state.dirty = false; state.context.clear(); state.run = null; state.waveform = null; state.job = null; state.evaluation = null; state.chat = []; state.log = ''; state.history = null;
+    agentUI.selectProject(id);
     state.workflow = defaultWorkflow(); state.workflowSelection = null;
-    state.jobs = asArray(await api(projectURL('/jobs')), 'jobs');
+    const jobs = asArray(await api(projectURL('/jobs')), 'jobs');
+    if (request !== state.projectRequest) return;
+    state.jobs = jobs;
     state.job = state.jobs.find(job => job.kind === 'tuning') || null;
     state.evaluation = state.jobs.find(job => job.kind === 'evaluation') || null;
     try { localStorage.setItem('af-project', id); } catch (_) { /* Optional browser cache. */ } renderTree(); updateChrome(); renderChat(); render(); updateLog();
     if (state.runs.length) await selectRun(state.runs[0].id, false);
-  } finally { state.loadingProject = false; }
+  } finally { if (request === state.projectRequest) state.loadingProject = false; }
 }
 function render() {
   const simulationForm = state.tab === 'simulation' && $('#simulation-form') ? Object.fromEntries(new FormData($('#simulation-form'))) : null;
@@ -421,12 +424,12 @@ function settingsView() {
   return heading(t('ENVIRONMENT & CONNECTIONS'),t('Know what is ready.'), t('Detect local dependencies and configure the tools and optional model endpoint used by this workspace.'), html('<button class="secondary-button" data-action="detect-tools">↻ Recheck tools</button>')) +
     preferencesHTML() +
     html`<div class="card"><div class="card-head"><h2>Detected toolchain</h2><small>Actual local probes</small></div><div class="tool-grid">${['ngspice','xschem','magic','netgen'].map(name => html`<div class="tool-card"><div><strong>${name}</strong>${badge(tool(name).available ? 'available' : 'unavailable', tool(name).available ? t('Detected') : t('Unavailable'))}</div><p>${esc(tool(name).path || t('Executable not found'))}<br>${esc(tool(name).version || tool(name).diagnostic || t('Version unknown'))}</p></div>`).join('')}</div><div class="callout ${pdk().available ? '' : 'warning'}"><strong>Prepared PDK · ${esc(pdk().variant || 'SKY130')}</strong><br>${esc(pdk().root || pdk().diagnostic || t('No PDK installation configured.'))}</div><details><summary class="detail-summary">Desktop session & capability diagnostics</summary><pre class="evidence-details">${esc(pretty({desktop:state.status?.toolchain?.desktop,capabilities:state.status?.capabilities,pdk:pdk()}))}</pre></details></div>` +
-    html`<form id="settings-form"><div class="card"><h2>Local tool paths & process kit</h2><p>Leave a tool path empty to search the local PATH. A raw PDK source checkout is not a prepared installation.</p><div class="form-grid">${['ngspice','xschem','magic','netgen'].map(name => html`<label>${name} executable<input name="tool-${name}" value="${esc(settings.tools?.[name] || '')}" placeholder="Discover on PATH"></label>`).join('')}<label>PDK root<input name="pdk_root" value="${esc(settings.pdk_root || '')}" placeholder="/opt/pdk"></label><label>PDK variant<input name="pdk_variant" value="${esc(settings.pdk_variant || 'sky130A')}"></label></div></div>${providerSettingsHTML()}<div class="form-actions"><button type="submit" class="primary-button">Save configuration</button><button type="button" class="secondary-button" data-action="test-provider">Save and test connection</button><button type="button" class="secondary-button" data-action="export-settings">↓ Export safe config</button><button type="button" class="secondary-button" data-action="import-settings">↑ Import config</button><input type="file" id="settings-file" accept=".json,application/json" hidden></div></form><p class="footnote">External agent CLI integration, project-specific provider overrides, and autonomous tool execution are not enabled by this settings form. Manual circuit tools remain fully independent of model configuration.</p>`;
+    html`<form id="settings-form"><div class="card"><h2>Local tool paths & process kit</h2><p>Leave a tool path empty to search the local PATH. A raw PDK source checkout is not a prepared installation.</p><div class="form-grid">${['ngspice','xschem','magic','netgen','codex','claude'].map(name => html`<label>${name} executable<input name="tool-${name}" value="${esc(settings.tools?.[name] || '')}" placeholder="Discover on PATH"></label>`).join('')}<label>PDK root<input name="pdk_root" value="${esc(settings.pdk_root || '')}" placeholder="/opt/pdk"></label><label>PDK variant<input name="pdk_variant" value="${esc(settings.pdk_variant || 'sky130A')}"></label></div></div>${providerSettingsHTML()}<div class="form-actions"><button type="submit" class="primary-button">Save configuration</button><button type="button" class="secondary-button" data-action="test-provider">Save and test connection</button><button type="button" class="secondary-button" data-action="export-settings">↓ Export safe config</button><button type="button" class="secondary-button" data-action="import-settings">↑ Import config</button><input type="file" id="settings-file" accept=".json,application/json" hidden></div></form><p class="footnote">Agent CLIs use their existing local login. Choose a backend and permissions in the assistant sidebar. Manual circuit tools remain independent of model configuration.</p>`;
 }
 
 function providerSettingsHTML() {
   const provider = state.settings.provider || {};
-  return html`<section class="card" id="provider-settings" aria-labelledby="provider-heading"><div class="card-head"><h2 id="provider-heading">Model API</h2>${badge('implemented',t('Read-only assistance'))}</div><p>Enter your endpoint, model, and API key here to connect the design assistant.</p><div class="form-grid"><label>Provider name (optional)<input id="provider-name" name="provider_name" value="${esc(provider.name || '')}" placeholder="My model provider"></label><label>Protocol<select name="protocol"><option value="openai-compatible" ${provider.protocol === 'openai-compatible' ? 'selected' : ''}>OpenAI-compatible chat API</option><option value="ollama" ${provider.protocol === 'ollama' ? 'selected' : ''}>Ollama native API</option></select></label><label class="full-width">Base URL<input name="base_url" value="${esc(provider.base_url || '')}" placeholder="https://api.example.com/v1" autocomplete="url" spellcheck="false"><small>Include /v1 if your OpenAI-compatible provider requires it. Ollama defaults to http://127.0.0.1:11434.</small></label><label>Model<input id="provider-model" name="model" value="${esc(provider.model || '')}" placeholder="Enter a model name" list="provider-models" autocomplete="off"><datalist id="provider-models">${providerModelOptions()}</datalist></label><label>Request timeout (seconds)<input type="number" min="1" max="300" name="timeout" value="${Number(provider.timeout) || 60}"></label><label class="full-width">API key<input id="provider-api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" autocapitalize="none" aria-describedby="provider-key-help provider-key-status"><small id="provider-key-help">Leave blank to keep the key for the current endpoint. Enter a new key when changing the endpoint or protocol.</small></label></div><p id="provider-key-status" class="credential-status" role="status">${esc(providerKeyStatus())}</p><div class="provider-key-controls"><label class="check-label" for="provider-remember-key"><input id="provider-remember-key" name="remember_api_key" type="checkbox" ${provider.api_key_storage === 'session' ? '' : 'checked'}>Remember API key on this server</label><button id="provider-clear-key" type="button" class="secondary-button danger-button" data-action="clear-provider-key" ${['local','session'].includes(provider.api_key_storage) ? '' : 'disabled'}>Clear saved key</button></div><p class="footnote">When checked, the key is saved in a file readable and writable only by the current server user; it is not encrypted. Otherwise, it lasts until the workspace server stops. Keys are excluded from configuration exports.</p><details><summary class="detail-summary">Advanced: environment variable</summary><label>API key environment variable<input name="api_key_env" value="${esc(provider.api_key_env || '')}" placeholder="ANALOG_FACTORY_API_KEY" autocomplete="off" spellcheck="false"><small>Optional fallback when no key is saved here. Enter a variable name, not the key itself. Clearing the saved key keeps this fallback.</small></label></details><p class="footnote">The connection test fetches the model list without sending project contents. You can also enter a model name manually; a connection test does not verify chat support.</p><div id="provider-test-result" class="provider-result" role="status" aria-live="polite"></div></section>`;
+  return html`<section class="card" id="provider-settings" aria-labelledby="provider-heading"><div class="card-head"><h2 id="provider-heading">Model API</h2>${badge('implemented',t('Project agent'))}</div><p>Enter your endpoint, model, and API key here to connect the design assistant.</p><div class="form-grid"><label>Provider name (optional)<input id="provider-name" name="provider_name" value="${esc(provider.name || '')}" placeholder="My model provider"></label><label>Protocol<select name="protocol"><option value="openai-compatible" ${provider.protocol === 'openai-compatible' ? 'selected' : ''}>OpenAI-compatible chat API</option><option value="ollama" ${provider.protocol === 'ollama' ? 'selected' : ''}>Ollama native API</option></select></label><label class="full-width">Base URL<input name="base_url" value="${esc(provider.base_url || '')}" placeholder="https://api.example.com/v1" autocomplete="url" spellcheck="false"><small>Include /v1 if your OpenAI-compatible provider requires it. Ollama defaults to http://127.0.0.1:11434.</small></label><label>Model<input id="provider-model" name="model" value="${esc(provider.model || '')}" placeholder="Enter a model name" list="provider-models" autocomplete="off"><datalist id="provider-models">${providerModelOptions()}</datalist></label><label>Request timeout (seconds)<input type="number" min="1" max="300" name="timeout" value="${Number(provider.timeout) || 60}"></label><label class="full-width">API key<input id="provider-api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" autocapitalize="none" aria-describedby="provider-key-help provider-key-status"><small id="provider-key-help">Leave blank to keep the key for the current endpoint. Enter a new key when changing the endpoint or protocol.</small></label></div><p id="provider-key-status" class="credential-status" role="status">${esc(providerKeyStatus())}</p><div class="provider-key-controls"><label class="check-label" for="provider-remember-key"><input id="provider-remember-key" name="remember_api_key" type="checkbox" ${provider.api_key_storage === 'session' ? '' : 'checked'}>Remember API key on this server</label><button id="provider-clear-key" type="button" class="secondary-button danger-button" data-action="clear-provider-key" ${['local','session'].includes(provider.api_key_storage) ? '' : 'disabled'}>Clear saved key</button></div><p class="footnote">When checked, the key is saved in a file readable and writable only by the current server user; it is not encrypted. Otherwise, it lasts until the workspace server stops. Keys are excluded from configuration exports.</p><details><summary class="detail-summary">Advanced: environment variable</summary><label>API key environment variable<input name="api_key_env" value="${esc(provider.api_key_env || '')}" placeholder="ANALOG_FACTORY_API_KEY" autocomplete="off" spellcheck="false"><small>Optional fallback when no key is saved here. Enter a variable name, not the key itself. Clearing the saved key keeps this fallback.</small></label></details><p class="footnote">The connection test fetches the model list without sending project contents. You can also enter a model name manually; a connection test does not verify chat support.</p><div id="provider-test-result" class="provider-result" role="status" aria-live="polite"></div></section>`;
 }
 function providerKeyStatus() {
   const provider = state.settings.provider || {};
@@ -545,6 +548,23 @@ async function refreshProject(redraw = true) {
   if (state.run) state.run = state.runs.find(run => run.id === state.run.id) || state.run;
   renderTree(); updateChrome(); updateLog(); if (redraw) render();
 }
+async function refreshAgentProject(id) {
+  if (state.project?.id !== id || state.loadingProject) return;
+  await refreshProject(false);
+  if (state.project?.id !== id || state.dirty || !state.file) return;
+  const path = state.file, request = state.fileRequest;
+  const data = await api(`/api/projects/${encoded(id)}/files?path=${encoded(path)}`);
+  // The user may begin typing or open another file while the refresh is pending.
+  if (state.project?.id !== id || state.dirty || state.file !== path || state.fileRequest !== request) return;
+  state.content = data.content; state.savedContent = data.content; state.history = null;
+  const editor = $('#code-editor');
+  if (editor) {
+    const start = editor.selectionStart, end = editor.selectionEnd, scroll = editor.scrollTop;
+    editor.value = data.content; editor.setSelectionRange(start, end); editor.scrollTop = scroll;
+    $('.line-numbers').textContent = lineNumbers(data.content);
+    $('#file-history').innerHTML = '';
+  }
+}
 async function startRun(kind, options = {}) {
   const reason = reasonFor(kind); if (reason) throw new Error(reason);
   const editor = ['xschem','magic'].includes(kind);
@@ -599,6 +619,7 @@ async function selectRun(id, navigate = true) {
   updateLog(); if (navigate || ['simulation','verification'].includes(state.tab)) render();
 }
 function updateLog() {
+  agentUI.render();
   $('#log-label').textContent = state.run ? `${runName(state.run)}${state.run.stale ? t(t(' · STALE')) : ''}` : t('No run selected');
   const log = $('#execution-log'), nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
   log.textContent = state.log || (state.run ? (isActive(state.run) ? t('Waiting for tool output…') : t('No log output was recorded.')) : t('Run a simulation or select an execution to inspect its actual tool output.'));
@@ -663,7 +684,7 @@ function bindView() {
   if (state.tab === 'settings') {
     for (const id of ['ui-language', 'ui-theme']) $(`#${id}`)?.addEventListener('change', () => safely(savePreferences));
     $('#settings-form')?.addEventListener('submit', event => { event.preventDefault(); safely(saveSettings); });
-    $('#settings-file')?.addEventListener('change', event => safely(async () => { const file = event.target.files[0]; if (!file || providerSaving) return; const settings = JSON.parse(await file.text()); if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error(t('Expected a configuration JSON object.')); const provider = settings.provider || {}; const safeSettings = {...(settings.ui ? {ui:settings.ui} : {}),tools:settings.tools || {},pdk_root:settings.pdk_root || '',pdk_variant:settings.pdk_variant || 'sky130A',provider:{name:provider.name || '',protocol:provider.protocol || 'openai-compatible',base_url:provider.base_url || '',model:provider.model || '',api_key_env:provider.api_key_env || '',timeout:provider.timeout || 60}}; state.settings = await api('/api/settings',{method:'PUT',body:safeSettings}); state.providerTest = null; state.providerModels = []; state.status = await api('/api/status'); applyPreferences(state.settings.ui, false); toast(t('Configuration imported.')); }));
+    $('#settings-file')?.addEventListener('change', event => safely(async () => { const file = event.target.files[0]; if (!file || providerSaving) return; const settings = JSON.parse(await file.text()); if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error(t('Expected a configuration JSON object.')); const provider = settings.provider || {}; const safeSettings = {...(settings.ui ? {ui:settings.ui} : {}),tools:{...state.settings.tools,...(settings.tools || {})},pdk_root:settings.pdk_root || '',pdk_variant:settings.pdk_variant || 'sky130A',provider:{name:provider.name || '',protocol:provider.protocol || 'openai-compatible',base_url:provider.base_url || '',model:provider.model || '',api_key_env:provider.api_key_env || '',timeout:provider.timeout || 60}}; state.settings = await api('/api/settings',{method:'PUT',body:safeSettings}); state.providerTest = null; state.providerModels = []; state.status = await api('/api/status'); applyPreferences(state.settings.ui, false); agentUI.refreshCapabilities(); toast(t('Configuration imported.')); }));
     $('#provider-settings')?.addEventListener('input', event => {
       if (providerSaving) return;
       state.providerTest = null;
@@ -684,7 +705,7 @@ async function saveSettings({test = false} = {}) {
   if (endpointChanged && provider.api_key_env === (previous.api_key_env || '')) delete provider.api_key_env;
   const key = String(form.get('api_key') || '');
   if (key.trim()) provider.api_key = key;
-  const settings = {tools:Object.fromEntries(['ngspice','xschem','magic','netgen'].map(name => [name,form.get(`tool-${name}`)])),pdk_root:form.get('pdk_root'),pdk_variant:form.get('pdk_variant'),provider};
+  const settings = {tools:{...state.settings.tools,...Object.fromEntries(['ngspice','xschem','magic','netgen','codex','claude'].map(name => [name,form.get(`tool-${name}`)]))},pdk_root:form.get('pdk_root'),pdk_variant:form.get('pdk_variant'),provider};
   providerSaving = true;
   state.providerTest = test ? {status:'saving'} : null;
   updateProviderControls(); updateProviderFeedback();
@@ -692,6 +713,7 @@ async function saveSettings({test = false} = {}) {
   try {
     state.settings = await api('/api/settings',{method:'PUT',body:settings});
     saved = true;
+    agentUI.refreshCapabilities();
     // Never repopulate a secret from server responses or retain a submitted key.
     if ($('#provider-api-key')) $('#provider-api-key').value = '';
     const environment = $('#settings-form [name=api_key_env]');
@@ -764,6 +786,7 @@ function bindGlobal() {
   document.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && state.tab === 'editor') { event.preventDefault(); safely(saveFile); } });
   window.addEventListener('beforeunload', event => { if (state.dirty) { event.preventDefault(); event.returnValue = ''; } });
   window.addEventListener('resize', () => requestAnimationFrame(drawWaveform));
+  agentUI.bind();
   $('#chat-form').addEventListener('submit', event => { event.preventDefault(); safely(sendChat); });
   $('#chat-input').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); safely(sendChat); } });
 }
@@ -796,22 +819,8 @@ async function handleAction(action) {
     case 'import-settings': $('#settings-file').click(); break;
   }
 }
-async function sendChat() {
-  const message = $('#chat-input').value.trim(); if (!message || state.chatting) return;
-  if (!state.project || !state.settings.provider?.model) throw new Error(t('Select a project and configure a model provider in Settings.'));
-  state.chatting = true; state.chat.push({role:'user',message}); $('#chat-input').value = ''; renderChat(); updateChrome();
-  try {
-    const result = await api(projectURL('/chat'),{method:'POST',body:{message,files:[...state.context]},long:true});
-    state.chat.push({role:'assistant',message:result.reply || result.message || pretty(result),meta:[result.backend,result.model,result.status || t('Suggestion — review required')].filter(Boolean).join(' · ')});
-    state.assistantUsage = result.usage || null;
-  } catch (error) { state.chat.push({role:'assistant',message:error.message,meta:t('Request failed · no verified result')}); throw error; }
-  finally { state.chatting = false; renderChat(); updateChrome(); }
-}
-function renderChat() {
-  if (!state.chat.length) { $('#chat-messages').innerHTML = html('<div class="assistant-welcome"><span class="welcome-symbol">✧</span><h3>A second set of eyes.</h3><p>Explore your circuit, understand a tool failure, or discuss your next design step.</p><p class="muted">AI is optional. Every design and verification action works independently.</p></div>'); return; }
-  $('#chat-messages').innerHTML = state.chat.map(message => html`<div class="chat-message ${message.role === 'user' ? 'user' : ''}"><small>${esc(message.role === 'user' ? t('YOU') : message.meta || t('ASSISTANT · Suggestion'))}</small><p>${esc(message.message)}</p></div>`).join('') + (state.chatting ? html('<div class="chat-message"><small>CONFIGURED PROVIDER</small><p>Waiting for response…</p></div>') : '');
-  $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
-}
+async function sendChat() { await agentUI.send(); }
+function renderChat() { agentUI.render(); }
 function setupWaveform() {
   const canvas = $('#waveform'); if (!canvas) return;
   const waveform = state.waveform;

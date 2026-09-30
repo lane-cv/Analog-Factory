@@ -567,3 +567,39 @@ to{transform:translateY(0);opacity:1}
 
 
 [hidden]{display:none!important}
+
+/* Agent controls stay usable while the conversation and approval details scroll. */
+.ai-sidebar{min-width:0;overflow-y:auto}
+.ai-sidebar>.panel-heading{flex-shrink:0;min-height:39px}
+.ai-sidebar .assistant-model{margin-bottom:9px}
+.agent-controls{padding:0 13px 9px;border-bottom:1px solid var(--border);flex-shrink:0}
+.agent-controls label{font-size:9px;gap:4px;min-width:0}
+.agent-controls input,.agent-controls select{width:100%;min-width:0;font-size:10px;padding:7px 6px}
+.agent-session-row{display:flex;gap:6px;align-items:flex-end;margin-bottom:8px}
+.agent-session-row label{flex:1;min-width:0}
+.agent-session-row button{font-size:10px;padding:7px 9px}
+.agent-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px}
+.agent-note,.agent-error{font-size:9px;line-height:1.6;margin:7px 0 0;overflow-wrap:anywhere}
+.agent-note{color:var(--muted)}
+.agent-error{color:var(--red)}
+#agent-status{max-width:48%;overflow-wrap:anywhere;text-align:right;letter-spacing:0}
+#agent-status[data-status=running],#agent-status[data-status=waiting_approval]{color:var(--amber)}
+.agent-run-context{font-size:9px;gap:6px;margin:8px 0 0;color:var(--muted)}
+.agent-run-context input{flex-shrink:0}
+.ai-sidebar .context-section{padding:10px 13px;flex-shrink:0}
+.ai-sidebar .context-files{max-height:55px;margin-top:5px}
+.ai-sidebar .chat-messages{min-height:130px;padding:13px;flex:1 0 130px}
+.agent-event{border-left:2px solid var(--border);padding-left:8px;margin:9px 0}
+.agent-event pre,.agent-approval pre{font:10px/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;margin:0;max-height:180px;overflow:auto}
+.agent-event small{color:var(--amber);margin-bottom:3px}
+.agent-approval{flex-shrink:0;margin:7px 13px;padding:10px;border:1px solid var(--amber);border-radius:7px;background:var(--surface)}
+.agent-approval>strong,.agent-approval>span{display:block;font-size:10px;margin-bottom:5px;overflow-wrap:anywhere}
+.agent-approval>strong{color:var(--amber)}
+.agent-approval .button-row{gap:7px;margin-top:8px}
+.agent-approval button{font-size:10px;padding:6px 10px}
+.ai-sidebar .chat-composer,.ai-sidebar .assistant-footnote{flex-shrink:0}
+.chat-composer #agent-stop{font-size:10px;padding:5px 8px}
+@media(max-width:1000px){.ai-sidebar{width:min(360px,100vw)}}
+
+.agent-approval details{margin-top:8px;font-size:10px}
+.agent-approval details summary{cursor:pointer;margin-bottom:5px}

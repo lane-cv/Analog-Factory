@@ -43,7 +43,9 @@ flowchart TD
 - `analog_factory/toolchain.py`, `eda.py`, `waveforms.py`: detection, commands, report parsing.
 - `analog_factory/service.py`, `server.py`, `__main__.py`: shared use cases, HTTP, CLI.
 - `analog_factory/workflows.py`: versioned graph validation and bounded real-simulation tuning.
-- `analog_factory/providers.py`: explicit protocol adapters, selected context, no hidden credentials.
+- `analog_factory/providers.py`: explicit protocol adapters and endpoint-scoped credentials.
+- `analog_factory/agents.py`, `agent_api.py`, `agent_cli.py`: durable project conversations,
+  bounded tool loops, scoped approvals, CLI execution and cancellation.
 - `analog_factory/evaluation.py`: isolated episodes, independently calculated scores, baselines.
 - `analog_factory/static/`: project tree, editor, waveform view, AI sidebar, run logs, settings.
 - `examples/`: reproducible primitive-device amplifier and SKY130 starting assets.
@@ -72,9 +74,11 @@ model or completed integration.
 1. Create/edit/archive projects, run real simulation and measurements, inspect waveforms,
    launch native tools, run DRC/LVS/extraction, compare pre/post results. Acceptance needs
    actual SKY130 schematic/layout and DRC/LVS reports; missing tools keep this gate open.
-2. Configure one model protocol, test against configured endpoint, select context and
-   record responses. CLI adapters use official noninteractive interfaces, explicit scope,
-   and existing authentication. Live backend tests require the corresponding backend.
+2. Configure a model protocol or installed CLI, select a project conversation and
+   context, and record responses/tool events. API tools use per-action approvals;
+   CLI adapters use official noninteractive interfaces, explicit execution modes,
+   and existing authentication. See [embedded agents](embedded-agents.md).
+   Live backend tests require the corresponding backend.
 3. Save/reload a visual workflow and execute bounded parameter tuning with actual ngspice
    measurements and traceable iteration records. Unsupported graph nodes stay explicit.
 4. Isolated evaluation and baseline comparison first. Framework-backed training acceptance

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__, eda, toolchain, waveforms
 from .credentials import CredentialStore
+from .agents import AgentManager
 from .execution import RunManager
 from .jobs import Jobs
 from .projects import ProjectStore
@@ -39,6 +40,7 @@ class Workspace:
         self.credentials = CredentialStore(self.root)
         self._secret = self.credentials.load(self._secret_binding)
         self._secret_storage = 'local' if self._secret else 'none'
+        self.agents = AgentManager(self)
 
     def settings(self):
         with self.lock:
@@ -147,11 +149,13 @@ class Workspace:
                 'capabilities': {
                     'manual': {'available': True, 'status': 'implemented'},
                     'simulation': {'available': True, 'status': 'requires ngspice'},
-                    'assistant': {'available': bool(self._settings.get('provider', {}).get('base_url')), 'status': 'read-only; configured endpoint required'},
+                    'assistant': {'available': bool(self._settings.get('provider', {}).get('base_url')),
+                                  'status': 'embedded API sessions; read-only or confirmed actions'},
                     'workflows': {'available': True, 'status': 'experimental: bounded scalar tuning chain'},
                     'evaluation': {'available': True, 'status': 'experimental: isolated random-search baseline'},
                     'training': {'available': False, 'status': 'planned', 'reason': 'No training framework/model configured or validated'},
-                    'cli_agents': {'available': False, 'status': 'planned: detected only; no authentication accessed'},
+                    'cli_agents': {'available': any(item['available'] for item in self.agents.backends()['backends'] if item['id'] != 'api'),
+                                   'status': 'embedded sessions; CLI login required'},
                 }}
 
     def detail(self, project_id):

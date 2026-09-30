@@ -132,6 +132,8 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
                         return self._json(workspace.save_settings(body))
                 if path == '/api/provider/test' and method == 'POST':
                     return self._json(workspace.provider_test())
+                if path == '/api/agents' and method == 'GET':
+                    return self._json(workspace.agents.backends(arg('project_id') or None))
                 if path == '/api/projects':
                     if method == 'GET':
                         return self._json(workspace.projects.list())
@@ -143,6 +145,23 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
                 pid = parts[2]
                 root = workspace.projects.path(pid)
                 suffix = parts[3:]
+                if suffix[:2] == ['agent', 'sessions']:
+                    if len(suffix) == 2:
+                        if method == 'GET':
+                            return self._json(workspace.agents.list(pid))
+                        if method == 'POST':
+                            return self._json(workspace.agents.create(pid, body), 201)
+                    if len(suffix) == 3 and method == 'GET':
+                        return self._json(workspace.agents.get(pid, suffix[2]))
+                    if len(suffix) == 4 and method == 'POST':
+                        sid, action = suffix[2:]
+                        if action == 'messages':
+                            return self._json(workspace.agents.send(pid, sid, body), 202)
+                        if action == 'cancel':
+                            return self._json(workspace.agents.cancel(pid, sid))
+                        if action == 'approval':
+                            return self._json(workspace.agents.approve(pid, sid, body.get('approval_id'), body.get('approved')))
+                    raise FileNotFoundError('Agent API route not found')
                 if not suffix and method == 'GET':
                     return self._json(workspace.detail(pid))
                 if suffix == ['config'] and method == 'PUT':
@@ -218,8 +237,15 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
                 traceback.print_exc()
     class WorkspaceServer(ThreadingHTTPServer):
         def server_close(self):
-            if desktop:
-                desktop.close()
-            super().server_close()
+            try:
+                agents = getattr(workspace, 'agents', None)
+                if agents:
+                    agents.close()
+            finally:
+                try:
+                    if desktop:
+                        desktop.close()
+                finally:
+                    super().server_close()
 
     return WorkspaceServer((str(address), port), Handler)

@@ -1,13 +1,13 @@
 # Analog-factory
 
 A local analog IC workspace with real ngspice execution, traceable results, and an
-optional read-only model assistant. The browser UI and CLI share the same project,
+optional embedded model/CLI agents. The browser UI and CLI share the same project,
 task, and artifact services. No model, API key, GPU, or Python package installation
 is required for the core workspace.
 
 **This is an incremental foundation, not completion of every phase in the project
 prompt.** The educational amplifier and scalar tuning loop run with actual ngspice.
-SKY130 layout verification, native GUI coordination, external agent CLI execution,
+SKY130 layout verification, native GUI coordination, full external agent validation,
 general agent graphs, and model-weight training have not passed their acceptance gates.
 See [delivery status](docs/status.md) and [validation evidence](docs/validation.md).
 
@@ -95,9 +95,47 @@ HTTP integration tests require permission to open localhost sockets.
   tuning chain. Unsupported graphs fail explicitly.
 - Isolated evaluation episodes with real ngspice measurements and a seeded random
   search baseline. This is circuit evaluation, **not model training**.
-- Optional OpenAI-compatible Chat Completions or native Ollama read-only assistance,
-  manual model entry, model discovery/connection check, selected file context and
-  recorded responses. Live hosted/local-model inference was not validated here.
+- Embedded project conversations with OpenAI-compatible Chat Completions, native
+  Ollama, Codex CLI and Claude Code. Durable sessions, selected file/run context,
+  visible tool activity, cancellation, and permission controls share one sidebar.
+  API agents can read files, propose reviewed edits and run recorded simulations.
+  A minimal authenticated Codex conversation has been verified. Live model API,
+  Claude and CLI project-editing acceptance remain open.
+
+## Embedded agents
+
+Choose **Model API**, **Codex CLI**, or **Claude Code** in the assistant sidebar,
+select a permission mode, and start a conversation. Existing sessions can be
+selected again after a page reload or project switch. Attach files with explorer
+checkboxes and optionally attach the selected execution's record and log.
+
+For **Model API**, configure the existing Model API settings. **Read-only** exposes
+project reading tools. **Confirm each action** additionally proposes file writes and
+simulations; approve or reject each action in the sidebar. Write proposals include
+a diff, reject stale source changes, and use the editor's revision history for
+restore. Simulations use the same execution records as manual runs. The selected
+model must support its protocol's function/tool calling to use these tools.
+
+For **CLI agents**, install and log in to the CLI separately, then use its PATH
+entry or configure its executable in Settings. Analog Factory passes prompts over
+stdin and uses the CLI's own authentication without reading or copying login files.
+**Read-only** is the default; **Allow project writes** authorizes the CLI's available
+write tools for that session. CLI session IDs are retained for native continuation.
+Codex uses its `read-only` or `workspace-write` sandbox with interactive approvals
+disabled. Claude requires `--restricted` support and uses only confined Read/Glob/
+Grep tools, plus Edit/Write in edit mode; it cannot run shell commands through this
+adapter. Unsupported CLI options fail visibly. There is no per-tool approval UI
+for CLI sessions. Review CLI edits in the source editor; API writes use application
+revisions, while CLI writes are managed by the CLI.
+
+The **Stop** button cancels the current turn and terminates CLI process groups or
+agent-owned simulations. An in-flight API request may finish after Stop, but its
+late response cannot execute tools or enter the transcript; another turn in that
+project waits until the request returns. The sidebar polls activity; API text is
+shown after each model response rather than token by token. A turn is bounded to
+eight API requests or five minutes of CLI execution. Start a new conversation at
+the 40-turn/size limit. Agent statements remain suggestions until supported by an
+actual run record. See [agent architecture and capability limits](docs/embedded-agents.md).
 
 ## Configuration
 
@@ -123,7 +161,8 @@ stops. Keys are bound to their endpoint and protocol; changing either requires a
 new key. **Clear saved key** removes the stored key. An explicitly named environment
 variable remains available as an optional fallback. Settings and configuration
 exports exclude keys. No CLI authentication files or global agent configuration
-are read or modified. Model replies are suggestions, not verified design results.
+are read or modified by the application; a launched CLI manages its own existing
+authentication and session storage. Model replies are suggestions, not verified design results.
 
 ```json
 {

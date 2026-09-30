@@ -8,21 +8,42 @@ tuning/evaluation records, and the local evidence archive path.
 
 | Check | Observed result |
 |---|---|
-| `python3 -m unittest discover -s tests -v` | **62 passed**, no skips; final recorded run 5.752 seconds |
+| `python3 -m unittest discover -s tests` | **159 passed**, no skips; Codex reconnect regression run 41.456 seconds |
 | `python3 -m compileall -q analog_factory scripts` | Passed |
-| `node --check analog_factory/static/app.js` | Passed |
+| `node --check` for `app.js`, `agents.js`, `i18n.js` | Passed |
 | Educational amplifier transient | ngspice 46 executed; 2,508 waveform samples; six measurements |
 | OP, DC, AC, transient, noise forms | All five generated decks executed with actual waveform output |
 | Scalar tuning | Six real simulations, target satisfied, original source unchanged |
 | Random-search baseline | Three isolated real episodes, seed 42, evidence archived |
 | Local HTTP API | Project/file operations and foreign-origin/Host rejection tested |
-| Provider protocol | OpenAI-compatible request/response tested against a local HTTP fixture; no real model inference claimed |
+| Provider protocol | OpenAI-compatible and native Ollama history/tool calls tested against local HTTP fixtures; no real model inference claimed |
 | Chromium desktop/mobile | Project creation, simulation, five measured traces, cursor/zoom, CSV, comparisons, file creation/save/history, workflow drag/save/load/run, evaluation/history, settings and stale warnings exercised; no JavaScript errors observed |
 
 The suite tests actual subprocess/child termination, timeouts, fresh retries, cross-process
 run/job observation and cancellation, stale external models, path/symlink protection,
 credential endpoint scoping, malformed settings and missing measurements. Verification
 parser fixtures are **not physical DRC/LVS acceptance evidence**.
+
+The embedded-agent update adds durable session/project isolation, native CLI session
+resumption, bounded JSONL parsing, process-group cancellation, permission enforcement,
+approved/stale file edits, actual ngspice tool records, and late-response rejection.
+The original manual browser smoke test was rerun in a temporary workspace: simulation,
+revision history, six tuning iterations and two evaluation episodes passed, with no
+JavaScript page errors and zero mobile overflow. The existing provider-settings browser
+regression also passed. The agent browser regression passed session reload, approval,
+backend switching, project isolation, cancellation races, full replacement review,
+source refresh without draft loss, localization and mobile controls. CLI tests use
+real subprocess fixtures, not authenticated
+inference. The archived `validation.json` still describes the original educational
+simulation evidence; the additional test counts above describe the current source.
+
+A subsequent live Codex 0.159.2 connectivity check used the running application's
+HTTP session/message API, existing CLI login, read-only mode, and no attached files.
+The turn completed successfully with `OK`. This verifies basic embedded authenticated
+inference, not CLI project edits or full EDA tasks. A separate direct CLI probe using
+the server environment also returned `OK`. Three regression fixtures verify reconnect
+notices followed by success, terminal failure, or missing completion. Intermediate
+Codex `error` events must not terminate its native retry loop.
 
 The sandbox initially prohibited localhost sockets. The HTTP tests passed with approved
 local-network execution permission; none were skipped. Browser tooling and missing
@@ -63,6 +84,9 @@ required system libraries, then run:
 ```bash
 AF_URL=http://127.0.0.1:8765 node tests/browser-smoke.cjs
 AF_URL=http://127.0.0.1:8765 node tests/browser-preferences.cjs
+# Self-contained temporary workspaces; no existing server required:
+node tests/browser-agents.cjs
+node tests/browser-api-config.cjs
 ```
 
 Set `AF_BROWSER_ARTIFACTS` to choose the screenshot directory. Playwright is not needed
@@ -80,8 +104,8 @@ The local Chinese font subset and its OFL license are included in the built whee
 
 ## Not validated
 
-No xschem, Magic, LVS Netgen, prepared SKY130, graphical EDA desktop, live model endpoint,
-agent CLI session or training framework was configured for acceptance. No SKY130
+No xschem, Magic, LVS Netgen, prepared SKY130, graphical EDA desktop, live model API,
+Claude session, full CLI task flow or training framework was configured for acceptance. No SKY130
 DRC/LVS pass, physical extraction, post-layout result, trained checkpoint, held-out model
 improvement or tapeout/signoff is claimed. See [delivery status](status.md) and
 [integration matrix](integration-matrix.md) for remaining gates and upstream interfaces.

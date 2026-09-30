@@ -6,6 +6,14 @@ was inspected at commit `b2ed83ae5108b479d1b509aba208a233e5240a0f`; the implemen
 here is independent Python/JavaScript code, with no copied GPL code or Electron
 dependency.
 
+The browser layout also follows the reference chat component: a 36 px tool header,
+32 px agent header, continuous assistant messages, right-aligned user bubbles,
+replacement history view, and an inset resizable composer. Expanding the sidebar
+uses the same DOM, session, and pending request. Theme colors and language remain
+part of Analog Factory's shared interface settings. Keyboard resizing and mobile
+dialog focus handling are provided by `layout.js`; `agents.js` owns conversations
+and drafts; `agent-content.js` renders escaped Markdown and tool disclosures.
+
 | Capability | Model API | Codex CLI | Claude Code CLI |
 |---|---|---|---|
 | Protocol | Chat Completions or native Ollama tools | `exec --json` | `-p --output-format stream-json` |
@@ -34,7 +42,9 @@ Settings changes to that binding require a new conversation. Sessions have fixed
 backend, model and permission mode, preventing permission changes during resume.
 
 The HTTP API exposes `/api/agents` and project-scoped `/agent/sessions` routes for
-create/list/get, `messages`, `cancel`, and `approval`. IDs are scoped to projects;
+create/list/get, bounded `?q=` history search, title updates via `PUT`, deletion via
+`DELETE`, `messages`, `cancel`, and `approval`. Active or draining sessions cannot
+be renamed or deleted. IDs are scoped to projects;
 the existing same-origin/Host checks apply. Only one turn per project and at most
 four turns per server execute concurrently. Events and context are size bounded.
 Restarted servers mark abandoned active turns interrupted; they do not reconnect
@@ -45,6 +55,11 @@ Selected files and optional run logs are explicit initial context. API read tool
 can read other non-hidden files in the selected project; CLIs can inspect project
 files under their own policies. Prompts and tool output are untrusted text in the
 browser. A successful conversation is not a passed simulation or design signoff.
+UTF-8 text attachments are persisted with each turn and passed as untrusted context,
+with a 64 KiB per-file limit, 20 combined selected files/attachments, and the existing
+256,000-byte combined prompt limit. Importing an attachment never writes a project
+file. Editing a prior message restores its attachment and run selections; the next
+send validates project files again, using their current saved contents.
 
 API write proposals show a diff and retain the previous text through the existing
 revision service. Changed files are checked again after approval. CLI writes go
@@ -56,6 +71,8 @@ structured noninteractive adapters.
 
 References:
 
+- [Netcatty chat composition](https://github.com/binaricat/Netcatty/blob/b2ed83ae5108b479d1b509aba208a233e5240a0f/components/AIChatPanelContent.tsx)
+- [Netcatty side panel](https://github.com/binaricat/Netcatty/blob/b2ed83ae5108b479d1b509aba208a233e5240a0f/components/AIChatSidePanel.tsx)
 - [Netcatty driver registry](https://github.com/binaricat/Netcatty/blob/b2ed83ae5108b479d1b509aba208a233e5240a0f/electron/bridges/aiBridge/sdk/index.cjs)
 - [Netcatty event normalization](https://github.com/binaricat/Netcatty/blob/b2ed83ae5108b479d1b509aba208a233e5240a0f/electron/bridges/aiBridge/sdk/emit.cjs)
 - [Netcatty stream lifecycle](https://github.com/binaricat/Netcatty/blob/b2ed83ae5108b479d1b509aba208a233e5240a0f/electron/bridges/aiBridge/sdk/sdkStreamHandlers.cjs)

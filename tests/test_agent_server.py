@@ -27,10 +27,10 @@ class AgentHTTPTests(unittest.TestCase):
         self.url = f'http://127.0.0.1:{self.server.server_port}'
         self.path = f'/api/projects/{self.pid}/agent/sessions'
 
-    def request(self, path, value=None, headers=None):
+    def request(self, path, value=None, headers=None, method=None):
         request = urllib.request.Request(self.url + path,
             data=None if value is None else json.dumps(value).encode(),
-            headers={'Content-Type': 'application/json', **(headers or {})})
+            headers={'Content-Type': 'application/json', **(headers or {})}, method=method)
         with urllib.request.urlopen(request, timeout=5) as response:
             return response.status, json.load(response)
 
@@ -69,6 +69,53 @@ class AgentHTTPTests(unittest.TestCase):
             self.request(self.path, {'backend': 'api', 'mode': 'workspace-write'})
         self.assertEqual(error.exception.code, 400)
         error.exception.close()
+
+    def test_session_rename_search_and_delete_http_contract(self):
+        session = self.request(self.path, {'backend': 'api'})[1]
+        endpoint = self.path + '/' + session['id']
+        self.assertEqual(self.request(endpoint, {'title': 'Reviewed amplifier'}, method='PUT')[1]['title'],
+                         'Reviewed amplifier')
+        self.assertEqual([item['id'] for item in self.request(self.path + '?q=AMPLIFIER')[1]], [session['id']])
+        self.assertEqual(self.request(self.path + '?q=no-match')[1], [])
+        for payload in ({'title': ''}, {'title': 'ok', 'backend': 'codex'}):
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                self.request(endpoint, payload, method='PUT')
+            self.assertEqual(error.exception.code, 400)
+            error.exception.close()
+        for method, body in [('PUT', {'title': 'Foreign origin'}), ('DELETE', None)]:
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                self.request(endpoint, body, {'Origin': 'https://other.invalid'}, method=method)
+            self.assertEqual(error.exception.code, 403)
+            error.exception.close()
+        deleted = self.request(endpoint, method='DELETE')[1]
+        self.assertEqual(deleted, {'deleted': True, 'id': session['id']})
+        self.assertEqual(self.request(self.path)[1], [])
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.request(endpoint)
+        self.assertEqual(error.exception.code, 404)
+        error.exception.close()
+
+    def test_session_metadata_routes_reject_a_cancelled_worker_still_draining(self):
+        entered, release = threading.Event(), threading.Event()
+        def driver(*args):
+            entered.set()
+            release.wait(3)
+            return {'reply': 'late', 'history': []}
+        session = self.request(self.path, {'backend': 'api'})[1]
+        endpoint = self.path + '/' + session['id']
+        with patch('analog_factory.agents.run_api_turn', driver):
+            self.request(endpoint + '/messages', {'message': 'Wait'})
+            try:
+                self.assertTrue(entered.wait(2))
+                self.request(endpoint + '/cancel', {})
+                for method, body in [('PUT', {'title': 'Too soon'}), ('DELETE', None)]:
+                    with self.assertRaises(urllib.error.HTTPError) as error:
+                        self.request(endpoint, body, method=method)
+                    self.assertEqual(error.exception.code, 409)
+                    error.exception.close()
+            finally:
+                release.set()
+                self.workspace.agents.close()
 
     def test_real_provider_tool_call_reaches_http_approval_and_revision(self):
         calls = []

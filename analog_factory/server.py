@@ -100,6 +100,9 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
         def do_PUT(self):
             self._dispatch('PUT')
 
+        def do_DELETE(self):
+            self._dispatch('DELETE')
+
         def _dispatch(self, method):
             try:
                 self._guard()
@@ -148,11 +151,16 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
                 if suffix[:2] == ['agent', 'sessions']:
                     if len(suffix) == 2:
                         if method == 'GET':
-                            return self._json(workspace.agents.list(pid))
+                            return self._json(workspace.agents.list(pid, arg('q')))
                         if method == 'POST':
                             return self._json(workspace.agents.create(pid, body), 201)
-                    if len(suffix) == 3 and method == 'GET':
-                        return self._json(workspace.agents.get(pid, suffix[2]))
+                    if len(suffix) == 3:
+                        if method == 'GET':
+                            return self._json(workspace.agents.get(pid, suffix[2]))
+                        if method == 'PUT':
+                            return self._json(workspace.agents.update(pid, suffix[2], body))
+                        if method == 'DELETE':
+                            return self._json(workspace.agents.delete(pid, suffix[2]))
                     if len(suffix) == 4 and method == 'POST':
                         sid, action = suffix[2:]
                         if action == 'messages':

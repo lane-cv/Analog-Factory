@@ -98,7 +98,9 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     assert.equal(await page.locator('#agent-mode').inputValue(), 'read-only');
     assert.notEqual(await page.locator('#agent-backend option[value=claude]').getAttribute('disabled'), null, 'Unavailable backends cannot be selected');
     await page.locator('[data-context="testbenches/pre.cir"]').check();
+    await page.locator('#agent-add-context').click();
     await page.locator('#agent-attach-run').check();
+    await page.keyboard.press('Escape');
     await page.locator('#chat-input').fill('Inspect <img src=x onerror="window.agentXss=1">');
     await page.locator('#chat-send').click();
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
@@ -113,7 +115,9 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.locator('.tabs [data-tab=settings]').click();
     await page.locator('#provider-api-key').fill('unsaved-key-draft');
     first.turns[0].events.push({type:'tool_call',tool:'read_file',arguments:{path:'testbenches/pre.cir'},text:'Reading selected circuit'});
+    await page.locator('.agent-tool > summary').click();
     await page.locator('#chat-messages').getByText('Reading selected circuit').waitFor();
+    assert.match(await page.locator('.agent-tool-body').innerText(), /testbenches\/pre.cir/, 'Tool arguments remain visible alongside their status text');
     assert.equal(await page.locator('#provider-api-key').inputValue(), 'unsaved-key-draft', 'Agent polling preserves settings drafts');
     await page.locator('#agent-stop').click();
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('cancelled'));
@@ -159,7 +163,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     assert.equal(await page.locator('#chat-input').inputValue(), 'Keep this draft on failure');
     await page.locator('#chat-send').click();
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
-    assert.equal(await page.locator('#assistant-usage').innerText(), 'unknown', 'Active turn does not show prior usage');
+    assert.equal(await page.locator('#assistant-usage').innerText(), '', 'Active turn does not show prior usage');
     second.status = 'waiting_approval';
     second.pending_approval = {id:'proposal-2',tool:'simulate',arguments:{netlist:'testbenches/pre.cir'}};
     await page.locator('#agent-approval').waitFor();
@@ -170,9 +174,13 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     assert.equal(await page.locator('#agent-session').inputValue(), '', 'Changing backend starts a fresh conversation');
     assert.equal(await page.locator('#agent-mode').inputValue(), 'read-only');
     await page.locator('#agent-mode').selectOption('workspace-write');
+    await page.locator('#agent-model-toggle').click();
     assert.match(await page.locator('#agent-permission-note').innerText(), /without.*approval|without.*confirmation/i);
-    assert.match(await page.locator('#agent-context-note').innerText(), /project/i);
     await page.locator('#agent-model').fill('cli-model-override');
+    await page.locator('#agent-model-apply').click();
+    await page.locator('#agent-add-context').click();
+    assert.match(await page.locator('#agent-context-note').innerText(), /project/i);
+    await page.keyboard.press('Escape');
     await page.locator('#chat-input').fill('CLI task');
     await page.locator('#chat-send').click();
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
@@ -223,7 +231,8 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     third.status = 'succeeded'; third.turns.at(-1).status = 'succeeded';
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('succeeded'));
     assert.equal(await page.locator('#code-editor').inputValue(), dirtyCircuit);
-    await page.locator('#agent-session').selectOption(second.id);
+    await page.locator('#agent-history-toggle').click();
+    await page.locator(`#agent-history-list [data-agent-session="${second.id}"]`).click();
     await page.locator('#chat-messages').getByText('Change denied', {exact:true}).first().waitFor();
     assert.equal(await page.locator('#chat-messages').getByText('Change denied', {exact:true}).count(), 1, 'Final reply appears only once');
     await page.locator('.tabs [data-tab=settings]').click();
@@ -244,7 +253,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     assert.equal(preserved.tools.claude, '/tmp/example-claude');
     await page.locator('#ui-language').selectOption('zh-CN');
     await page.waitForFunction(() => !document.querySelector('#ui-language').disabled);
-    assert.match(await page.locator('#agent-new').innerText(), /[\u4e00-\u9fff]/);
+    assert.match(await page.locator('#agent-new').getAttribute('aria-label'), /[\u4e00-\u9fff]/, 'Icon-only new conversation control has a translated accessible label');
     assert.match(await page.locator('#chat-messages').innerText(), /Change denied/, 'Authored output is never translated');
     await page.locator('#ui-theme').selectOption('light');
     await page.waitForFunction(() => !document.querySelector('#ui-theme').disabled);

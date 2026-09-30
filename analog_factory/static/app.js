@@ -32,7 +32,7 @@ const pretty = value => JSON.stringify(value, null, 2);
 const number = value => typeof value === 'number' && Number.isFinite(value) ? (Math.abs(value) >= 100000 || (value !== 0 && Math.abs(value) < 0.001) ? value.toExponential(3) : Number(value.toPrecision(6)).toLocaleString(window.AFI18n.language(), {maximumFractionDigits:6})) : String(value ?? '—');
 const runTime = run => run.started_at || run.created_at || run.created;
 const runName = run => `${t(run.kind || 'run')} · ${shortId(run.id)} · ${t(run.status || 'unknown')}`;
-const agentUI = window.AFAgents.create({state, api, esc, t, html, formatDate, number, onSettled:refreshAgentProject});
+const agentUI = window.AFAgents.create({state, api, esc, t, html, formatDate, number, onSettled:refreshAgentProject, onContextChange:()=>{renderTree();updateContext();}});
 const tool = name => state.status?.toolchain?.tools?.[name] || {available:false, diagnostic:t('Tool detection has not completed.')};
 const pdk = () => state.status?.toolchain?.pdk || {available:false, diagnostic:t('No prepared PDK detected.')};
 function badge(status, label) {
@@ -825,7 +825,6 @@ function bindGlobal() {
   window.addEventListener('resize', () => requestAnimationFrame(drawWaveform));
   agentUI.bind();
   $('#chat-form').addEventListener('submit', event => { event.preventDefault(); safely(sendChat); });
-  $('#chat-input').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); safely(sendChat); } });
 }
 async function handleAction(action) {
   if (action.endsWith('-waveform') || ['previous-sample','next-sample'].includes(action)) $('#waveform-cursor')?.setAttribute('aria-live','polite');

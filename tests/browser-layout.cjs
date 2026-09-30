@@ -92,6 +92,7 @@ const {chromium} = require('playwright');
     assert.equal(await page.evaluate(() => document.activeElement.id), 'toggle-ai');
     assert.equal(await page.locator('.central-workspace').evaluate(element => element.inert), false);
     await page.locator('#toggle-ai').click();
+    await page.locator('#agent-model-toggle').click();
     await page.locator('.ai-sidebar [data-tab=settings]').click();
     await page.locator('#panel-backdrop').waitFor({state:'hidden'});
     assert.equal(await page.locator('.central-workspace').evaluate(element => element.inert), false, 'Sidebar navigation exposes the requested view');

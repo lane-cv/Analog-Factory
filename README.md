@@ -109,6 +109,24 @@ select a permission mode, and start a conversation. Existing sessions can be
 selected again after a page reload or project switch. Attach files with explorer
 checkboxes and optionally attach the selected execution's record and log.
 
+The chat follows Netcatty's compact header, continuous transcript, and bottom
+composer. **Expand agent workspace** opens the same live conversation in the center
+workspace; collapse returns it to the sidebar without losing the draft. Drag the
+composer's upper edge, or focus it and use arrows/Home/End, to resize the input.
+**Enter** sends; **Shift+Enter** inserts a line break and IME composition stays local.
+
+The history button opens searchable conversations with rename and delete controls.
+Export the current conversation as Markdown, JSON, or plain text. Replies support
+Markdown, code copying, and collapsible tool arguments/results. **Edit and resend**
+restores a turn's message and attached context for review before sending. Model
+selection supports search, custom IDs, recent choices, and favorites. Type `/` for
+commands and reusable quick messages. The `+` menu selects project context and
+imports UTF-8 text attachments (64 KiB each, up to 20 files including project
+context). Attachments enter the model context without creating project files.
+Drafts and quick messages are cached in this browser; sent conversations remain
+in the local workspace. Image attachments and token-by-token API streaming are
+not supported by the current transport.
+
 For **Model API**, configure the existing Model API settings. **Read-only** exposes
 project reading tools. **Confirm each action** additionally proposes file writes and
 simulations; approve or reject each action in the sidebar. Write proposals include

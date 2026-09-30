@@ -16,6 +16,8 @@ MODES = {'api': ('read-only', 'confirm'), 'codex': ('read-only', 'workspace-writ
          'claude': ('read-only', 'workspace-write')}
 MAX_TURNS = 40
 MAX_RECORD = 4 * 1024 * 1024
+MAX_ATTACHMENTS = 20
+MAX_ATTACHMENT_BYTES = 64 * 1024
 
 
 def now():
@@ -88,12 +90,49 @@ class AgentManager:
         with self.lock:
             return self._public(self._load(pid, sid))
 
-    def list(self, pid):
+    def list(self, pid, query=''):
+        if (not isinstance(query, str) or len(query) > 200
+                or any(ord(c) < 32 or 127 <= ord(c) < 160 for c in query)):
+            raise ValueError('Conversation search must contain up to 200 characters without controls')
+        query = query.strip().casefold()
         with self.lock:
             directory = confined(self.workspace.projects.path(pid), '.af/agent-sessions', hidden=True)
-            records = [self._public(self._load(pid, path.stem), summary=True)
-                       for path in directory.glob('*.json') if re.fullmatch(r'[a-f0-9]{32}', path.stem)]
+            records = []
+            for path in directory.glob('*.json'):
+                if not re.fullmatch(r'[a-f0-9]{32}', path.stem):
+                    continue
+                record = self._load(pid, path.stem)
+                searchable = [record.get('title', '')]
+                searchable.extend(turn.get(field, '') for turn in record['turns']
+                                  for field in ('message', 'reply'))
+                if not query or any(query in value.casefold() for value in searchable if isinstance(value, str)):
+                    records.append(self._public(record, summary=True))
             return sorted(records, key=lambda record: record['updated_at'], reverse=True)
+
+    def update(self, pid, sid, options):
+        if not isinstance(options, dict) or set(options) != {'title'}:
+            raise ValueError('Only the conversation title can be updated')
+        title = options['title']
+        if (not isinstance(title, str) or not 1 <= len(title.strip()) <= 120
+                or any(ord(c) < 32 or 127 <= ord(c) < 160 for c in title)):
+            raise ValueError('Conversation title must contain 1–120 characters without controls')
+        with self.lock:
+            record = self._load(pid, sid)
+            # A cancelled request can still be draining; its worker owns and
+            # persists a live record until finally removing the active slot.
+            if (pid, sid) in self.active:
+                raise RuntimeError('Wait for the agent turn to stop before renaming this conversation')
+            record.update(title=title.strip(), title_custom=True)
+            self._save(pid, record)
+            return self._public(record)
+
+    def delete(self, pid, sid):
+        with self.lock:
+            self._load(pid, sid)
+            if (pid, sid) in self.active:
+                raise RuntimeError('Wait for the agent turn to stop before deleting this conversation')
+            self._path(pid, sid).unlink()
+            return {'deleted': True, 'id': sid}
 
     def create(self, pid, options):
         if not isinstance(options, dict):
@@ -128,10 +167,26 @@ class AgentManager:
         if not isinstance(message, str) or not message.strip() or len(message) > 32000:
             raise ValueError('Message must contain 1–32000 characters')
         selected = body.get('files', [])
-        if not isinstance(selected, list) or len(selected) > 20:
-            raise ValueError('Select up to 20 context files')
+        attachments = body.get('attachments', [])
+        if (not isinstance(selected, list) or not isinstance(attachments, list)
+                or len(selected) + len(attachments) > MAX_ATTACHMENTS):
+            raise ValueError('Select up to 20 project files and text attachments combined')
         chunks = []
         total = 0
+        for attachment in attachments:
+            if not isinstance(attachment, dict) or set(attachment) != {'name', 'content'}:
+                raise ValueError('Each text attachment must contain a name and content')
+            name, content = attachment['name'], attachment['content']
+            if (not isinstance(name, str) or not name.strip() or len(name) > 200
+                    or name in ('.', '..') or '/' in name or '\\' in name
+                    or any(ord(c) < 32 or 127 <= ord(c) < 160 for c in name)):
+                raise ValueError('Text attachment names must be plain filenames of up to 200 characters')
+            if (not isinstance(content, str) or '\x00' in content
+                    or len(content.encode()) > MAX_ATTACHMENT_BYTES):
+                raise ValueError('Text attachments must contain text of up to 64 KiB each')
+            chunk = f'ATTACHED TEXT {name}\n{content}'
+            total += len(chunk.encode())
+            chunks.append(chunk)
         for name in selected:
             file = self.workspace.projects.read(pid, name)
             chunk = f'FILE {file["path"]}\n{file["content"]}'
@@ -183,12 +238,13 @@ class AgentManager:
                 if not executable:
                     raise ValueError(f'{record["backend"]} executable is not available; configure it in Settings')
             control = {'cancel': threading.Event(), 'decision': threading.Event(), 'approved': False}
-            turn = {'id': uuid.uuid4().hex, 'message': message, 'files': body.get('files', []),
+            turn = {'id': uuid.uuid4().hex, 'message': message, 'files': copy.deepcopy(body.get('files', [])),
+                    'attachments': copy.deepcopy(body.get('attachments', [])),
                     'run_id': body.get('run_id'), 'created_at': now(), 'status': 'running',
                     'events': [], 'reply': '', 'usage': None, 'error': None}
             record['turns'].append(turn)
             record.update(status='running', pending_approval=None)
-            if len(record['turns']) == 1:
+            if len(record['turns']) == 1 and not record.get('title_custom'):
                 record['title'] = message[:80]
             worker = threading.Thread(target=self._run, args=(pid, record, prompt, provider, executable, control), daemon=True)
             control['thread'] = worker

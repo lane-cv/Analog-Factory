@@ -152,9 +152,12 @@ class _Events:
                     detail = item.get('command', item.get('arguments',
                              item.get('changes', item.get('query', ''))))
                     event_type = 'tool_call' if kind == 'item.started' else 'status'
-                self.emit({'type': event_type, 'tool': tool, 'text': _json_text(detail),
-                           'status': str(item.get('status', 'completed' if kind == 'item.completed'
-                                                else 'in_progress'))})
+                normalized = {'type': event_type, 'tool': tool, 'text': _json_text(detail),
+                              'status': str(item.get('status', 'completed' if kind == 'item.completed'
+                                                   else 'in_progress'))}
+                if isinstance(item.get('id'), str) and item['id']:
+                    normalized['tool_call_id'] = item['id']
+                self.emit(normalized)
 
     def claude(self, event):
         kind = event['type']
@@ -184,11 +187,11 @@ class _Events:
                     arguments = _required(block.get('input'), dict, 'tool input')
                     self.tools[tool_id] = tool
                     self.emit({'type': 'tool_call', 'tool': tool,
-                               'text': _json_text(arguments), 'status': 'in_progress'})
+                               'tool_call_id': tool_id, 'text': _json_text(arguments), 'status': 'in_progress'})
                 elif block_type == 'tool_result':
                     tool_id = _required(block.get('tool_use_id'), str, 'tool result ID')
                     self.emit({'type': 'tool_result', 'tool': self.tools.get(tool_id, tool_id),
-                               'text': _json_text(block.get('content', '')),
+                               'tool_call_id': tool_id, 'text': _json_text(block.get('content', '')),
                                'status': 'failed' if block.get('is_error') else 'completed'})
             if texts:
                 self.message('\n'.join(texts))

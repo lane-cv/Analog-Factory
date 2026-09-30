@@ -69,6 +69,8 @@ event({'type': 'turn.completed', 'usage': {'input_tokens': 12, 'cached_input_tok
         self.assertEqual(self.events[0], {'type': 'session', 'backend_session_id': 'codex-thread-123'})
         self.assertTrue(any(e['type'] == 'tool_call' and e['tool'] == 'command_execution' for e in self.events))
         self.assertTrue(any(e['type'] == 'tool_result' and e['text'] == 'R1 in out 1k' for e in self.events))
+        self.assertEqual([event.get('tool_call_id') for event in self.events
+                          if event['type'] in ('tool_call', 'tool_result')], ['i1', 'i1'])
 
     def test_absent_cli_usage_remains_unknown(self):
         self.fixture("""
@@ -157,6 +159,8 @@ event({'type': 'result', 'subtype': 'success', 'is_error': False, 'result': 'A r
                 self.assertEqual(self.events[0]['backend_session_id'], 'claude-session-123')
                 self.assertTrue(any(e['type'] == 'tool_call' and e['tool'] == 'Read' for e in self.events))
                 self.assertTrue(any(e['type'] == 'tool_result' and e['text'] == 'R1 in out 1k' for e in self.events))
+                self.assertEqual([event.get('tool_call_id') for event in self.events
+                                  if event['type'] in ('tool_call', 'tool_result')], ['t1', 't1'])
                 self.assertEqual(sum(e['type'] == 'message' for e in self.events), 1)
 
     def test_failed_or_missing_final_events_never_succeed(self):
@@ -206,7 +210,7 @@ event({'type': 'turn.completed', 'usage': {'input_tokens': 5, 'output_tokens': 2
         result = self.run_turn()
         self.assertEqual(result['reply'], 'The file is missing.')
         self.assertIn({'type': 'tool_result', 'tool': 'command_execution',
-                       'text': 'No such file', 'status': 'failed'}, self.events)
+                       'tool_call_id': 'command', 'text': 'No such file', 'status': 'failed'}, self.events)
 
     def test_rejects_invalid_modes_backends_and_session_option_injection(self):
         self.fixture("Path('started').touch()")

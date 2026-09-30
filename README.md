@@ -99,8 +99,8 @@ HTTP integration tests require permission to open localhost sockets.
   Ollama, Codex CLI and Claude Code. Durable sessions, selected file/run context,
   visible tool activity, cancellation, and permission controls share one sidebar.
   API agents can read files, propose reviewed edits and run recorded simulations.
-  A minimal authenticated Codex conversation has been verified. Live model API,
-  Claude and CLI project-editing acceptance remain open.
+  Minimal authenticated Codex and Claude conversations have been verified. Live
+  model API and CLI project-editing acceptance remain open.
 
 ## Embedded agents
 
@@ -149,6 +149,12 @@ model must support its protocol's function/tool calling to use these tools.
 For **CLI agents**, install and log in to the CLI separately, then use its PATH
 entry or configure its executable in Settings. Analog Factory passes prompts over
 stdin and uses the CLI's own authentication without reading or copying login files.
+Because Claude's `--restricted` skips user settings, the adapter reads only the
+connection/authentication and model environment allowlist from
+`$CLAUDE_CONFIG_DIR/settings.json` (default `~/.claude/settings.json`) into the
+Claude child process, and preserves the user default model. Secrets never enter
+command arguments or workspace settings. Project settings, hooks and permission
+overrides remain excluded; native login storage is handled by Claude itself.
 **Read-only** is the default; **Allow project writes** authorizes the CLI's available
 write tools for that session. CLI session IDs are retained for native continuation.
 Codex uses its `read-only` or `workspace-write` sandbox with interactive approvals
@@ -190,9 +196,10 @@ is not encrypted. Uncheck it for a session-only key that disappears when the ser
 stops. Keys are bound to their endpoint and protocol; changing either requires a
 new key. **Clear saved key** removes the stored key. An explicitly named environment
 variable remains available as an optional fallback. Settings and configuration
-exports exclude keys. No CLI authentication files or global agent configuration
-are read or modified by the application; a launched CLI manages its own existing
-authentication and session storage. Model replies are suggestions, not verified design results.
+exports exclude keys. CLI login files are not read or modified by the application;
+a launched CLI manages its existing authentication and session storage. Claude's
+user connection settings are read as described above, without modifying global
+configuration. Model replies are suggestions, not verified design results.
 
 ```json
 {

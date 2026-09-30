@@ -32,6 +32,19 @@ the corresponding structured output flags; Claude additionally requires
 or model availability. No CLI installation, login, paid inference or user-wide
 configuration change is performed automatically.
 
+Claude's restricted mode skips user settings. The adapter restores only
+`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
+`ANTHROPIC_CUSTOM_HEADERS`, `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_MODEL`,
+`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`, and `ANTHROPIC_SMALL_FAST_MODEL`
+from the user `settings.json` into its child environment. The directory is
+`CLAUDE_CONFIG_DIR`, defaulting to `~/.claude`. These values stay in memory and
+are not command arguments or persisted in the workspace. User `env` takes
+precedence over inherited values, as in the native CLI; host-managed provider
+configuration is preserved. A user `model` fallback goes into explicit settings,
+below managed policy and explicit model selection. Project/local settings,
+arbitrary environment entries, hooks, and executable credential helpers are not
+loaded; existing native login and inherited credentials still work without this file.
+
 `agents.py` owns project sessions under `.af/agent-sessions/<id>.json`. `agent_api.py`
 owns the bounded model/tool loop; `agent_cli.py` owns CLI framing, normalization and
 process cleanup. Codex `error` events can be intermediate reconnect notices: the
@@ -56,8 +69,9 @@ its version and returns built-in model aliases, not an account entitlement list.
 Metadata is bounded by an 8-second timeout and output limits, cached for five
 minutes (30 seconds on failure), and refreshed with `&refresh=1`. Discovery failure
 keeps default/custom model selection available and disables unverifiable Fast
-capabilities. CLI processes continue to own authentication; no login files or
-global model/speed settings are read or modified by the application.
+capabilities. Discovery does not read login or global model/speed settings. At turn
+startup Claude receives the user connection settings described above; neither
+adapter modifies global configuration or native login files.
 
 The HTTP API exposes `/api/agents` and project-scoped `/agent/sessions` routes for
 create/list/get, bounded `?q=` history search, title updates via `PUT`, deletion via

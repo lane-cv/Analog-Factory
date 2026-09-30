@@ -25,6 +25,53 @@ _MAX_EVENTS = 10000
 _MAX_STDERR = 16 * 1024
 _SESSION_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,511}\Z')
 _CLAUDE_FAST_MODELS = re.compile(r'(?:opus|claude-opus-(?:5-5|5|4-8))(?:\[1m\])?\Z')
+_CLAUDE_CONNECTION_ENV = frozenset({
+    'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL',
+    'ANTHROPIC_CUSTOM_HEADERS', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_MODEL',
+    'ANTHROPIC_DEFAULT_OPUS_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+    'ANTHROPIC_DEFAULT_HAIKU_MODEL', 'ANTHROPIC_SMALL_FAST_MODEL',
+})
+
+
+def _claude_configuration():
+    """Restore user connection settings skipped by --restricted, in memory only.
+
+    Never load project settings, hooks, permissions, or arbitrary environment
+    overrides. The native CLI still owns OAuth storage and managed policy.
+    """
+    environment = dict(os.environ)
+    if environment.get('CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST'):
+        return environment, None
+    default_model = None
+    config_dir = Path(environment.get('CLAUDE_CONFIG_DIR') or Path.home() / '.claude').expanduser()
+    try:
+        with (config_dir / 'settings.json').open('rb') as stream:
+            contents = stream.read(_MAX_LINE + 1)
+        if len(contents) > _MAX_LINE:
+            raise ValueError('Settings exceed size limit')
+        settings = json.loads(contents)
+        if not isinstance(settings, dict) or not isinstance(settings.get('env', {}), dict):
+            raise ValueError('Invalid settings object')
+        for key in _CLAUDE_CONNECTION_ENV:
+            if key in settings.get('env', {}):
+                value = settings['env'][key]
+                if not isinstance(value, str) or '\0' in value:
+                    raise ValueError('Invalid environment value')
+                # Claude's user settings.env normally overrides the shell.
+                environment[key] = value
+        model = settings.get('model')
+        if model is not None and not environment.get('ANTHROPIC_MODEL'):
+            if not isinstance(model, str) or '\0' in model:
+                raise ValueError('Invalid model setting')
+            # Keep this as a settings value, below managed policy; converting it
+            # to ANTHROPIC_MODEL would incorrectly raise its precedence.
+            default_model = model
+    except FileNotFoundError:
+        pass  # Ordinary native login or inherited environment needs no bridge.
+    except (OSError, ValueError, RecursionError):
+        # JSON errors can quote settings; never expose their credential content.
+        raise RuntimeError('Could not read Claude user settings; check settings.json in the Claude config directory') from None
+    return environment, default_model
 
 
 def validate_fast_mode(backend, model, fast_mode):
@@ -37,7 +84,7 @@ def validate_fast_mode(backend, model, fast_mode):
         raise ValueError('Claude Fast mode requires a supported Opus model; select Opus first')
 
 
-def _command(backend, executable, model, mode, session_id, fast_mode=None):
+def _command(backend, executable, model, mode, session_id, fast_mode=None, *, default_model=None):
     if backend not in {'codex', 'claude'}:
         raise ValueError('Unknown CLI backend')
     if mode not in {'read-only', 'workspace-write'}:
@@ -69,8 +116,11 @@ def _command(backend, executable, model, mode, session_id, fast_mode=None):
     argv = [str(executable), '-p', '--output-format', 'stream-json', '--verbose',
             '--restricted', '--strict-mcp-config', '--disable-slash-commands',
             '--permission-mode', 'dontAsk', '--tools', tools, '--allowedTools', tools]
+    settings = {'model': default_model} if default_model and not model else {}
     if fast_mode is not None:
-        argv += ['--settings', json.dumps({'fastMode': fast_mode}, separators=(',', ':'))]
+        settings['fastMode'] = fast_mode
+    if settings:
+        argv += ['--settings', json.dumps(settings, separators=(',', ':'))]
     if model:
         argv += ['--model', model]
     if session_id:
@@ -259,7 +309,6 @@ def run_cli_turn(backend, executable, project_root, model, mode,
     deadlines raise TimeoutError. Backend/protocol failures raise RuntimeError.
     Requires a POSIX host and, for Claude, a CLI with ``--restricted`` support.
     """
-    argv = _command(backend, executable, model, mode, backend_session_id, fast_mode)
     if os.name != 'posix':
         raise RuntimeError('CLI agents require POSIX process-group support')
     if not isinstance(prompt, str) or len(prompt.encode('utf-8')) > _MAX_LINE:
@@ -268,11 +317,14 @@ def run_cli_turn(backend, executable, project_root, model, mode,
         raise ValueError('CLI timeout must be positive and finite')
     if cancel.is_set():
         raise InterruptedError('CLI turn cancelled')
+    environment, default_model = _claude_configuration() if backend == 'claude' else (None, None)
+    argv = _command(backend, executable, model, mode, backend_session_id, fast_mode,
+                    default_model=default_model)
     parser = _Events(backend, backend_session_id, emit)
     try:
         process = subprocess.Popen(argv, cwd=Path(project_root), stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   start_new_session=True, bufsize=0)
+                                   start_new_session=True, bufsize=0, env=environment)
     except OSError as error:
         raise RuntimeError(f'Could not start {backend}: {error}') from error
     deadline = time.monotonic() + timeout

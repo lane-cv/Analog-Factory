@@ -6,6 +6,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 from analog_factory.agent_cli import run_cli_turn
 
@@ -18,6 +19,11 @@ class AgentCLITests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.project = self.root / 'project'
         self.project.mkdir()
+        self.claude_config = self.root / 'claude-config'
+        self.claude_config.mkdir()
+        config_patch = patch.dict(os.environ, {'CLAUDE_CONFIG_DIR': str(self.claude_config)})
+        config_patch.start()
+        self.addCleanup(config_patch.stop)
         self.executable = self.root / 'fake-agent'
         self.events = []
         self.cancel = threading.Event()
@@ -163,6 +169,96 @@ event({'type': 'result', 'subtype': 'success', 'is_error': False, 'result': 'A r
                 self.assertEqual([event.get('tool_call_id') for event in self.events
                                   if event['type'] in ('tool_call', 'tool_result')], ['t1', 't1'])
                 self.assertEqual(sum(e['type'] == 'message' for e in self.events), 1)
+
+    def claude_environment_fixture(self):
+        self.fixture("""
+sys.stdin.read()
+observed = {key: os.environ.get(key) for key in (
+    'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL',
+    'ANTHROPIC_MODEL', 'ANTHROPIC_DEFAULT_OPUS_MODEL', 'CLAUDE_CODE_OAUTH_TOKEN',
+    'AF_UNTRUSTED_SETTING', 'CLAUDE_CODE_RESTRICTED')}
+Path('invocation.json').write_text(json.dumps({'argv': sys.argv[1:], 'env': observed}))
+event({'type': 'result', 'subtype': 'success', 'result': 'Done', 'usage': {}, 'session_id': 'claude-config-session'})
+""")
+
+    def test_claude_restores_user_connection_settings_without_loading_customizations(self):
+        self.claude_environment_fixture()
+        settings = {'env': {
+            'ANTHROPIC_AUTH_TOKEN': 'fixture-user-token',
+            'ANTHROPIC_BASE_URL': 'https://gateway.example.invalid',
+            'ANTHROPIC_MODEL': 'gateway-default',
+            'ANTHROPIC_DEFAULT_OPUS_MODEL': 'gateway-opus',
+            'AF_UNTRUSTED_SETTING': 'must-not-load',
+            'CLAUDE_CODE_RESTRICTED': '0',
+        }, 'model': 'lower-priority-model',
+            'hooks': {'SessionStart': [{'command': 'must-not-run'}]},
+            'permissions': {'defaultMode': 'bypassPermissions'}}
+        path = self.claude_config / 'settings.json'
+        path.write_text(json.dumps(settings))
+        (self.project / '.claude').mkdir()
+        (self.project / '.claude' / 'settings.json').write_text(json.dumps({
+            'env': {'ANTHROPIC_AUTH_TOKEN': 'untrusted-project-token',
+                    'ANTHROPIC_BASE_URL': 'https://untrusted.example.invalid'}}))
+        for session in (None, 'claude-config-session'):
+            with self.subTest(session=session), patch.dict(os.environ, {
+                'ANTHROPIC_AUTH_TOKEN': 'shell-token', 'CLAUDE_CODE_RESTRICTED': '1',
+                'CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST': ''}):
+                self.run_turn('claude', model='opus', fast_mode=True,
+                              backend_session_id=session)
+                invocation = json.loads((self.project / 'invocation.json').read_text())
+                env, argv = invocation['env'], invocation['argv']
+                self.assertEqual(env['ANTHROPIC_AUTH_TOKEN'], 'fixture-user-token')
+                self.assertEqual(env['ANTHROPIC_BASE_URL'], 'https://gateway.example.invalid')
+                self.assertEqual(env['ANTHROPIC_MODEL'], 'gateway-default')
+                self.assertEqual(env['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'gateway-opus')
+                self.assertIsNone(env['AF_UNTRUSTED_SETTING'])
+                self.assertEqual(env['CLAUDE_CODE_RESTRICTED'], '1')
+                self.assertEqual(argv[argv.index('--model') + 1], 'opus')
+                self.assertEqual(json.loads(argv[argv.index('--settings') + 1]), {'fastMode': True})
+                self.assertIn('--restricted', argv)
+                self.assertNotIn('fixture-user-token', ' '.join(argv))
+                self.assertNotIn('must-not-run', ' '.join(argv))
+                self.assertEqual(os.environ['ANTHROPIC_AUTH_TOKEN'], 'shell-token')
+        self.assertEqual(json.loads(path.read_text()), settings)
+
+    def test_claude_user_model_falls_back_behind_environment_model(self):
+        self.claude_environment_fixture()
+        (self.claude_config / 'settings.json').write_text(json.dumps({'model': 'user-default'}))
+        for inherited in ('', 'shell-default'):
+            with self.subTest(inherited=inherited), patch.dict(os.environ, {
+                'ANTHROPIC_MODEL': inherited, 'CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST': ''}):
+                self.run_turn('claude', model='', fast_mode=False)
+                invocation = json.loads((self.project / 'invocation.json').read_text())
+                self.assertEqual(invocation['env']['ANTHROPIC_MODEL'], inherited)
+                argv = invocation['argv']
+                expected_settings = {'fastMode': False}
+                if not inherited:
+                    expected_settings['model'] = 'user-default'
+                self.assertEqual(json.loads(argv[argv.index('--settings') + 1]), expected_settings)
+                self.assertNotIn('--model', invocation['argv'])
+
+    def test_claude_host_managed_provider_keeps_its_auth_and_model(self):
+        self.claude_environment_fixture()
+        (self.claude_config / 'settings.json').write_text(json.dumps({
+            'env': {'ANTHROPIC_AUTH_TOKEN': 'user-token'}, 'model': 'user-model'}))
+        with patch.dict(os.environ, {'CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST': '1',
+                                    'ANTHROPIC_AUTH_TOKEN': 'host-token',
+                                    'ANTHROPIC_MODEL': 'host-model'}):
+            self.run_turn('claude')
+        observed = json.loads((self.project / 'invocation.json').read_text())['env']
+        self.assertEqual(observed['ANTHROPIC_AUTH_TOKEN'], 'host-token')
+        self.assertEqual(observed['ANTHROPIC_MODEL'], 'host-model')
+
+    def test_claude_invalid_user_config_fails_without_echoing_secrets(self):
+        self.claude_environment_fixture()
+        for contents in ('{"env": "private-secret"}', '{"private-secret":',
+                         json.dumps({'env': {'ANTHROPIC_AUTH_TOKEN': 'private-secret\0'}})):
+            with self.subTest(contents=contents):
+                (self.claude_config / 'settings.json').write_text(contents)
+                with self.assertRaisesRegex(RuntimeError, 'Claude user settings') as caught:
+                    self.run_turn('claude')
+                self.assertNotIn('private-secret', str(caught.exception))
+        self.assertFalse((self.project / 'invocation.json').exists())
 
     def test_claude_fast_preference_is_explicit_and_preserves_resumed_permissions(self):
         self.fixture("""

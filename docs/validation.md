@@ -45,6 +45,21 @@ the server environment also returned `OK`. Three regression fixtures verify reco
 notices followed by success, terminal failure, or missing completion. Intermediate
 Codex `error` events must not terminate its native retry loop.
 
+The Claude authentication follow-up passed 193 Python tests, including new
+subprocess regressions for user connection settings, model precedence, host-managed
+configuration, resume and secret-safe configuration errors. A live check on the
+user's running service with Claude Code 2.1.280 first reproduced `Not logged in`
+under `--restricted`; restoring the allowlisted user connection environment fixed
+authentication without removing the restriction. An explicit `opus` alias then
+returned `AF_CLAUDE_FAST_OK`, and a browser-submitted continuation returned
+`AF_CLAUDE_BROWSER_OK`, both with zero tool calls and no attached files. The rendered
+conversation showed success and the browser reported no JavaScript errors.
+The configured default model was separately rejected by the user's gateway;
+authentication does not establish model access. Fast was requested in the successful
+session, but the CLI reported `off (preference)`, so accelerated execution is not
+claimed. These checks validate connectivity and native resume, not project editing
+or EDA task acceptance.
+
 The sandbox initially prohibited localhost sockets. The HTTP tests passed with approved
 local-network execution permission; none were skipped. Browser tooling and missing
 browser libraries were installed/extracted only under `/tmp`. No system packages were
@@ -105,7 +120,7 @@ The local Chinese font subset and its OFL license are included in the built whee
 ## Not validated
 
 No xschem, Magic, LVS Netgen, prepared SKY130, graphical EDA desktop, live model API,
-Claude session, full CLI task flow or training framework was configured for acceptance. No SKY130
+full CLI task flow or training framework was configured for acceptance. No SKY130
 DRC/LVS pass, physical extraction, post-layout result, trained checkpoint, held-out model
 improvement or tapeout/signoff is claimed. See [delivery status](status.md) and
 [integration matrix](integration-matrix.md) for remaining gates and upstream interfaces.

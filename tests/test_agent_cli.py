@@ -61,6 +61,7 @@ event({'type': 'turn.completed', 'usage': {'input_tokens': 12, 'cached_input_tok
         self.assertIn('--skip-git-repo-check', argv)
         self.assertIn('sandbox_mode="read-only"', argv)
         self.assertIn('approval_policy="never"', argv)
+        self.assertFalse(any(arg.startswith('service_tier=') for arg in argv))
         self.assertEqual(argv[-1], '-')
         self.assertNotIn('Private prompt', ' '.join(argv))
         self.assertEqual(result['reply'], 'A 1k resistor.')
@@ -162,6 +163,71 @@ event({'type': 'result', 'subtype': 'success', 'is_error': False, 'result': 'A r
                 self.assertEqual([event.get('tool_call_id') for event in self.events
                                   if event['type'] in ('tool_call', 'tool_result')], ['t1', 't1'])
                 self.assertEqual(sum(e['type'] == 'message' for e in self.events), 1)
+
+    def test_claude_fast_preference_is_explicit_and_preserves_resumed_permissions(self):
+        self.fixture("""
+Path('invocation.json').write_text(json.dumps({'argv': sys.argv[1:], 'stdin': sys.stdin.read()}))
+event({'type': 'result', 'subtype': 'success', 'result': 'Done', 'usage': {}, 'session_id': 'claude-fast-session'})
+""")
+        for fast in (True, False):
+            for session_id in (None, 'saved-claude'):
+                with self.subTest(fast=fast, session_id=session_id):
+                    self.run_turn('claude', model='opus', fast_mode=fast,
+                                  mode='workspace-write', backend_session_id=session_id)
+                    argv = json.loads((self.project / 'invocation.json').read_text())['argv']
+                    self.assertEqual(json.loads(argv[argv.index('--settings') + 1]), {'fastMode': fast})
+                    self.assertEqual(argv[argv.index('--model') + 1], 'opus')
+                    self.assertEqual(argv[argv.index('--tools') + 1], 'Read,Glob,Grep,Edit,Write')
+                    self.assertEqual(argv[argv.index('--permission-mode') + 1], 'dontAsk')
+                    self.assertIn('--restricted', argv)
+                    self.assertIn('--strict-mcp-config', argv)
+                    if session_id:
+                        self.assertEqual(argv[argv.index('--resume') + 1], session_id)
+
+    def test_codex_fast_and_standard_reapply_the_explicit_service_tier_on_resume(self):
+        self.successful_codex()
+        for fast, expected in ((True, 'service_tier="fast"'), (False, 'service_tier="default"')):
+            for session_id in (None, 'saved-codex'):
+                with self.subTest(fast=fast, session_id=session_id):
+                    self.run_turn(model='chosen-model', fast_mode=fast,
+                                  backend_session_id=session_id)
+                    argv = json.loads((self.project / 'invocation.json').read_text())['argv']
+                    self.assertIn(expected, argv)
+                    self.assertEqual(argv[argv.index(expected) - 1], '-c')
+                    self.assertEqual(argv[argv.index('--model') + 1], 'chosen-model')
+                    self.assertIn('sandbox_mode="read-only"', argv)
+                    self.assertIn('approval_policy="never"', argv)
+                    if session_id:
+                        self.assertEqual(argv[:2], ['exec', 'resume'])
+                        self.assertEqual(argv[-2:], [session_id, '-'])
+
+    def test_cli_fast_mode_rejects_invalid_values_before_launch(self):
+        self.fixture("Path('started').touch()")
+        for fast in ('false', 0, 1, [], {}):
+            with self.subTest(fast=fast), self.assertRaises(ValueError):
+                self.run_turn(fast_mode=fast)
+        for model in ('', 'default', 'sonnet', 'haiku', 'fable', 'claude-opus-4-7'):
+            with self.subTest(model=model), self.assertRaises(ValueError):
+                self.run_turn('claude', model=model, fast_mode=True)
+        self.assertFalse((self.project / 'started').exists())
+
+    def test_claude_reports_actual_fast_state_without_inventing_success(self):
+        self.fixture("""
+sys.stdin.read()
+event({'type': 'system', 'subtype': 'init', 'fast_mode_state': 'on', 'session_id': 'claude-fast-session'})
+event({'type': 'system', 'subtype': 'notification', 'fast_mode_state': 'cooldown'})
+event({'type': 'result', 'subtype': 'success', 'result': 'Done', 'usage': {},
+       'fast_mode_state': 'off', 'fast_mode_disabled_reason': 'extra_usage_disabled'})
+""")
+        self.run_turn('claude', model='opus', fast_mode=True)
+        states = [event for event in self.events if event.get('fast_mode_state')]
+        self.assertEqual([event['fast_mode_state'] for event in states], ['on', 'cooldown', 'off'])
+        self.assertTrue(all(event['type'] == 'status' for event in states))
+        self.assertEqual(states[-1]['fast_mode_disabled_reason'], 'extra_usage_disabled')
+        self.events.clear()
+        self.fixture("event({'type': 'result', 'subtype': 'success', 'result': 'Done', 'usage': {}, 'session_id': 'claude-fast-session'})")
+        self.run_turn('claude', model='opus', fast_mode=True)
+        self.assertFalse(any('fast_mode_state' in event for event in self.events))
 
     def test_failed_or_missing_final_events_never_succeed(self):
         cases = [

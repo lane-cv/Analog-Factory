@@ -24,9 +24,20 @@ _MAX_OUTPUT = 8 * 1024 * 1024
 _MAX_EVENTS = 10000
 _MAX_STDERR = 16 * 1024
 _SESSION_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,511}\Z')
+_CLAUDE_FAST_MODELS = re.compile(r'(?:opus|claude-opus-(?:5-5|5|4-8))(?:\[1m\])?\Z')
 
 
-def _command(backend, executable, model, mode, session_id):
+def validate_fast_mode(backend, model, fast_mode):
+    """Validate an explicit preference without changing the selected model."""
+    if not isinstance(fast_mode, bool):
+        raise ValueError('Fast mode must be a boolean')
+    if fast_mode and backend not in {'codex', 'claude'}:
+        raise ValueError('Fast mode is only supported by CLI backends')
+    if fast_mode and backend == 'claude' and not _CLAUDE_FAST_MODELS.fullmatch(model or ''):
+        raise ValueError('Claude Fast mode requires a supported Opus model; select Opus first')
+
+
+def _command(backend, executable, model, mode, session_id, fast_mode=None):
     if backend not in {'codex', 'claude'}:
         raise ValueError('Unknown CLI backend')
     if mode not in {'read-only', 'workspace-write'}:
@@ -37,12 +48,18 @@ def _command(backend, executable, model, mode, session_id):
     if model is not None and (not isinstance(model, str) or len(model) > 256
                               or any(ord(char) < 32 for char in model)):
         raise ValueError('Invalid CLI model')
+    if fast_mode is not None:
+        validate_fast_mode(backend, model, fast_mode)
     if backend == 'codex':
         argv = [str(executable), 'exec']
         if session_id:
             argv.append('resume')
         argv += ['--json', '--skip-git-repo-check',
                  '-c', f'sandbox_mode="{mode}"', '-c', 'approval_policy="never"']
+        if fast_mode is not None:
+            # Codex's explicit default sentinel overrides a configured Fast tier;
+            # omitting the setting would inherit the CLI's global preference.
+            argv += ['-c', 'service_tier="fast"' if fast_mode else 'service_tier="default"']
         if model:
             argv += ['--model', model]
         if session_id:
@@ -52,6 +69,8 @@ def _command(backend, executable, model, mode, session_id):
     argv = [str(executable), '-p', '--output-format', 'stream-json', '--verbose',
             '--restricted', '--strict-mcp-config', '--disable-slash-commands',
             '--permission-mode', 'dontAsk', '--tools', tools, '--allowedTools', tools]
+    if fast_mode is not None:
+        argv += ['--settings', json.dumps({'fastMode': fast_mode}, separators=(',', ':'))]
     if model:
         argv += ['--model', model]
     if session_id:
@@ -163,6 +182,20 @@ class _Events:
         kind = event['type']
         if event.get('session_id') is not None:
             self.session(event['session_id'])
+        if kind in {'system', 'result'}:
+            state = event.get('fast_mode_state')
+            reason = event.get('fast_mode_disabled_reason')
+            fast_status = {}
+            if isinstance(state, str) and state in {'on', 'off', 'cooldown'}:
+                fast_status['fast_mode_state'] = state
+            if isinstance(reason, str) and re.fullmatch(r'[a-z][a-z0-9_]{0,119}', reason):
+                fast_status['fast_mode_disabled_reason'] = reason
+            if fast_status:
+                text = 'Fast mode: ' + fast_status.get('fast_mode_state', 'unavailable')
+                if 'fast_mode_disabled_reason' in fast_status:
+                    text += ' (' + reason.replace('_', ' ') + ')'
+                self.emit({'type': 'status', 'status': 'warning' if reason or state == 'cooldown'
+                           else 'info', 'text': text, **fast_status})
         if kind == 'result':
             is_error = _required(event.get('is_error', False), bool, 'result error flag')
             if event.get('subtype') != 'success' or is_error:
@@ -219,14 +252,14 @@ def _terminate_group(process):
 
 
 def run_cli_turn(backend, executable, project_root, model, mode,
-                 backend_session_id, prompt, emit, cancel, timeout=300):
+                 backend_session_id, prompt, emit, cancel, timeout=300, *, fast_mode=None):
     """Run one turn, emitting normalized events; EOF alone never means success.
 
     ``cancel`` is a threading.Event. Cancellation raises InterruptedError and
     deadlines raise TimeoutError. Backend/protocol failures raise RuntimeError.
     Requires a POSIX host and, for Claude, a CLI with ``--restricted`` support.
     """
-    argv = _command(backend, executable, model, mode, backend_session_id)
+    argv = _command(backend, executable, model, mode, backend_session_id, fast_mode)
     if os.name != 'posix':
         raise RuntimeError('CLI agents require POSIX process-group support')
     if not isinstance(prompt, str) or len(prompt.encode('utf-8')) > _MAX_LINE:

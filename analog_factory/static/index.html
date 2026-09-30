@@ -113,6 +113,7 @@
               <button id="agent-add-context" type="button" class="agent-icon-button" aria-label="Add context" title="Add context" data-i18n-aria-label="Add context" data-i18n-title="Add context" aria-expanded="false" aria-controls="agent-context-picker"><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
               <button id="agent-model-toggle" type="button" class="agent-chip agent-model-chip" aria-label="Choose model" title="Choose model" data-i18n-aria-label="Choose model" data-i18n-title="Choose model" aria-expanded="false" aria-controls="agent-model-picker"><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/></svg><span id="assistant-model" data-i18n="Default model">Default model</span><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
               <label class="agent-chip agent-permission-chip"><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 3v6c0 4-5 8-8 9-3-1-8-5-8-9V6Z"/></svg><span class="sr-only" data-i18n="Permission">Permission</span><select id="agent-mode" aria-describedby="agent-permission-note"></select></label>
+              <button id="agent-fast-toggle" type="button" class="agent-chip agent-fast-chip" aria-label="Fast mode" data-i18n-aria-label="Fast mode" aria-pressed="false" aria-describedby="agent-fast-note" hidden><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7Z"/></svg><span data-i18n="Fast">Fast</span></button>
               <span class="top-spacer"></span>
               <button id="agent-commands" type="button" class="agent-icon-button" aria-label="Quick commands" title="Quick commands" data-i18n-aria-label="Quick commands" data-i18n-title="Quick commands" aria-expanded="false" aria-controls="agent-command-list"><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 3-6 18"/></svg></button>
               <button id="agent-stop" type="button" class="agent-submit agent-stop" aria-label="Stop" title="Stop" data-i18n-aria-label="Stop" data-i18n-title="Stop" hidden><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
@@ -128,12 +129,14 @@
             <p id="agent-context-note" class="agent-note"></p><p class="agent-note" data-i18n="Attachments are sent with your message; project files are not changed.">Attachments are sent with your message; project files are not changed.</p>
           </div>
           <div id="agent-model-picker" class="agent-popover agent-model-picker" role="group" aria-label="Choose model" data-i18n-aria-label="Choose model" hidden>
-            <strong data-i18n="Model">Model</strong><label><span class="sr-only" data-i18n="Search models">Search models</span><input id="agent-model-search" type="search" placeholder="Search models…" data-i18n-placeholder="Search models…" autocomplete="off"></label>
+            <div class="agent-model-heading"><strong data-i18n="Model">Model</strong><button id="agent-model-refresh" class="agent-icon-button" type="button" aria-label="Refresh models" title="Refresh models" data-i18n-aria-label="Refresh models" data-i18n-title="Refresh models"><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7a9 9 0 1 0 1 8M20 3v5h-5"/></svg></button></div><label><span class="sr-only" data-i18n="Search models">Search models</span><input id="agent-model-search" type="search" placeholder="Search models…" data-i18n-placeholder="Search models…" autocomplete="off"></label>
+            <p id="agent-model-catalog-status" class="agent-note" role="status"></p>
             <div id="agent-model-options"></div>
             <label><span data-i18n="Custom model ID">Custom model ID</span><input id="agent-model" autocomplete="off" spellcheck="false" maxlength="200"></label>
             <button id="agent-model-apply" type="button" class="secondary-button" data-i18n="Use model">Use model</button>
             <button type="button" class="agent-menu-link" data-tab="settings" data-i18n="Configure provider and agents">Configure provider and agents</button>
             <p id="agent-permission-note" class="agent-note"></p>
+            <p id="agent-fast-note" class="agent-note" hidden></p>
           </div>
           <div id="agent-command-list" class="agent-popover agent-command-list" role="group" aria-label="Quick commands" data-i18n-aria-label="Quick commands" hidden></div>
         </div>

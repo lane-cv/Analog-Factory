@@ -123,6 +123,13 @@
 .agent-composer-toolbar .agent-icon-button{width:24px;min-width:24px;height:24px;min-height:24px;font-size:12px;padding:0}
 .agent-chip{height:24px;min-height:24px;display:flex;align-items:center;gap:4px;border:0;border-radius:5px;padding:2px 4px;background:none;color:var(--muted);font:11px/1.3 var(--sans);min-width:0}
 .agent-chip:hover{background:var(--surface2)}
+.agent-composer-toolbar .agent-chip{min-height:24px;padding:2px 4px;font-size:11px}
+.agent-composer-toolbar .agent-fast-chip{flex:0 0 auto;gap:3px;border:1px solid transparent;white-space:nowrap}
+.agent-fast-chip span{color:inherit}
+.agent-fast-chip[aria-pressed=true]{color:var(--teal);background:var(--success-bg);border-color:var(--success-border)}
+.agent-fast-chip[aria-pressed=mixed]{border-color:var(--control-border);border-style:dashed}
+.agent-fast-chip:disabled{opacity:.5}
+.agent-composer-toolbar:has(.agent-fast-chip:not([hidden])) #agent-commands{display:none}
 .agent-chip .agent-icon{width:12px;height:12px}
 .agent-model-chip{max-width:40%;flex:0 1 auto}
 .agent-model-chip #assistant-model{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;min-width:0}
@@ -143,6 +150,10 @@
 .agent-export-menu>button>span:last-child{color:var(--muted)}
 .agent-model-picker{width:260px;max-width:calc(100% - 24px);bottom:calc(100% - 5px);left:16px}
 .agent-model-picker>strong{display:block;font-size:11px;padding:4px 3px 8px}
+.agent-model-heading{display:flex;align-items:center;justify-content:space-between;padding:0 3px 5px;font-size:11px}
+.agent-model-heading .agent-icon-button{height:24px;min-height:24px}
+.agent-model-option small{display:block;color:var(--muted);font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+.agent-model-option .agent-model-speed{font-size:10px;color:var(--teal);flex-shrink:0}
 .agent-model-picker label{font-size:11px;gap:5px;margin:4px 0}
 .agent-model-picker input{padding:7px 8px;font-size:12px;width:100%}
 #agent-model-options{max-height:180px;overflow:auto;margin:6px 0}

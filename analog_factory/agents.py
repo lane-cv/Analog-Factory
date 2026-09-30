@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from .providers import Provider, provider_binding
 from .storage import atomic_json, confined, read_json
+from .agent_cli import validate_fast_mode
 
 ACTIVE = {'running', 'waiting_approval'}
 MODES = {'api': ('read-only', 'confirm'), 'codex': ('read-only', 'workspace-write'),
@@ -145,6 +146,8 @@ class AgentManager:
         model = options.get('model', '')
         if not isinstance(model, str) or len(model) > 200 or any(ord(c) < 32 for c in model):
             raise ValueError('Agent model must be a string of up to 200 characters')
+        fast_mode = options.get('fast_mode', False)
+        validate_fast_mode(backend, model.strip(), fast_mode)
         self.workspace.projects.path(pid)
         binding = None
         if backend == 'api':
@@ -154,6 +157,7 @@ class AgentManager:
                 raise ValueError('Configure a model provider before creating an API session')
             binding = list(provider_binding(provider.config))
         record = {'id': uuid.uuid4().hex, 'backend': backend, 'model': model.strip(),
+                  'fast_mode': fast_mode,
                   'mode': mode, 'created_at': now(), 'updated_at': now(), 'status': 'idle',
                   'title': 'New conversation', 'backend_session_id': None,
                   'provider_binding': binding, 'history': [], 'turns': [],
@@ -308,7 +312,7 @@ class AgentManager:
             else:
                 result = run_cli_turn(record['backend'], executable, self.workspace.projects.path(pid),
                                       record['model'], record['mode'], record['backend_session_id'],
-                                      prompt, emit, cancel)
+                                      prompt, emit, cancel, fast_mode=record.get('fast_mode'))
             with self.lock:
                 if cancel.is_set():
                     raise InterruptedError('Agent turn cancelled')

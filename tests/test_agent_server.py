@@ -64,6 +64,25 @@ class AgentHTTPTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 403)
         error.exception.close()
 
+    def test_cli_model_catalog_uses_project_executable_and_refresh(self):
+        self.workspace.save_settings({'tools': {'codex': '/configured/codex'}})
+        expected = {'backend': 'codex', 'models': [{'id': 'catalog-model', 'label': 'Catalog model', 'fast_mode': True}], 'source': 'cli', 'fast_mode': {'supported': True}}
+        with patch('analog_factory.server.cli_model_catalog', create=True, return_value=expected) as discover, patch('shutil.which', return_value='/configured/codex'):
+            status, result = self.request(f'/api/agents/models?backend=codex&project_id={self.pid}&refresh=1')
+        self.assertEqual(status, 200)
+        self.assertEqual(result, expected)
+        discover.assert_called_once_with('codex', '/configured/codex', self.workspace.projects.path(self.pid), refresh=True)
+
+    def test_cli_model_catalog_rejects_invalid_backend_project_and_origin(self):
+        for suffix, headers, status in [
+            ('?backend=api', {}, 400),
+            ('?backend=codex&project_id=../escape', {}, 400),
+            (f'?backend=codex&project_id={self.pid}', {'Origin': 'https://foreign.invalid'}, 403),
+        ]:
+            with self.subTest(suffix=suffix), self.assertRaises(urllib.error.HTTPError) as error:
+                self.request('/api/agents/models' + suffix, headers=headers)
+            self.assertEqual(error.exception.code, status)
+            error.exception.close()
     def test_invalid_mode_and_stale_approval_return_client_errors(self):
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.request(self.path, {'backend': 'api', 'mode': 'workspace-write'})

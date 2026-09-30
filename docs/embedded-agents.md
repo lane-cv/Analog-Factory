@@ -39,7 +39,25 @@ sidebar displays them and lets the CLI continue retrying. A terminal `turn.faile
 nonzero exit, timeout, or missing completion still fails the turn. API sessions
 remain bound to their original protocol and endpoint.
 Settings changes to that binding require a new conversation. Sessions have fixed
-backend, model and permission mode, preventing permission changes during resume.
+backend, model, Fast preference, and permission mode, preventing permission changes
+during resume. New sessions store a boolean `fast_mode`; older records without
+the field continue to inherit their native CLI configuration and are labeled as
+inherited in the UI. Codex uses per-process `service_tier="fast"` or the explicit
+standard sentinel `service_tier="default"`. Claude uses
+`--settings '{"fastMode":true}'` or `false` with the existing restricted tool flags.
+Claude's Fast selection requires an explicitly compatible Opus model, so enabling
+it never silently switches from Sonnet/Haiku. Reported Claude Fast status and
+disable reasons appear in the transcript only when emitted by the CLI.
+
+`GET /api/agents/models?backend=codex|claude&project_id=…` uses that project's
+configured executable. Codex discovery calls `initialize` and `model/list` on its
+stdio app server, without starting a thread or inference. Claude discovery checks
+its version and returns built-in model aliases, not an account entitlement list.
+Metadata is bounded by an 8-second timeout and output limits, cached for five
+minutes (30 seconds on failure), and refreshed with `&refresh=1`. Discovery failure
+keeps default/custom model selection available and disables unverifiable Fast
+capabilities. CLI processes continue to own authentication; no login files or
+global model/speed settings are read or modified by the application.
 
 The HTTP API exposes `/api/agents` and project-scoped `/agent/sessions` routes for
 create/list/get, bounded `?q=` history search, title updates via `PUT`, deletion via
@@ -78,3 +96,7 @@ References:
 - [Netcatty stream lifecycle](https://github.com/binaricat/Netcatty/blob/b2ed83ae5108b479d1b509aba208a233e5240a0f/electron/bridges/aiBridge/sdk/sdkStreamHandlers.cjs)
 - [Codex noninteractive interface](https://developers.openai.com/codex/noninteractive/)
 - [Claude programmatic interface](https://code.claude.com/docs/en/headless)
+- [Codex speed and Fast mode](https://learn.chatgpt.com/docs/agent-configuration/speed)
+- [Codex per-process configuration](https://learn.chatgpt.com/docs/config-file/config-reference)
+- [Claude Fast mode](https://code.claude.com/docs/en/fast-mode)
+- [Claude model aliases](https://code.claude.com/docs/en/model-config)

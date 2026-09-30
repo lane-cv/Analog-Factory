@@ -3,6 +3,7 @@ import ipaddress
 import json
 import mimetypes
 import os
+import shutil
 import traceback
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -11,6 +12,7 @@ from pathlib import Path
 from .storage import confined
 from .providers import public_config
 from .desktop import BROWSER_URL, DesktopProxy, DesktopUnavailable
+from .agent_models import catalog as cli_model_catalog
 
 STATIC = Path(__file__).parent / 'static'
 BODY_LIMIT = 4 * 1024 * 1024
@@ -137,6 +139,15 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
                     return self._json(workspace.provider_test())
                 if path == '/api/agents' and method == 'GET':
                     return self._json(workspace.agents.backends(arg('project_id') or None))
+                if path == '/api/agents/models' and method == 'GET':
+                    backend = arg('backend')
+                    if backend not in {'codex', 'claude'}:
+                        raise ValueError('Model discovery supports Codex and Claude CLI backends')
+                    project_id = arg('project_id') or None
+                    root = workspace.projects.path(project_id) if project_id else workspace.root
+                    config = workspace.config(project_id)
+                    executable = shutil.which(config.get('tools', {}).get(backend) or backend)
+                    return self._json(cli_model_catalog(backend, executable, root, refresh=arg('refresh') == '1'))
                 if path == '/api/projects':
                     if method == 'GET':
                         return self._json(workspace.projects.list())

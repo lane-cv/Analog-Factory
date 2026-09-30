@@ -53,6 +53,61 @@ class AgentSessionTests(unittest.TestCase):
             self.agents.get(self.other, session['id'])
         self.assertNotIn('history', result)
 
+    def test_fast_preference_is_durable_and_sessions_without_it_keep_legacy_behavior(self):
+        first = self.session(backend='codex', model='selected-model', fast_mode=True)
+        second = self.session(backend='claude', model='opus')
+        self.assertIs(first.get('fast_mode'), True)
+        self.assertIs(second.get('fast_mode'), False)
+        again = Workspace(Path(self.temp.name))
+        self.addCleanup(again.agents.close)
+        self.assertIs(again.agents.get(self.pid, first['id'])['fast_mode'], True)
+        self.assertIs(again.agents.list(self.pid)[0]['fast_mode'], False)
+
+        path = self.workspace.projects.path(self.pid) / '.af/agent-sessions' / (first['id'] + '.json')
+        old = json.loads(path.read_text())
+        old.pop('fast_mode')
+        path.write_text(json.dumps(old))
+        calls = []
+        def driver(backend, executable, root, model, mode, session_id, prompt, emit, cancel,
+                   *, fast_mode):
+            calls.append(fast_mode)
+            return {'reply': 'Done'}
+        with patch('analog_factory.agents.shutil.which', return_value='/fake/codex'), \
+                patch('analog_factory.agents.run_cli_turn', driver):
+            self.agents.send(self.pid, first['id'], {'message': 'Resume old record'})
+            self.assertEqual(self.wait(first['id'])['status'], 'succeeded')
+        self.assertEqual(calls, [None])
+
+    def test_cli_resume_uses_the_session_model_and_fast_preference(self):
+        session = self.session(backend='claude', model='opus', fast_mode=True)
+        calls = []
+        def driver(backend, executable, root, model, mode, session_id, prompt, emit, cancel,
+                   *, fast_mode):
+            calls.append((model, fast_mode, session_id))
+            return {'reply': 'Done', 'backend_session_id': 'native-session'}
+        with patch('analog_factory.agents.shutil.which', return_value='/fake/claude'), \
+                patch('analog_factory.agents.run_cli_turn', driver):
+            for message in ('First', 'Continue'):
+                self.agents.send(self.pid, session['id'], {'message': message, 'fast_mode': False,
+                                                         'model': 'sonnet'})
+                self.assertEqual(self.wait(session['id'])['status'], 'succeeded')
+        self.assertEqual(calls, [('opus', True, None), ('opus', True, 'native-session')])
+        with self.assertRaises(ValueError):
+            self.agents.update(self.pid, session['id'], {'fast_mode': False})
+
+    def test_fast_mode_validates_types_backend_and_supported_claude_models(self):
+        for fast in (None, 'false', 0, 1, [], {}):
+            with self.subTest(fast=fast), self.assertRaisesRegex(ValueError, 'boolean'):
+                self.session(backend='codex', fast_mode=fast)
+        with self.assertRaisesRegex(ValueError, 'CLI'):
+            self.session(fast_mode=True)
+        for model in ('', 'default', 'sonnet', 'fable', 'haiku', 'claude-opus-4-6', 'claude-opus-4-7'):
+            with self.subTest(model=model), self.assertRaisesRegex(ValueError, 'Opus'):
+                self.session(backend='claude', model=model, fast_mode=True)
+        for model in ('opus', 'opus[1m]', 'claude-opus-5-5', 'claude-opus-5', 'claude-opus-4-8[1m]'):
+            with self.subTest(model=model):
+                self.assertTrue(self.session(backend='claude', model=model, fast_mode=True)['fast_mode'])
+
     def test_approval_is_explicit_scoped_and_cancel_unblocks_it(self):
         mutation = []
         def driver(provider, history, prompt, workspace, pid, mode, emit, cancel, approve):
@@ -184,7 +239,8 @@ class AgentSessionTests(unittest.TestCase):
 
     def test_cli_native_id_is_retained_after_failed_turn_and_used_on_resume(self):
         sessions = []
-        def driver(backend, executable, root, model, mode, session_id, prompt, emit, cancel):
+        def driver(backend, executable, root, model, mode, session_id, prompt, emit, cancel,
+                   *, fast_mode=None):
             sessions.append(session_id)
             if session_id is None:
                 emit({'type': 'session', 'backend_session_id': 'native-session-1'})

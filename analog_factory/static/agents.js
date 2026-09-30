@@ -9,7 +9,9 @@ window.AFAgents = {
     const byteLength = value => new TextEncoder().encode(value).length;
     let backends = [], capabilitiesError = '', projectId = null, generation = 0, capabilityRequest = 0;
     let sessions = [], session = null, loading = false, busy = false, timer = null, error = '', resolvedApproval = null;
-    let config = {backend:'api', model:'', mode:'read-only'}, attachments = [], attachedRunId = null, drafts = {}, historyOpen = false;
+    let config = {backend:'api', model:'', mode:'read-only', fast_mode:false}, attachments = [], attachedRunId = null, drafts = {}, historyOpen = false;
+    const modelCatalogs = new Map();
+    let catalogRequest = 0;
     let historyResults = null, historyRequest = 0, historyTimer = null, attachmentSequence = 0, composing = false;
     const url = (id = session?.id) => `/api/projects/${encodeURIComponent(projectId)}/agent/sessions${id ? `/${encodeURIComponent(id)}` : ''}`;
     const current = ticket => ticket === generation;
@@ -84,6 +86,7 @@ window.AFAgents = {
       if ($('#agent-add-context')) $('#agent-add-context').disabled = !projectId || loading;
       if ($('#agent-file-input')) $('#agent-file-input').disabled = !projectId || loading;
       renderHistory(); renderContext(); renderModels(); renderConversation();
+      renderFast();
       const approval = session?.pending_approval;
       $('#agent-approval').hidden = !approval || historyOpen;
       $('#agent-approval-tool').textContent = approval?.tool || '';
@@ -144,18 +147,61 @@ window.AFAgents = {
     function modelPrefs() { const value = readCache('af-agent-models-v1', {}); return value[config.backend] || {recent:[], favorites:[]}; }
     function writeModelPrefs(prefs) { const values = readCache('af-agent-models-v1', {}); values[config.backend] = prefs; writeCache('af-agent-models-v1', values); }
     function rememberModel(model) { if (!model) return; const prefs = modelPrefs(); prefs.recent = [model, ...prefs.recent.filter(item => item !== model)].slice(0, 8); writeModelPrefs(prefs); }
+    const cliBackend = backend => ['codex', 'claude'].includes(backend);
+    const catalogKey = (value = config) => `${projectId}:${value.backend}:${backends.find(item => item.id === value.backend)?.path || ''}`;
+    function fastSupported(value = config) {
+      const data = modelCatalogs.get(catalogKey(value))?.data;
+      if (!cliBackend(value.backend) || !value.model || !data?.fast_mode?.supported) return false;
+      const model = data.models?.find(item => item.id === value.model);
+      if (model) return model.fast_mode === true;
+      return value.backend === 'claude' && /^(opus|claude-opus-(5-5|5|4-8))(\[1m\])?$/.test(value.model);
+    }
+    function renderFast() {
+      const button = $('#agent-fast-toggle'); if (!button) return;
+      const entry = modelCatalogs.get(catalogKey()), isCLI = cliBackend(config.backend), requested = config.fast_mode === true, inherited = isCLI && config.fast_mode === null;
+      button.hidden = !isCLI;
+      button.setAttribute('aria-pressed', inherited ? 'mixed' : String(requested));
+      button.disabled = !projectId || loading || busy || active(session) || Boolean(projectActive()) || (!requested && !inherited && !fastSupported());
+      let note = !config.model ? t('Select a model to configure Fast mode.') : entry?.loading ? t('Loading models…') : !entry?.data?.fast_mode?.supported ? t(entry?.data?.fast_mode?.reason || 'Fast mode is unavailable for this CLI.') : !fastSupported() ? t('Fast mode is not supported by this model.') : t('Fast requests may cost more or consume usage faster. Availability depends on your account; the CLI may use standard speed.');
+      if (requested) note = t('Fast mode requested. Availability and billing are determined by your CLI account.');
+      if (inherited) note = t('This older conversation inherits CLI speed settings. Click to start a new conversation with Fast off.');
+      button.title = note;
+      const description = $('#agent-fast-note'); if (description) { description.hidden = !isCLI; description.textContent = note; }
+    }
+    async function loadModels(refresh = false) {
+      if (!projectId || !cliBackend(config.backend)) return;
+      const key = catalogKey(), cached = modelCatalogs.get(key);
+      if (!refresh && (cached?.loading || cached?.expires > Date.now())) { renderModels(); renderFast(); return; }
+      const request = ++catalogRequest, backend = config.backend;
+      modelCatalogs.set(key, {...cached, loading:true, request}); renderModels(); renderFast();
+      try {
+        const data = await api(`/api/agents/models?backend=${encodeURIComponent(backend)}&project_id=${encodeURIComponent(projectId)}${refresh ? '&refresh=1' : ''}`);
+        if (modelCatalogs.get(key)?.request !== request) return;
+        if (data?.backend !== backend || !Array.isArray(data.models)) throw new Error(t('Could not load CLI models. You can still enter a custom model ID.'));
+        modelCatalogs.set(key, {data, loading:false, expires:Date.now() + (data.source === 'unavailable' ? 30000 : 300000)});
+      } catch (_) {
+        if (modelCatalogs.get(key)?.request !== request) return;
+        modelCatalogs.set(key, {data:{backend, models:[], source:'unavailable', diagnostic:'Could not load CLI models. You can still enter a custom model ID.', fast_mode:{supported:false}}, loading:false, expires:Date.now()+30000});
+      }
+      if (key === catalogKey()) { renderModels(); renderFast(); }
+    }
     function renderModels() {
       const prefs = modelPrefs(), filter = ($('#agent-model-search')?.value || '').trim().toLowerCase();
-      const models = [...new Set([...prefs.favorites, config.model, ...(config.backend === 'api' ? [state.settings.provider?.model, ...(state.providerModels || []).map(item => typeof item === 'string' ? item : item.id)] : []), ...prefs.recent].filter(Boolean))];
-      setMarkup($('#agent-model-options'), `<button type="button" class="agent-model-option" data-agent-model="">${esc(t(config.backend === 'api' ? 'Provider default' : 'CLI default'))}</button>` + models.filter(model => !filter || model.toLowerCase().includes(filter)).map(model => `<div class="agent-model-row"><button type="button" class="agent-model-option" data-agent-model="${esc(model)}"><span>${esc(model)}</span>${model === config.model ? '<span aria-hidden="true">✓</span>' : ''}</button><button type="button" class="agent-model-favorite${prefs.favorites.includes(model) ? ' selected' : ''}" data-agent-favorite="${esc(model)}" aria-label="${esc(t(prefs.favorites.includes(model) ? 'Remove favorite model' : 'Favorite model'))}" aria-pressed="${prefs.favorites.includes(model)}">${icon('star')}</button></div>`).join(''));
+      const entry = modelCatalogs.get(catalogKey()), catalog = entry?.data?.models || [];
+      const models = [...new Set([...prefs.favorites, config.model, ...catalog.map(item => item.id), ...(config.backend === 'api' ? [state.settings.provider?.model, ...(state.providerModels || []).map(item => typeof item === 'string' ? item : item.id)] : []), ...prefs.recent].filter(Boolean))];
+      const locked = !projectId || loading || busy || active(session) || Boolean(projectActive());
+      setMarkup($('#agent-model-options'), `<button type="button" class="agent-model-option" data-agent-model="" ${locked ? 'disabled' : ''}>${esc(t(config.backend === 'api' ? 'Provider default' : 'CLI default'))}</button>` + models.filter(model => !filter || `${model} ${catalog.find(item => item.id === model)?.label || ''}`.toLowerCase().includes(filter)).map(model => { const detail = catalog.find(item => item.id === model); return `<div class="agent-model-row"><button type="button" class="agent-model-option" data-agent-model="${esc(model)}" title="${esc(detail?.description || model)}" ${locked ? 'disabled' : ''}><span>${esc(detail?.label || model)}${detail?.label && detail.label !== model ? `<small>${esc(model)}</small>` : ''}</span>${model === config.model ? '<span aria-hidden="true">✓</span>' : detail?.fast_mode ? '<span class="agent-model-speed">Fast</span>' : ''}</button><button type="button" class="agent-model-favorite${prefs.favorites.includes(model) ? ' selected' : ''}" data-agent-favorite="${esc(model)}" aria-label="${esc(t(prefs.favorites.includes(model) ? 'Remove favorite model' : 'Favorite model'))}" aria-pressed="${prefs.favorites.includes(model)}">${icon('star')}</button></div>`; }).join(''));
+      const status = $('#agent-model-catalog-status');
+      if (status) { status.hidden = !cliBackend(config.backend); status.textContent = entry?.loading ? t('Loading models…') : entry?.data?.source === 'cli' ? t('Models reported by the installed CLI. Account access may vary.') : entry?.data?.source === 'builtin' ? t('Built-in CLI aliases. Your account determines availability.') : t(entry?.data?.diagnostic || 'Choose a model or enter a custom model ID.'); }
+      const refresh = $('#agent-model-refresh'); if (refresh) { refresh.hidden = !cliBackend(config.backend); refresh.disabled = locked || Boolean(entry?.loading); }
     }
     function storeSession(value) {
       const settled = session?.id === value.id && active(session) && !active(value);
       session = value;
-      config = {backend:value.backend, model:value.model || '', mode:value.mode};
+      config = {backend:value.backend, model:value.model || '', mode:value.mode, fast_mode:typeof value.fast_mode === 'boolean' ? value.fast_mode : cliBackend(value.backend) ? null : false};
       sessions = [value, ...sessions.filter(item => item.id !== value.id)];
       remember(value.id);
-      render(); schedule();
+      render(); schedule(); loadModels();
       if (settled && onSettled) {
         const ticket = generation;
         Promise.resolve(onSettled(projectId)).catch(cause => { if (current(ticket)) { error = cause.message; render(); } });
@@ -178,9 +224,9 @@ window.AFAgents = {
         const result = await api(`/api/agents${id ? `?project_id=${encodeURIComponent(id)}` : ''}`);
         if (!valid()) return;
         backends = result.backends || []; capabilitiesError = '';
-        if (!session && !backends.some(backend => backend.id === config.backend && backend.available)) config = {backend:backends.find(backend => backend.available)?.id || backends[0]?.id || 'api', model:'', mode:'read-only'};
+        if (!session && !backends.some(backend => backend.id === config.backend && backend.available)) config = {backend:backends.find(backend => backend.available)?.id || backends[0]?.id || 'api', model:'', mode:'read-only', fast_mode:false};
       } catch (cause) { if (!valid()) return; capabilitiesError = cause.message; }
-      render();
+      render(); loadModels();
     }
     async function selectSession(id, save = true) {
       if (busy) return;
@@ -197,7 +243,7 @@ window.AFAgents = {
       if (busy || active(session) || projectActive()) return;
       const draft = preserve ? snapshotDraft() : null;
       saveDraft(); ++generation; clearTimeout(timer); session = null; busy = false; loading = false; error = ''; resolvedApproval = null;
-      if (reset) config = {...config, model:'', mode:'read-only'};
+      if (reset) config = {...config, model:'', mode:'read-only', fast_mode:false};
       remember(null); historyOpen = false; closePopovers();
       restoreDraft(draft || {message:'', attachments:[]}); saveDraft(); render(); schedule(); $('#chat-input').focus();
     }
@@ -205,16 +251,20 @@ window.AFAgents = {
       if (busy || active(session) || projectActive()) return;
       const draft = snapshotDraft(); saveDraft();
       ++generation; clearTimeout(timer); session = null; error = ''; resolvedApproval = null;
-      config = {...next}; remember(null); restoreDraft(draft); saveDraft(); render(); schedule();
+      const modelChanged = next.backend !== config.backend || next.model !== config.model;
+      config = {...next, fast_mode:next.fast_mode === true && cliBackend(next.backend) && (!modelChanged || fastSupported(next))};
+      remember(null); restoreDraft(draft); saveDraft(); render(); schedule(); loadModels();
     }
     async function selectProject(id) {
       saveDraft();
       const ticket = ++generation;
-      ++historyRequest; clearTimeout(historyTimer); clearTimeout(timer);
+      ++historyRequest; ++catalogRequest; clearTimeout(historyTimer); clearTimeout(timer);
+      for (const [key, entry] of modelCatalogs) if (entry.loading) modelCatalogs.delete(key);
       projectId = id; sessions = []; session = null; loading = Boolean(id); busy = false; error = ''; resolvedApproval = null; historyResults = null; historyOpen = false;
       const cache = id ? readCache(`af-agent-drafts-v1-${id}`, {}) : {};
       drafts = cache.drafts && typeof cache.drafts === 'object' ? cache.drafts : {};
-      config = cache.config || {backend:backends.find(backend => backend.id === 'api' && backend.available)?.id || backends.find(backend => backend.available)?.id || 'api', model:'', mode:'read-only'};
+      config = cache.config || {backend:backends.find(backend => backend.id === 'api' && backend.available)?.id || backends.find(backend => backend.available)?.id || 'api', model:'', mode:'read-only', fast_mode:false};
+      config.fast_mode = config.fast_mode === true && cliBackend(config.backend);
       if ($('#agent-history-search')) $('#agent-history-search').value = '';
       restoreDraft(); closePopovers(); render();
       if (!id) return;
@@ -297,7 +347,7 @@ window.AFAgents = {
     function togglePopover(button, panel) {
       const element = $(`#${panel}`); if (!element) return;
       const show = element.hidden; closePopovers(); element.hidden = !show; $(`#${button}`)?.setAttribute('aria-expanded', String(show));
-      if (show && panel === 'agent-model-picker') { $('#agent-model').value = config.model; if ($('#agent-model-search')) $('#agent-model-search').value = ''; renderModels(); ($('#agent-model-search') || $('#agent-model')).focus(); }
+      if (show && panel === 'agent-model-picker') { $('#agent-model').value = config.model; if ($('#agent-model-search')) $('#agent-model-search').value = ''; renderModels(); loadModels(); ($('#agent-model-search') || $('#agent-model')).focus(); }
       if (show && panel === 'agent-context-picker') renderContext();
       if (show && panel === 'agent-command-list') renderCommands();
     }
@@ -379,7 +429,9 @@ window.AFAgents = {
       const on = (id, event, fn) => $(`#${id}`)?.addEventListener(event, fn);
       on('agent-new', 'click', () => newSession(true));
       on('agent-session', 'change', event => event.target.value ? selectSession(event.target.value) : newSession());
-      on('agent-backend', 'change', event => changeConfig({backend:event.target.value, model:'', mode:'read-only'}));
+      on('agent-backend', 'change', event => changeConfig({backend:event.target.value, model:'', mode:'read-only', fast_mode:false}));
+      on('agent-model-refresh', 'click', () => loadModels(true));
+      on('agent-fast-toggle', 'click', () => { if (config.fast_mode !== false || fastSupported()) changeConfig({...config, fast_mode:config.fast_mode === null ? false : !config.fast_mode}); });
       on('agent-mode', 'change', event => changeConfig({...config, mode:event.target.value}));
       on('agent-model', 'input', renderModels);
       on('agent-model-search', 'input', renderModels);

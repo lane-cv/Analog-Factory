@@ -127,6 +127,18 @@ Drafts and quick messages are cached in this browser; sent conversations remain
 in the local workspace. Image attachments and token-by-token API streaming are
 not supported by the current transport.
 
+For **Codex CLI**, the model picker reads the installed CLI's model catalog and
+can refresh it without sending a prompt. **Claude Code** lists the documented
+Opus, Sonnet, and Haiku aliases; account access is checked by the CLI when used.
+Keep **CLI default** to inherit its configured model, or choose a specific model.
+The **Fast** toggle becomes available for a selected compatible model. Claude
+requires version 2.1.205 or later and a supported Opus model. Fast may consume
+more usage or incur higher charges, and the CLI can fall back to standard speed.
+Changing model or Fast starts a new conversation while preserving the draft;
+running conversations lock both controls. Older conversations without a speed
+setting display an inherited state and can explicitly switch to standard speed.
+These controls affect this application's sessions, without changing CLI defaults.
+
 For **Model API**, configure the existing Model API settings. **Read-only** exposes
 project reading tools. **Confirm each action** additionally proposes file writes and
 simulations; approve or reject each action in the sidebar. Write proposals include

@@ -16,7 +16,10 @@ import re
 import selectors
 import signal
 import subprocess
+import sys
 import time
+
+from .agent_effort import validate_effort
 
 
 _MAX_LINE = 1024 * 1024
@@ -84,11 +87,12 @@ def validate_fast_mode(backend, model, fast_mode):
         raise ValueError('Claude Fast mode requires a supported Opus model; select Opus first')
 
 
-def _command(backend, executable, model, mode, session_id, fast_mode=None, *, default_model=None):
+def _command(backend, executable, model, mode, session_id, fast_mode=None, *, default_model=None,
+             operation_bridge=None, effort=None, model_environment=None):
     if backend not in {'codex', 'claude'}:
         raise ValueError('Unknown CLI backend')
-    if mode not in {'read-only', 'workspace-write'}:
-        raise ValueError('CLI agents support read-only or workspace-write mode')
+    if mode not in {'read-only', 'workspace-write', 'automatic'} or mode == 'automatic' and not operation_bridge:
+        raise ValueError('CLI agents support read-only/workspace-write, or automatic through the operation bridge')
     if session_id is not None and (not isinstance(session_id, str)
                                    or not _SESSION_ID.fullmatch(session_id)):
         raise ValueError('Invalid backend session ID')
@@ -97,25 +101,50 @@ def _command(backend, executable, model, mode, session_id, fast_mode=None, *, de
         raise ValueError('Invalid CLI model')
     if fast_mode is not None:
         validate_fast_mode(backend, model, fast_mode)
+    validate_effort(backend, model, effort, environment=model_environment)
     if backend == 'codex':
         argv = [str(executable), 'exec']
         if session_id:
             argv.append('resume')
+        native_mode = 'read-only' if operation_bridge else mode
         argv += ['--json', '--skip-git-repo-check',
-                 '-c', f'sandbox_mode="{mode}"', '-c', 'approval_policy="never"']
+                 '-c', f'sandbox_mode="{native_mode}"', '-c', 'approval_policy="never"']
+        if operation_bridge:
+            from .operation_mcp import NAMES
+            # Only these scoped server callbacks may enter without a native
+            # terminal prompt. The workspace still checks permissions and waits
+            # for its own human approval before executing business mutations.
+            tool_policy = ','.join(json.dumps(name) + '={approval_mode="approve"}'
+                                   for name in sorted(NAMES))
+            config = ('mcp_servers={analog_factory={command=' + json.dumps(sys.executable) +
+                      ',args=[' + json.dumps(str(Path(__file__).with_name('operation_mcp.py'))) +
+                      '],env_vars=["AF_OPERATION_URL","AF_OPERATION_TOKEN"],tool_timeout_sec=650' +
+                      ',enabled_tools=' + json.dumps(sorted(NAMES)) +
+                      ',default_tools_approval_mode="prompt",tools={' + tool_policy + '}}}')
+            argv += ['-c', config]
+            for feature in ('shell_tool', 'apps', 'plugins', 'hooks', 'multi_agent',
+                            'browser_use', 'computer_use', 'view_image'):
+                argv += ['-c', f'features.{feature}=false']
         if fast_mode is not None:
             # Codex's explicit default sentinel overrides a configured Fast tier;
             # omitting the setting would inherit the CLI's global preference.
             argv += ['-c', 'service_tier="fast"' if fast_mode else 'service_tier="default"']
         if model:
             argv += ['--model', model]
+        if effort is not None:
+            argv += ['-c', 'model_reasoning_effort=' + json.dumps(effort)]
         if session_id:
             argv.append(session_id)
         return argv + ['-']
-    tools = 'Read,Glob,Grep' + (',Edit,Write' if mode == 'workspace-write' else '')
+    tools = '' if operation_bridge else 'Read,Glob,Grep' + (',Edit,Write' if mode == 'workspace-write' else '')
+    allowed = 'mcp__analog_factory' if operation_bridge else tools
     argv = [str(executable), '-p', '--output-format', 'stream-json', '--verbose',
             '--restricted', '--strict-mcp-config', '--disable-slash-commands',
-            '--permission-mode', 'dontAsk', '--tools', tools, '--allowedTools', tools]
+            '--permission-mode', 'dontAsk', '--tools', tools, '--allowedTools', allowed]
+    if operation_bridge:
+        argv += ['--mcp-config', json.dumps({'mcpServers': {'analog_factory': {
+            'command': sys.executable, 'args': [str(Path(__file__).with_name('operation_mcp.py'))]}}},
+            separators=(',', ':'))]
     settings = {'model': default_model} if default_model and not model else {}
     if fast_mode is not None:
         settings['fastMode'] = fast_mode
@@ -123,13 +152,24 @@ def _command(backend, executable, model, mode, session_id, fast_mode=None, *, de
         argv += ['--settings', json.dumps(settings, separators=(',', ':'))]
     if model:
         argv += ['--model', model]
+    if effort is not None:
+        argv += ['--effort', effort]
     if session_id:
         argv += ['--resume', session_id]
     return argv
 
 
 def _json_text(value):
-    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    from .agent_api import _redact
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (ValueError, TypeError):
+            return value
+        if not isinstance(parsed, (dict, list)):
+            return value
+        value = parsed
+    return json.dumps(_redact(value), ensure_ascii=False)
 
 
 def _required(value, kind, name):
@@ -302,7 +342,8 @@ def _terminate_group(process):
 
 
 def run_cli_turn(backend, executable, project_root, model, mode,
-                 backend_session_id, prompt, emit, cancel, timeout=300, *, fast_mode=None):
+                 backend_session_id, prompt, emit, cancel, timeout=300, *, fast_mode=None,
+                 operation_bridge=None, effort=None):
     """Run one turn, emitting normalized events; EOF alone never means success.
 
     ``cancel`` is a threading.Event. Cancellation raises InterruptedError and
@@ -318,8 +359,21 @@ def run_cli_turn(backend, executable, project_root, model, mode,
     if cancel.is_set():
         raise InterruptedError('CLI turn cancelled')
     environment, default_model = _claude_configuration() if backend == 'claude' else (None, None)
+    if operation_bridge:
+        if not isinstance(operation_bridge, dict) or not all(
+                isinstance(operation_bridge.get(key), str) and operation_bridge[key]
+                for key in ('url', 'token')):
+            raise ValueError('Operation bridge requires a server URL and a turn credential')
+        environment = dict(os.environ) if environment is None else environment
+        environment.update(AF_OPERATION_URL=operation_bridge['url'], AF_OPERATION_TOKEN=operation_bridge['token'])
     argv = _command(backend, executable, model, mode, backend_session_id, fast_mode,
-                    default_model=default_model)
+                    default_model=default_model, operation_bridge=operation_bridge, effort=effort,
+                    model_environment=environment)
+    if backend == 'claude' and effort is not None:
+        # Claude resolves this environment preference before --effort. Keep the
+        # child in agreement with the explicit session selection; Default still
+        # inherits it. The native CLI retains its own managed-policy limits.
+        environment['CLAUDE_CODE_EFFORT_LEVEL'] = effort
     parser = _Events(backend, backend_session_id, emit)
     try:
         process = subprocess.Popen(argv, cwd=Path(project_root), stdin=subprocess.PIPE,

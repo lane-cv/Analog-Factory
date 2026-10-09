@@ -1,0 +1,28 @@
+.training-controls-dialog { width: min(1020px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; padding: 24px; border: 1px solid var(--border, #d4d9e2); border-radius: 12px; background: var(--bg, #fff); color: var(--text, #172033); }
+.training-controls-dialog::backdrop { background: #15203380; }
+.training-controls-dialog fieldset { min-width: 0; border: 1px solid var(--border, #d4d9e2); border-radius: 8px; padding: 14px; }
+.training-controls-dialog label { display: grid; gap: 6px; }
+.training-controls-dialog input, .training-controls-dialog select { width: 100%; min-width: 0; min-height: 40px; }
+.training-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.training-controls-dialog .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.training-controls-dialog .dialog-actions { display: flex; justify-content: flex-end; margin-top: 20px; }
+.training-controls-dialog button { min-height: 40px; }
+.training-controls-dialog pre { max-height: 280px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.training-controls-dialog details { margin: 12px 0; }
+.training-controls-dialog summary { cursor: pointer; padding: 8px 0; }
+.training-table-wrap { max-width: 100%; overflow-x: auto; }
+.training-controls-dialog table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
+.training-controls-dialog th, .training-controls-dialog td { padding: 9px; border-bottom: 1px solid var(--border, #d4d9e2); }
+.training-controls-dialog caption { text-align: left; padding: 8px 0; }
+.training-resources { display: grid; gap: 8px; }
+.training-resources > div { display: grid; grid-template-columns: 135px 1fr; gap: 12px; }
+.training-resources dt { font-weight: 600; }
+.training-resources dd { margin: 0; }
+.training-status { padding: 10px 0; }
+.training-error:not(:empty) { color: var(--danger, #ad2828); border-left: 3px solid currentColor; padding: 8px; }
+.training-controls-dialog figure { margin: 10px 0; }
+.training-controls-dialog svg { width: 100%; max-height: 180px; }
+.training-axis { stroke: var(--border, #b8c0cb); stroke-width: 1; }
+.training-reward-line { fill: none; stroke: var(--accent, #346ec3); stroke-width: 3; }
+.training-reward-point { fill: var(--accent, #346ec3); }
+@media (max-width: 600px) { .training-controls-dialog { padding: 14px; } .training-resources > div { grid-template-columns: 1fr; gap: 2px; } }

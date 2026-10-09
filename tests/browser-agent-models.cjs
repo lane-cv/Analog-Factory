@@ -54,27 +54,34 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     page.on('pageerror', error => errors.push(error.message));
     const backends = [
       {id:'api',name:'Model API',available:true,modes:['read-only','confirm']},
-      {id:'codex',name:'Codex CLI',available:true,modes:['read-only','workspace-write']},
+      {id:'codex',name:'Codex CLI',available:true,modes:['read-only','workspace-write','automatic']},
       {id:'claude',name:'Claude CLI',available:true,modes:['read-only','workspace-write']},
     ];
     const catalogs = {
       codex:{backend:'codex',source:'cli',diagnostic:'',models:[
-        {id:'gpt-5.4',label:'GPT-5.4',description:'General coding model',is_default:true,fast_mode:true},
-        {id:'gpt-5.4-mini',label:'GPT-5.4 mini',description:'Small coding model',is_default:false,fast_mode:false},
+        {id:'gpt-5.4',label:'GPT-5.4',description:'General coding model',is_default:true,fast_mode:true,effort_levels:['minimal','low','medium','high','xhigh','max','ultra'],default_effort:'medium'},
+        {id:'gpt-5.4-mini',label:'GPT-5.4 mini',description:'Small coding model',is_default:false,fast_mode:false,effort_levels:['low','medium','high'],default_effort:'medium'},
       ],fast_mode:{supported:true}},
       claude:{backend:'claude',source:'builtin',diagnostic:'',models:[
-        {id:'sonnet',label:'Sonnet',description:'Balanced model',is_default:true,fast_mode:false},
-        {id:'opus',label:'Opus',description:'Advanced reasoning model',is_default:false,fast_mode:true},
-        {id:'haiku',label:'Haiku',description:'Compact model',is_default:false,fast_mode:false},
+        {id:'sonnet',label:'Sonnet',description:'Balanced model',is_default:true,fast_mode:false,effort_levels:[],default_effort:null},
+        {id:'opus',label:'Opus',description:'Advanced reasoning model',is_default:false,fast_mode:true,effort_levels:['low','medium','high','max'],default_effort:'high'},
+        {id:'haiku',label:'Haiku',description:'Compact model',is_default:false,fast_mode:false,effort_levels:[],default_effort:null},
       ],fast_mode:{supported:true}},
     };
-    let sequence = 0, holdCatalog = null, releaseCatalog = null, holdMessage = false, releaseMessage = null;
+    let sequence = 0, holdCatalog = null, releaseCatalog = null, holdMessage = false, releaseMessage = null, holdEffort = null, releaseEffort = null;
     await page.route('**/api/agents**', async route => {
       const url = new URL(route.request().url());
       if (url.pathname !== '/api/agents/models') return route.fulfill({json:{backends}});
       const backend = url.searchParams.get('backend');
-      catalogRequests.push({backend,project:url.searchParams.get('project_id'),refresh:url.searchParams.get('refresh')});
+      catalogRequests.push({backend,project:url.searchParams.get('project_id'),refresh:url.searchParams.get('refresh'),model:url.searchParams.get('model')});
       let response = structuredClone(catalogs[backend] || {backend,source:'unavailable',models:[],diagnostic:'No CLI model catalog',fast_mode:{supported:false}});
+      const selectedModel = url.searchParams.get('model');
+      if (selectedModel) response.selected_model = response.models.find(model => model.id === selectedModel) || {id:selectedModel,effort_levels:selectedModel === 'private-supported-model' ? ['low','high','ultra'] : [],default_effort:null};
+      if (selectedModel && selectedModel === holdEffort) {
+        holdEffort = null;
+        response.selected_model.effort_levels = ['late-effort'];
+        await new Promise(resolve => { releaseEffort = resolve; releases.add(resolve); });
+      }
       if (holdCatalog && backend === holdCatalog.backend && (holdCatalog.initial || url.searchParams.get('refresh') === '1')) {
         if (holdCatalog.model) response.models = [{id:holdCatalog.model,label:holdCatalog.model,is_default:true,fast_mode:false}];
         holdCatalog = null;
@@ -118,6 +125,9 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     await page.waitForFunction(() => !document.querySelector('#chat-send').disabled);
     assert.equal(await page.locator('#agent-fast-toggle').count(),1,'The CLI composer exposes a Fast mode control');
     assert.equal(await page.locator('#agent-fast-toggle').isVisible(),false,'Fast is not offered for the Model API backend');
+    assert.equal(await page.locator('#agent-effort').count(),1,'The composer exposes a labeled effort selector');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'','Model API effort uses the provider default');
+    assert.equal(await page.locator('#agent-effort').isDisabled(),true);
     await page.locator('#chat-input').fill('Keep my design draft');
     await page.locator('[data-context="testbenches/pre.cir"]').check();
     holdCatalog={backend:'codex',initial:true}; releaseCatalog=null;
@@ -142,6 +152,24 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     assert(catalogRequests.some(request => request.backend==='codex' && request.refresh==='1'),'Refresh requests new CLI metadata');
     assert.equal(await page.locator('#chat-input').inputValue(),'Keep my design draft','Refreshing model metadata preserves the composer');
     await selectModel('gpt-5.4');
+    await page.locator('#agent-mode').selectOption('automatic');
+    assert.equal(await page.locator('#agent-auto-scope').isVisible(),true,'Native automatic mode exposes finite human scope controls');
+    assert.match(await page.locator('#agent-permission-note').innerText(),/scope authorizes limited actions/,'Native automatic permission text describes the actual grant');
+    await page.locator('#agent-mode').selectOption('read-only');
+    assert.deepEqual(await page.locator('#agent-effort option').evaluateAll(options => options.map(option => option.value)),['','minimal','low','medium','high','xhigh','max','ultra'],'Every CLI-reported level is available, including max and ultra');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'','Catalog default does not silently set an override');
+    await page.locator('#agent-file-input').setInputFiles({name:'effort-context.txt',mimeType:'text/plain',buffer:Buffer.from('Keep this attachment when configuring effort.')});
+    await page.locator('#agent-attachments').getByText('effort-context.txt').waitFor();
+    await page.locator('#agent-effort').focus();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'ultra','The native effort control supports keyboard selection');
+    await page.locator('#agent-effort').selectOption('high');
+    assert.equal(await page.locator('#chat-input').inputValue(),'Keep my design draft','Changing effort preserves the composer');
+    assert.equal(await page.locator('[data-context="testbenches/pre.cir"]').isChecked(),true,'Changing effort preserves project context');
+    assert.equal(await page.locator('#agent-attachments').getByText('effort-context.txt').count(),1,'Changing effort preserves attachments');
+    const unsupported = await page.evaluate(async () => { try { await AFOperations.dispatch('ui.agent.set_config',{effort:'invented'}); return null; } catch (error) { return error.message; } });
+    assert.match(unsupported,/not supported/i,'Semantic configuration validates the same reported effort choices');
     assert.equal(await page.locator('#agent-fast-toggle').isDisabled(),false);
     await page.locator('#agent-fast-toggle').click();
     assert.equal(await page.locator('#agent-fast-toggle').getAttribute('aria-pressed'),'true');
@@ -151,22 +179,34 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     assert.equal(fastSession.backend,'codex');
     assert.equal(fastSession.model,'gpt-5.4');
     assert.equal(fastSession.fast_mode,true,'Fast mode reaches the session creation API');
+    assert.equal(fastSession.effort,'high','Effort reaches session creation independently of Fast');
     await page.locator('#chat-input').fill('Next unsent circuit question');
+    await page.locator('#agent-effort').selectOption('medium');
+    assert.equal(await page.locator('#agent-session').inputValue(),'','Changing effort starts a new conversation');
+    assert.equal(await page.locator('#chat-input').inputValue(),'Next unsent circuit question');
     await page.locator('#agent-fast-toggle').click();
     assert.equal(await page.locator('#agent-session').inputValue(),'','Changing Fast mode starts a new conversation');
     assert.equal(await page.locator('#chat-input').inputValue(),'Next unsent circuit question');
     const normalSession = await send('Normal circuit review');
     assert.equal(normalSession.fast_mode,false,'Turning Fast off creates an ordinary session');
+    assert.equal(normalSession.effort,'medium');
     await page.locator('#agent-history-toggle').click();
     await page.locator(`#agent-history-list [data-agent-session="${fastSession.id}"]`).click();
     await page.waitForFunction(id => document.querySelector('#agent-session').value===id && !document.querySelector('#agent-backend').disabled,fastSession.id);
     assert.equal(await page.locator('#agent-fast-toggle').getAttribute('aria-pressed'),'true','Restoring a conversation restores its actual Fast mode');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'high','History restores the recorded effort');
     await page.locator('#agent-history-toggle').click();
     await page.locator(`#agent-history-list [data-agent-session="${normalSession.id}"]`).click();
     await page.waitForFunction(id => document.querySelector('#agent-session').value===id && !document.querySelector('#agent-backend').disabled,normalSession.id);
     assert.equal(await page.locator('#agent-fast-toggle').getAttribute('aria-pressed'),'false');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'medium');
     await selectModel('gpt-5.4-mini');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'medium','Changing models retains a supported effort');
     assert.equal(await page.locator('#agent-fast-toggle').isDisabled(),true,'Model capabilities disable unsupported Fast mode');
+    await selectModel('gpt-5.4');
+    await page.locator('#agent-effort').selectOption('ultra');
+    await selectModel('gpt-5.4-mini');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'','An incompatible effort resets to Default');
     await selectModel('gpt-5.4');
     await page.locator('#agent-fast-toggle').click();
     holdMessage = true;
@@ -175,31 +215,59 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     await page.waitForFunction(() => document.querySelector('#agent-backend').disabled);
     assert.equal(await page.locator('#agent-fast-toggle').isDisabled(),true,'Pending requests lock Fast mode');
     assert.equal(await page.locator('#agent-model-toggle').isDisabled(),true,'Pending requests lock model selection');
+    assert.equal(await page.locator('#agent-effort').isDisabled(),true,'Pending requests lock effort selection');
     await waitUntil(() => releaseMessage,'The pending message reached the server');
     releaseMessage();
     await page.waitForFunction(() => !document.querySelector('#agent-backend').disabled);
     await page.locator('#agent-backend').selectOption('claude');
     assert.equal(await page.locator('#agent-fast-toggle').isDisabled(),true,'Claude default does not assume the underlying configured model');
     await selectModel('sonnet');
+    assert.equal(await page.locator('#agent-effort').isDisabled(),true,'A model without confirmed effort support offers Default only');
     assert.equal(await page.locator('#agent-fast-toggle').isDisabled(),true,'Sonnet cannot enable Opus-only Fast mode');
     assert.equal(await page.locator('#agent-fast-toggle').getAttribute('aria-pressed'),'false','Changing backend clears the previous Fast preference');
     await selectModel('opus');
+    assert.deepEqual(await page.locator('#agent-effort option').evaluateAll(options => options.map(option => option.value)),['','low','medium','high','max']);
+    await page.locator('#agent-effort').selectOption('max');
     assert.equal(await page.locator('#agent-fast-toggle').isDisabled(),false);
     await page.locator('#agent-fast-toggle').click();
     const claudeSession = await send('Opus fast review');
     assert.equal(claudeSession.backend,'claude');
     assert.equal(claudeSession.model,'opus');
     assert.equal(claudeSession.fast_mode,true,'Claude Fast mode is sent with an eligible model');
+    assert.equal(claudeSession.effort,'max');
     await openModels();
     await page.locator('#agent-model').fill('custom-private-model');
     await page.locator('#agent-model-apply').click();
     assert.equal(await page.locator('#assistant-model').innerText(),'custom-private-model','Custom model IDs remain usable');
     assert.equal(await page.locator('#agent-fast-toggle').isDisabled(),true,'An unknown custom model does not claim Fast support');
     assert.equal(await page.locator('#agent-fast-toggle').getAttribute('aria-pressed'),'false');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'','Unknown custom models clear an incompatible effort');
+    await page.waitForFunction(() => document.querySelector('#agent-effort').title.includes('could not be confirmed'));
+    await openModels();
+    await page.locator('#agent-model').fill('private-supported-model');
+    await page.locator('#agent-model-apply').click();
+    await page.waitForFunction(() => !document.querySelector('#agent-effort').disabled);
+    await page.locator('#agent-effort').selectOption('ultra');
+    assert(catalogRequests.some(request => request.model === 'private-supported-model'),'Custom effort capabilities are resolved by the backend instead of model-name guesses');
+    await page.locator('#agent-effort').selectOption('high');
+    await selectModel('opus');
+    await selectModel('private-supported-model');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'high','A cached custom model retains a known-compatible effort');
+    holdEffort = 'late-private-model';
+    await openModels();
+    await page.locator('#agent-model').fill(holdEffort);
+    await page.locator('#agent-model-apply').click();
+    await waitUntil(() => releaseEffort,'Custom-model capability lookup reached the backend');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'','An unverified custom model uses Default during discovery');
+    assert.equal(await page.locator('#agent-effort').isDisabled(),true,'Pending capability discovery locks effort');
     await page.locator('#agent-backend').selectOption('api');
+    releaseEffort();
+    await page.waitForTimeout(100);
+    assert.deepEqual(await page.locator('#agent-effort option').evaluateAll(options => options.map(option => option.value)),[''],'Late custom-model metadata cannot change another backend');
     assert.equal(await page.locator('#agent-fast-toggle').isVisible(),false);
     const apiSession = await send('Ordinary Model API request');
     assert.equal(Boolean(apiSession.fast_mode),false,'Model API sessions never inherit CLI Fast mode');
+    assert.equal(apiSession.effort,null,'Default is explicitly represented as null without a provider override');
 
     // A legacy CLI conversation has no recorded speed override. Presenting it
     // as Off would make a false claim about inherited native CLI configuration.
@@ -208,6 +276,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     await page.locator('#agent-history-list [data-agent-session="legacy-cli-session"]').click();
     await page.waitForFunction(() => document.querySelector('#agent-session').value==='legacy-cli-session' && !document.querySelector('#agent-backend').disabled);
     assert.equal(await page.locator('#agent-fast-toggle').getAttribute('aria-pressed'),'mixed','Legacy CLI sessions expose inherited speed as unknown');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'','Legacy sessions without effort preserve native defaults');
     assert.match(await page.locator('#agent-fast-toggle').getAttribute('title'),/inherit/i,'The inherited speed state is explained accessibly');
     await page.locator('#chat-input').fill('Keep my legacy conversation draft');
     await page.locator('#agent-fast-toggle').click();
@@ -246,6 +315,12 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     assert.equal(await page.locator('[data-agent-model="stale-project-model"]').count(),0,'A late catalog cannot cross projects');
     await selectModel('opus');
     await page.locator('#agent-fast-toggle').click();
+    await page.locator('#agent-effort').selectOption('high');
+    await page.locator('#chat-input').fill('Persist the effort draft');
+    await page.reload();
+    await page.waitForFunction(() => !document.querySelector('#agent-effort').disabled);
+    assert.equal(await page.locator('#agent-effort').inputValue(),'high','The project draft restores effort after reload');
+    assert.equal(await page.locator('#chat-input').inputValue(),'Persist the effort draft');
 
     // Capture the actual chooser in both themes and screen sizes. Keeping its
     // bounds inside the viewport protects mouse and touch access to the model
@@ -262,12 +337,21 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
         const bounds=await page.locator('#agent-model-picker').boundingBox();
         assert(bounds.x>=0 && bounds.x+bounds.width<=width+1,`Model picker fits ${width}px ${theme} viewport`);
         assert(bounds.y>=0 && bounds.y+bounds.height<=(width===390?844:1050)+1,'Model picker controls remain vertically reachable');
+        const effortBounds=await page.locator('#agent-effort').boundingBox();
+        assert(effortBounds.x>=0 && effortBounds.x+effortBounds.width<=width+1,'Effort control remains inside the compact viewport');
         await page.screenshot({path:`${screenshotDir}/models-${width}-${theme}.png`});
       }
     }
     await page.keyboard.press('Escape');
     await page.locator('#toggle-ai').click();
     await page.setViewportSize({width:1500,height:1050});
+    await page.locator('#agent-expand').click();
+    assert.equal(await page.locator('#agent-effort').isVisible(),true,'Effort remains available in the expanded assistant');
+    await page.screenshot({path:`${screenshotDir}/effort-expanded.png`});
+    await page.locator('#agent-expand').click();
+    await page.locator('#agent-effort').click();
+    await page.screenshot({path:`${screenshotDir}/effort-choices.png`});
+    await page.keyboard.press('Escape');
     await page.locator('.tabs [data-tab=settings]').click();
     await page.locator('#ui-language').selectOption('zh-CN');
     await page.waitForFunction(() => document.documentElement.lang==='zh-CN' && !document.querySelector('#ui-language').disabled);
@@ -276,9 +360,12 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     await openModels();
     assert.match(await page.locator('#agent-model-catalog-status').innerText(),/[\u4e00-\u9fff]/,'Model catalog guidance follows the selected language');
     assert.equal(await page.locator('#agent-fast-toggle').getAttribute('aria-pressed'),'true','A language change preserves the selected Fast preference');
+    assert.equal(await page.locator('#agent-effort').getAttribute('aria-label'),'思考强度');
+    assert.equal(await page.locator('#agent-effort').inputValue(),'high','Localization preserves effort');
+    assert.equal(await page.locator('#agent-effort option:checked').innerText(),'高');
     await page.screenshot({path:`${screenshotDir}/models-1500-zh-light.png`});
     assert.deepEqual(errors,[],'Model and Fast interactions do not raise browser errors');
-    console.log('Agent models passed: CLI catalogs, refresh, Fast capability gating and persistence, draft/context preservation, pending locks, stale responses, and responsive themes.');
+    console.log('Agent models passed: CLI catalogs, model-aware effort/defaults, Fast independence, session/draft persistence, attachments/context, keyboard/localization, pending locks, stale responses, and compact/expanded themes.');
   } finally {
     for (const release of releases) release();
     if (browser) await browser.close();

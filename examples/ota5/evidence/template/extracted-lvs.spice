@@ -1,0 +1,9 @@
+* NGSPICE file created from ota5.ext - technology: sky130A
+
+.subckt ota5 inp inn bias vdd vss out
+X0 tail inn out vss sky130_fd_pr__nfet_01v8 ad=1.16 pd=8.58 as=1.16 ps=8.58 w=4 l=2
+X1 vdd nmirror nmirror vdd sky130_fd_pr__pfet_01v8 ad=2.32 pd=16.58 as=2.32 ps=16.58 w=8 l=2
+X2 vdd nmirror out vdd sky130_fd_pr__pfet_01v8 ad=2.32 pd=16.58 as=2.32 ps=16.58 w=8 l=2
+X3 tail inp nmirror vss sky130_fd_pr__nfet_01v8 ad=1.16 pd=8.58 as=1.16 ps=8.58 w=4 l=2
+X4 vss bias tail vss sky130_fd_pr__nfet_01v8 ad=1.16 pd=8.58 as=1.16 ps=8.58 w=4 l=2
+.ends ota5

@@ -1,0 +1,119 @@
+{
+  "schema_version": 2,
+  "name": "OTA DRC and LVS result analysis",
+  "nodes": [
+    {
+      "id": "drc",
+      "type": "drc",
+      "config": {
+        "options": {
+          "layout": "layout/ota5.mag"
+        }
+      },
+      "inputs": {},
+      "on_error": "continue",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "timeout_seconds": 180
+    },
+    {
+      "id": "lvs",
+      "type": "lvs",
+      "config": {
+        "options": {
+          "cell": "ota5",
+          "layout_netlist": "netlists/extracted-lvs.spice",
+          "schematic_netlist": "netlists/schematic.spice"
+        }
+      },
+      "inputs": {},
+      "on_error": "continue",
+      "position": {
+        "x": 310,
+        "y": 40
+      },
+      "timeout_seconds": 180
+    },
+    {
+      "id": "drc_log",
+      "type": "project",
+      "config": {},
+      "inputs": {
+        "run_id": {
+          "node": "drc",
+          "port": "run_id"
+        }
+      },
+      "position": {
+        "x": 580,
+        "y": 40
+      }
+    },
+    {
+      "id": "lvs_log",
+      "type": "project",
+      "config": {},
+      "inputs": {
+        "run_id": {
+          "node": "lvs",
+          "port": "run_id"
+        }
+      },
+      "position": {
+        "x": 40,
+        "y": 230
+      }
+    },
+    {
+      "id": "report",
+      "type": "report",
+      "config": {
+        "title": "Authoritative DRC and LVS evidence"
+      },
+      "inputs": {
+        "drc": {
+          "node": "drc",
+          "port": "result"
+        },
+        "lvs": {
+          "node": "lvs",
+          "port": "result"
+        },
+        "drc_log": {
+          "node": "drc_log",
+          "port": "content"
+        },
+        "lvs_log": {
+          "node": "lvs_log",
+          "port": "content"
+        },
+        "scope": {
+          "value": "A successful graph means report generation completed. Inspect each run verification status; unavailable or failed verification is not a pass."
+        }
+      },
+      "position": {
+        "x": 310,
+        "y": 230
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "drc",
+      "target": "drc_log",
+      "on": "always"
+    },
+    {
+      "source": "lvs",
+      "target": "lvs_log",
+      "on": "always"
+    }
+  ],
+  "limits": {
+    "runtime_seconds": 600,
+    "max_node_executions": 500,
+    "max_iterations": 100
+  }
+}

@@ -1,0 +1,15 @@
+* Five-transistor OTA post-layout AC acceptance; supply and bias external.
+* @MODEL_LIBRARY@ is materialized from workspace PDK configuration by validate_ota5.py.
+.lib "@MODEL_LIBRARY@" tt
+.include "netlists/extracted.spice"
+XOTA inp inn bias vdd 0 out ota5
+VDD vdd 0 1.8
+VP inp 0 dc 0.9 ac 0.5
+VN inn 0 dc 0.9 ac 0.5 180
+VB bias 0 0.65
+CL out 0 1p
+.temp 27
+.ac dec 40 1 1g
+.meas ac gain_db find vdb(out) at=1
+.meas ac unity_gain_hz when vdb(out)=0 fall=1
+.end

@@ -55,6 +55,70 @@ event({'type': 'item.completed', 'item': {'id': 'i2', 'type': 'agent_message', '
 event({'type': 'turn.completed', 'usage': {'input_tokens': 12, 'cached_input_tokens': 2, 'output_tokens': 4}})
 """)
 
+    def test_codex_effort_is_forwarded_on_first_turn_and_resume_without_changing_model(self):
+        self.successful_codex()
+        for effort in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'):
+            for sid in (None, 'codex-thread-123'):
+                with self.subTest(effort=effort, sid=sid):
+                    self.run_turn(model='selected-model', effort=effort, backend_session_id=sid)
+                    argv = json.loads((self.project / 'invocation.json').read_text())['argv']
+                    self.assertIn(f'model_reasoning_effort="{effort}"', argv)
+                    self.assertEqual(argv[argv.index('--model') + 1], 'selected-model')
+        self.run_turn(effort=None)
+        argv = json.loads((self.project / 'invocation.json').read_text())['argv']
+        self.assertFalse(any('model_reasoning_effort' in arg for arg in argv))
+
+    def test_claude_effort_forwarding_and_unsupported_values(self):
+        self.fixture('''
+Path('invocation.json').write_text(json.dumps({'argv':sys.argv[1:]}))
+event({'type':'result','subtype':'success','result':'Done','session_id':'claude-session'})
+''')
+        for sid in (None, 'claude-session'):
+            self.run_turn('claude', model='claude-opus-4-8', effort='xhigh', backend_session_id=sid)
+            argv = json.loads((self.project / 'invocation.json').read_text())['argv']
+            self.assertEqual(argv[argv.index('--effort') + 1], 'xhigh')
+        self.run_turn('claude', model='opus', effort=None)
+        self.assertNotIn('--effort', json.loads((self.project / 'invocation.json').read_text())['argv'])
+        for model, effort in [('haiku', 'high'), ('sonnet', 'high'), ('opus', 'xhigh'),
+                              ('claude-sonnet-4-6', 'xhigh'), ('custom', 'high')]:
+            with self.subTest(model=model, effort=effort), self.assertRaisesRegex(ValueError, '[Ee]ffort'):
+                self.run_turn('claude', model=model, effort=effort)
+        for effort in ('', 'default', True, 7, [], {}, 'high\\n--dangerous'):
+            with self.subTest(effort=effort), self.assertRaisesRegex(ValueError, '[Ee]ffort'):
+                self.run_turn(effort=effort)
+
+    def test_claude_effort_uses_user_alias_configuration_without_changing_model(self):
+        self.fixture('''
+Path('invocation.json').write_text(json.dumps({'argv':sys.argv[1:]}))
+event({'type':'result','subtype':'success','result':'Done','session_id':'claude-session'})
+''')
+        (self.claude_config / 'settings.json').write_text(json.dumps({'env': {
+            'ANTHROPIC_DEFAULT_SONNET_MODEL': 'claude-sonnet-5-5',
+            'ANTHROPIC_DEFAULT_OPUS_MODEL': 'claude-haiku-4-5'}}))
+        self.run_turn('claude', model='sonnet', effort='xhigh')
+        argv = json.loads((self.project / 'invocation.json').read_text())['argv']
+        self.assertEqual(argv[argv.index('--effort') + 1], 'xhigh')
+        self.assertEqual(argv[argv.index('--model') + 1], 'sonnet')
+        with self.assertRaisesRegex(ValueError, '[Ee]ffort'):
+            self.run_turn('claude', model='opus', effort='high')
+
+    def test_explicit_claude_effort_overrides_child_environment_and_default_preserves_it(self):
+        self.fixture('''
+Path('invocation.json').write_text(json.dumps({'argv':sys.argv[1:],
+    'effort':os.environ.get('CLAUDE_CODE_EFFORT_LEVEL')}))
+event({'type':'result','subtype':'success','result':'Done','session_id':'claude-session'})
+''')
+        with patch.dict(os.environ, {'CLAUDE_CODE_EFFORT_LEVEL': 'high'}):
+            self.run_turn('claude', model='claude-opus-4-8', effort='low')
+            invocation = json.loads((self.project / 'invocation.json').read_text())
+            self.assertEqual(invocation['effort'], 'low')
+            self.assertEqual(invocation['argv'][invocation['argv'].index('--effort') + 1], 'low')
+            self.assertEqual(os.environ['CLAUDE_CODE_EFFORT_LEVEL'], 'high')
+            self.run_turn('claude', model='claude-opus-4-8', effort=None)
+            invocation = json.loads((self.project / 'invocation.json').read_text())
+            self.assertEqual(invocation['effort'], 'high')
+            self.assertNotIn('--effort', invocation['argv'])
+
     def test_codex_stream_session_tools_and_prompt_transport(self):
         self.successful_codex()
         result = self.run_turn()
@@ -78,6 +142,68 @@ event({'type': 'turn.completed', 'usage': {'input_tokens': 12, 'cached_input_tok
         self.assertTrue(any(e['type'] == 'tool_result' and e['text'] == 'R1 in out 1k' for e in self.events))
         self.assertEqual([event.get('tool_call_id') for event in self.events
                           if event['type'] in ('tool_call', 'tool_result')], ['i1', 'i1'])
+
+    def test_operation_bridge_disables_native_writes_and_keeps_token_out_of_arguments(self):
+        for backend in ('codex', 'claude'):
+            with self.subTest(backend=backend):
+                self.fixture("""
+Path('invocation.json').write_text(json.dumps({'argv': sys.argv[1:], 'token': os.environ.get('AF_OPERATION_TOKEN')}))
+sys.stdin.read()
+if sys.argv[1] == 'exec':
+    event({'type': 'thread.started', 'thread_id': 'bridge-session'})
+    event({'type': 'item.completed', 'item': {'id': 'reply', 'type': 'agent_message', 'text': 'Done'}})
+    event({'type': 'turn.completed', 'usage': {}})
+else:
+    event({'type': 'result', 'subtype': 'success', 'result': 'Done', 'usage': {}, 'session_id': 'bridge-session'})
+""")
+                try:
+                    self.run_turn(backend, mode='workspace-write', operation_bridge={
+                        'url': 'http://127.0.0.1:8765', 'token': 'private-turn-token'})
+                except TypeError as error:
+                    self.fail(f'Native driver cannot connect shared operations: {error}')
+                invocation = json.loads((self.project / 'invocation.json').read_text())
+                argv = invocation['argv']
+                self.assertNotIn('private-turn-token', ' '.join(argv))
+                self.assertEqual(invocation['token'], 'private-turn-token')
+                if backend == 'codex':
+                    self.assertIn('sandbox_mode="read-only"', argv)
+                    self.assertIn('features.shell_tool=false', argv)
+                    self.assertTrue(any(arg.startswith('mcp_servers=') and 'operation_mcp.py' in arg for arg in argv))
+                else:
+                    self.assertEqual(argv[argv.index('--tools') + 1], '')
+                    self.assertEqual(argv[argv.index('--allowedTools') + 1], 'mcp__analog_factory')
+                    self.assertIn('--mcp-config', argv)
+
+    def test_codex_bridge_trusts_only_registered_tools_on_initial_and_resumed_turns(self):
+        import tomllib
+        from analog_factory.agent_cli import _command
+        from analog_factory.operation_mcp import NAMES
+        for session_id in (None, 'existing-native-session'):
+            argv = _command('codex', 'codex', 'model', 'workspace-write', session_id,
+                            operation_bridge={'url': 'http://localhost:8765', 'token': 'not-in-argv'})
+            config = tomllib.loads(next(value for value in argv if value.startswith('mcp_servers=')))
+            self.assertEqual(set(config['mcp_servers']), {'analog_factory'})
+            bridge = config['mcp_servers']['analog_factory']
+            self.assertEqual(set(bridge['enabled_tools']), NAMES)
+            self.assertEqual(bridge['default_tools_approval_mode'], 'prompt')
+            self.assertEqual(set(bridge['tools']), NAMES)
+            self.assertTrue(all(value['approval_mode'] == 'approve' for value in bridge['tools'].values()))
+            self.assertIn('sandbox_mode="read-only"', argv)
+            self.assertIn('approval_policy="never"', argv)
+            self.assertNotIn('not-in-argv', str(argv))
+
+    def test_native_tool_events_redact_proposed_secret_values(self):
+        self.fixture("""
+sys.stdin.read()
+event({'type': 'thread.started', 'thread_id': 'secret-session'})
+event({'type': 'item.started', 'item': {'id': 'mcp-1', 'type': 'mcp_tool_call',
+    'server': 'analog_factory', 'tool': 'invoke_operation',
+    'arguments': {'operation_id': 'settings.update', 'parameters': {'settings': {'provider': {'api_key': 'private-input-secret'}}}}}})
+event({'type': 'item.completed', 'item': {'id': 'reply', 'type': 'agent_message', 'text': 'Denied'}})
+event({'type': 'turn.completed', 'usage': {}})
+""")
+        self.run_turn()
+        self.assertNotIn('private-input-secret', json.dumps(self.events))
 
     def test_absent_cli_usage_remains_unknown(self):
         self.fixture("""

@@ -1,0 +1,35 @@
+* NGSPICE file created from ota5.ext - technology: sky130A
+
+.subckt ota5 inp inn bias vdd vss out
+X0 tail inn out vss sky130_fd_pr__nfet_01v8 ad=1.16 pd=8.58 as=1.16 ps=8.58 w=4 l=2
+X1 vdd nmirror nmirror vdd sky130_fd_pr__pfet_01v8 ad=2.32 pd=16.58 as=2.32 ps=16.58 w=8 l=2
+X2 vdd nmirror out vdd sky130_fd_pr__pfet_01v8 ad=2.32 pd=16.58 as=2.32 ps=16.58 w=8 l=2
+X3 tail inp nmirror vss sky130_fd_pr__nfet_01v8 ad=1.16 pd=8.58 as=1.16 ps=8.58 w=4 l=2
+X4 vss bias tail vss sky130_fd_pr__nfet_01v8 ad=1.16 pd=8.58 as=1.16 ps=8.58 w=4 l=2
+C0 inp bias 0
+C1 bias out 0.24232f
+C2 inp inn 0.09592f
+C3 inn out 0.95812f
+C4 vdd tail 1.64346f
+C5 inp out 0.18159f
+C6 vdd nmirror 4.79391f
+C7 nmirror tail 1.73215f
+C8 vdd bias 0.00171f
+C9 bias tail 0.69063f
+C10 inn vdd 0.07424f
+C11 inp vdd 0.07425f
+C12 inn tail 0.69152f
+C13 bias nmirror 0.0098f
+C14 inp tail 0.69136f
+C15 vdd out 1.08476f
+C16 inn nmirror 0.08298f
+C17 tail out 0.26104f
+C18 inp nmirror 0.72934f
+C19 nmirror out 2.36553f
+C20 inn bias 0.49955f
+C21 out vss 3.98576f
+C22 vdd vss 17.97365f
+C23 tail vss 8.73694f
+C24 nmirror vss 0.80345f
+.ends ota5
+

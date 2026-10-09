@@ -1,0 +1,29 @@
+
+Magic 8.3 revision 684 - Compiled on .
+Starting magic under Tcl interpreter
+Using the terminal as the console.
+WARNING: RLIMIT_NOFILE is above 1024 and Tcl_Version<9 this may cause runtime issues [rlim_cur=524288]
+Using NULL graphics device.
+Processing system .magicrc file
+Switching to WIRING tool.
+Switching to NETLIST tool.
+Switching to PICK tool.
+Switching to BOX tool.
+Sourcing design .magicrc for technology sky130A ...
+2 Magic internal units = 1 Lambda
+Input style sky130(): scaleFactor=2, multiplier=2
+The following types are not handled by extraction and will be treated as non-electrical types:
+    ubm 
+Scaled tech values by 2 / 1 to match internal grid scaling
+Loading sky130A Device Generator Menu ...
+Loading "check.tcl" from command line.
+Cell ota5 read from current working directory
+"ota5" has a zero timestamp; it should be written out
+    to establish a correct timestamp.
+DRC style is now "drc(full)"
+Loading DRC CIF style.
+AF_DRC_COUNT=0
+AF_DRC_STYLE=drc(full)
+No errors found.
+AF_DRC_WHY=
+AF_GENERATION_COMPLETE=1

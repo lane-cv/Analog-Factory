@@ -122,8 +122,14 @@
       sync(); save(); notifyResize();
       if (focus) find('#chat-input')?.focus({preventScroll:true});
     }
-    find('#agent-expand')?.addEventListener('click', () => setExpanded(!expanded()));
-    find('#agent-close')?.addEventListener('click', () => toggle('ai'));
+    function resetLayout() {
+      finishDrag(true); finishComposer(true); layout = {...defaults};
+      body.classList.remove('hide-tree','hide-ai','show-tree','show-ai','agent-expanded');
+      panels.log.classList.remove('collapsed');
+      save(); sync(); notifyResize();
+    }
+    find('#agent-expand')?.addEventListener('click', () => window.AFOperations.dispatch('ui.layout.expand_agent', {expanded:!expanded()}));
+    find('#agent-close')?.addEventListener('click', () => window.AFOperations.dispatch('ui.layout.set_panel', {panel:'ai',visible:false}));
 
     const composerHandle = find('#agent-composer-resizer');
     let composerDrag = null;
@@ -180,7 +186,7 @@
       handle.setAttribute('aria-orientation', name === 'log' ? 'horizontal' : 'vertical');
       handle.setAttribute('aria-controls', name === 'log' ? 'execution-log' : panels[name].id);
       triggers[name].setAttribute('aria-controls', name === 'log' ? 'execution-log' : panels[name].id);
-      triggers[name].addEventListener('click', () => toggle(name));
+      triggers[name].addEventListener('click', () => window.AFOperations.dispatch('ui.layout.set_panel', {panel:name,visible:name === 'log' ? panels.log.classList.contains('collapsed') : !visible(name)}));
       handle.addEventListener('keydown', event => {
         const grow = name === 'tree' ? 'ArrowRight' : name === 'ai' ? 'ArrowLeft' : 'ArrowUp';
         const shrink = name === 'tree' ? 'ArrowLeft' : name === 'ai' ? 'ArrowRight' : 'ArrowDown';
@@ -234,12 +240,7 @@
       }
     });
     window.addEventListener('blur', () => { finishDrag(true); finishComposer(true); });
-    find('#reset-layout')?.addEventListener('click', () => {
-      finishDrag(true); layout = {...defaults};
-      body.classList.remove('hide-tree','hide-ai','show-tree','show-ai','agent-expanded');
-      panels.log.classList.remove('collapsed');
-      save(); sync(); notifyResize();
-    });
+    find('#reset-layout')?.addEventListener('click', resetLayout);
     const tabs = find('.tabs');
     function syncTabs() {
       const buttons = [...tabs.querySelectorAll('[data-tab]')];
@@ -284,6 +285,22 @@
     panels.log.classList.toggle('collapsed', layout.collapsed);
     panels.tree.tabIndex = -1; panels.ai.tabIndex = -1;
     syncTabs(); sync();
+    window.AFOperations?.register('layout', {
+      set_panel:({panel, visible:show}) => {
+        if (!['tree','ai','log'].includes(panel) || typeof show !== 'boolean') throw new Error('Unknown panel or visibility.');
+        const shown = panel === 'log' ? !panels.log.classList.contains('collapsed') : visible(panel);
+        if (shown !== show) toggle(panel);
+      },
+      resize:({panel,size}) => {
+        if (!['tree','ai','log','composer'].includes(panel) || !Number.isFinite(size)) throw new Error('Unknown panel or size.');
+        if (panel === 'composer') { const [min,max] = composerLimits(); layout.composer = clamp(size,min,max); syncComposer(); }
+        else resize(panel,size);
+        save();
+      },
+      expand_agent:({expanded:value}) => { if (typeof value !== 'boolean') throw new Error('Expected expanded state.'); setExpanded(value); },
+      reset:resetLayout,
+      close_overlay:closeOverlay
+    }, () => ({sizes:{tree:Number(handles.tree.getAttribute('aria-valuenow')),ai:Number(handles.ai.getAttribute('aria-valuenow')),log:Number(handles.log.getAttribute('aria-valuenow')),composer:Number(composerHandle?.getAttribute('aria-valuenow'))},visible:{tree:visible('tree'),ai:visible('ai'),log:!panels.log.classList.contains('collapsed')},agent_expanded:expanded(),overlay:modal}));
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeLayout, {once:true});
   else initializeLayout();

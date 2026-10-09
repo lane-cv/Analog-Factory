@@ -1,0 +1,16 @@
+.simulation-batch-dialog { width: min(1080px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; padding: 24px; border: 1px solid var(--border, #d4d9e2); border-radius: 12px; background: var(--bg, #fff); color: var(--text, #172033); }
+.simulation-batch-dialog::backdrop { background: #15203380; }
+.simulation-batch-dialog fieldset { min-width: 0; }
+.simulation-batch-dialog .batch-settings { border: 0; padding: 0; }
+.simulation-batch-dialog .batch-settings > legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.simulation-batch-dialog .batch-row { margin: 12px 0; padding: 12px; border: 1px solid var(--border, #d4d9e2); border-radius: 8px; }
+.simulation-batch-dialog .batch-axis { margin-bottom: 12px; align-items: end; }
+.simulation-batch-dialog .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.simulation-batch-dialog label { display: grid; gap: 5px; }
+.simulation-batch-dialog input, .simulation-batch-dialog select { width: 100%; min-width: 0; }
+.simulation-batch-dialog .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.simulation-batch-dialog .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.simulation-batch-dialog .table-wrap { overflow: auto; }
+.simulation-batch-dialog .evidence-details { max-height: 300px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.simulation-batch-dialog [data-batch-error]:not(:empty) { color: #a12727; border-left: 3px solid currentColor; padding: 8px; }
+@media (max-width: 600px) { .simulation-batch-dialog { padding: 14px; } }

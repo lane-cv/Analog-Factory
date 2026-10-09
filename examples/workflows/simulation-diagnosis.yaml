@@ -1,0 +1,81 @@
+# Schema-versioned source template; parsed with the optional yaml extra.
+schema_version: 2
+name: Simulation failure diagnosis
+nodes:
+- id: simulate
+  type: simulate
+  config:
+    options:
+      netlist: testbenches/pre.cir
+  inputs: {}
+  retries: 0
+  position:
+    x: 40
+    y: 40
+  outputs: {}
+  timeout_seconds: 60
+- id: logs
+  type: project
+  config: {}
+  inputs:
+    run_id:
+      node: simulate
+      port: run_id
+  position:
+    x: 310
+    y: 40
+  outputs: {}
+  retries: 0
+  timeout_seconds: 60
+- id: diagnosis
+  type: report
+  config:
+    title: Simulation failure evidence
+  inputs:
+    error:
+      node: simulate
+      port: error
+    log:
+      node: logs
+      port: content
+    run:
+      node: simulate
+      port: result
+    next_action:
+      value: Inspect the first simulator error and its referenced source before making
+        an edit.
+  position:
+    x: 580
+    y: 40
+  outputs: {}
+  retries: 0
+  timeout_seconds: 60
+- id: passed
+  type: report
+  config:
+    title: Simulation completed
+  inputs:
+    run:
+      node: simulate
+      port: result
+  position:
+    x: 40
+    y: 230
+  outputs: {}
+  retries: 0
+  timeout_seconds: 60
+edges:
+- source: simulate
+  target: logs
+  'on': failure
+- source: logs
+  target: diagnosis
+- source: simulate
+  target: passed
+limits:
+  runtime_seconds: 120
+  max_node_executions: 500
+  max_iterations: 100
+inputs: {}
+outputs: {}
+debug: {}

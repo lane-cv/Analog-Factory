@@ -1,0 +1,2136 @@
+{
+  "train": [
+    {
+      "id": "cb6f2c79a6e479f1bf16",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "c706ecd66b2cdc8239d5",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "98f4c8113813dea9bf2e",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "9e3fd0d32cc23ffa9aab",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "adaf42105d5abc1e6869",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "16c1bdaf9b62da07cc7b",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "ced6f2d44b1bb7a400d1",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "3618a559ceac70aae628",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "949b31e74552d48ae262",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "ad7b44304cc1393565fe",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "e8036311c91a3e037909",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "7942be2b3387d5afbab3",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "4953ac0266370965c51e",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "81848759b0f43095a806",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "c3eb36c4b2f830ec7be7",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "e554f435391c798d5a3f",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "a923cd42a2946c159373",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "f5587dd1fd428c7b0063",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "a9b85c48b71f16ff5d9a",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "e0ddc6dfef6d880ddc74",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "ceefc92a72e78b156cd7",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "d87c25fdd67bef0f28f4",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "29a53a1f0702fd1d3aaa",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "59ccc4fad0182688cc2c",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "2a98dd09c9fdb2ac6ca6",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "0735b624c8449addf13c",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "a0376b60c1403e308afb",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "203878997bdcc27b0846",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "b1818bc417a5307f8aa4",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "abd413d1935b15a0d8e7",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "3449c4d03dbc68fcd960",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "62d41cf172ff1e0fa8d8",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "37bd4e2c1335f6032046",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "b040e2a2b6b57dd433d5",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "507f26a3c848ba8e9074",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "e1bbe41687f85ba8ce65",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "a52d8d38a73793d11c6b",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "21f40d5b258d5ec0733b",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "3b7cd2832986ec80971a",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "05932b24913766b464bb",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "12d71d43d6de7937cd7a",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "2b5abcae5d1c00efeb3f",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "66b38330702aa81f9440",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "f98a4c5dd24cd83038ac",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "dbc4c9627ade83ade272",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "ba94aacefa577e289a4d",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "4ca7239bc312e4c8e907",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "d210218f187e1f03c924",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "1b65476e4f3b95dc970b",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "ebfcb331db89d0c93d3c",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "ef208f67cb695729fb17",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "d6e1938f6cbcb2604937",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "93d4dc7756365459c5ec",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "e1d8973fe3f59b7bb34d",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "4cec195214182ba63152",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "d222fc4030ca2482ff76",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "5d2b68a11c295fda436b",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "65da10a236c0ff40e7b6",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "2c69c62c2adcba1afb0b",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "b23aecd87da8c5adf5fe",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "5bbb2b6648c42567cb64",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "f3495443ea95cfed9ec7",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "7b295133e7f95454ca26",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "7d4ac64346c5ba78e92b",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    }
+  ],
+  "validation": [
+    {
+      "id": "69a54b8bac213b7dfa83",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "1f53216b15ca13b1fab9",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "b0285c618bc303df4204",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "9e1243657089d1eb5560",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "bd904459078c06da4a91",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "7abd97a1242c12178347",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "14aab7eb70c0600871e7",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "d102b07ca3a05c8f9b96",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "9d0d21a8f3e95cdd75cc",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "43290b69979ad01dfc7b",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "5f2635bb8a34e52951ca",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "62fa7ce8c2ccf7dee5d2",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "6d0d7ede0f1ef412a6fe",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "039df64596e5d4fc3fa8",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "4a20cb89addc7475f584",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "b56f0e48367249aa44ac",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    }
+  ],
+  "test": [
+    {
+      "id": "a5bc7ebaa28f61257921",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "8a25a7f7bd166792b421",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "9e850ede27a194399871",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "cd9de046a2ef1928f33c",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "a65c73a01fb2493fc908",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "56aa6f466f3da7cb2e87",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "ea6b8a0d9927029bf65f",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "a6decbbbf5d18e359203",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "3b1dc255aa503fe7c7c7",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "58952cc80aea03baeba4",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "215ca8c5cf59dcfbf086",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "2cb11d67ddb4631b3644",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "2081556dd982cda12a76",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "140d15d9cc3a2f85f071",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "0bcc27a0e8e1ccf85afd",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "d2fcfeb0588b78abdfb9",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "048a8ab439ce9037a85e",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "01913473ef9b6d79539c",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "a92627a6c7b3b1b5b376",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "a6338b9b4437f2d863cd",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "594a77e6ec9bc6ad73a2",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "e404710f9858a951bb2a",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "600f0cd31e1544798ba9",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "1b75ecdde3990c146804",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "f2f82e3b7abc7a79a80c",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "5334fbbbd0ae11786f05",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "c6eafb8525e8cdaf10f4",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.6,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "1b03c868c9bd475526fc",
+      "conditions": {
+        "vdd": 1.6,
+        "load_pf": 2,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 8,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "f946925816462544379e",
+      "conditions": {
+        "vdd": 1.8,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "62a693ace50deb02acb0",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 1,
+        "temperature": 0
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "5ab578ed6c95e83695e6",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 27
+      },
+      "targets": {
+        "gain_db": 12,
+        "output_fraction": 0.5,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    },
+    {
+      "id": "e1e7daa306ed8a3f6e50",
+      "conditions": {
+        "vdd": 2.0,
+        "load_pf": 2,
+        "temperature": 65
+      },
+      "targets": {
+        "gain_db": 10,
+        "output_fraction": 0.4,
+        "output_tolerance": 0.25,
+        "current_limit": 0.0002
+      },
+      "initial": {
+        "rd_index": 2,
+        "bias_index": 2,
+        "width_index": 2
+      }
+    }
+  ]
+}

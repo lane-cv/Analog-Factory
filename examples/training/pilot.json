@@ -1,0 +1,14 @@
+{
+  "operation_id": "training.start",
+  "parameters": {
+    "project_id": "REPLACE_WITH_PROJECT_ID",
+    "options": {
+      "framework": "trl_cpu",
+      "steps": 2,
+      "train_tasks": 4,
+      "eval_tasks": 2,
+      "seed": 42,
+      "wall_seconds": 1800
+    }
+  }
+}

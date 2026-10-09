@@ -30,8 +30,7 @@ def evaluate_metric(value, specification):
 
 
 def run_evaluation(workspace, project_id, options, job, cancel, update):
-    from . import eda
-    from .workflows import replace_parameter
+    from .workflows import invoke_engine, replace_parameter
     episodes = options.get('episodes', 3)
     seed = options.get('seed', 42)
     if isinstance(episodes, bool) or not isinstance(episodes, int) or not 1 <= episodes <= 20:
@@ -39,7 +38,8 @@ def run_evaluation(workspace, project_id, options, job, cancel, update):
     if not isinstance(seed, int):
         raise ValueError('Seed must be an integer')
     root = workspace.projects.path(project_id)
-    specification = json.loads(workspace.projects.read(project_id, 'specifications.json')['content'])
+    specification = json.loads(invoke_engine(workspace, project_id, 'evaluation', 'file.read',
+                                             {'path': 'specifications.json'})['content'])
     # Validate independently before starting any subprocess.
     evaluate_metric(0, specification)
     serialized = json.dumps(specification, sort_keys=True)
@@ -68,17 +68,16 @@ def run_evaluation(workspace, project_id, options, job, cancel, update):
         value = rng.uniform(1000, 10000)
         deck = episode_root / 'testbenches/pre.cir'
         deck.write_text(replace_parameter(deck.read_text(), 'RD', value))
-        config = workspace.config(project_id)
-        spec = eda.prepare(episode_root, 'simulate', {'netlist': 'testbenches/pre.cir'}, config)
-        spec['metadata'].update({'evaluation_job': job['id'], 'episode': episode,
-                                 'conditions': {'RD': value}})
-        run = workspace.runner.start(episode_root, 'simulate', **spec)
+        run = invoke_engine(workspace, project_id, 'evaluation', 'run.start', {
+            'kind': 'simulate', 'options': {'netlist': 'testbenches/pre.cir'},
+            'episode': {'job_id': job['id'], 'index': episode},
+            'metadata': {'evaluation_job': job['id'], 'episode': episode, 'conditions': {'RD': value}}})
         while True:
-            result = workspace.runner.get(episode_root, run['id'])
+            result = invoke_engine(workspace, project_id, 'evaluation', 'run.get', {'run_id': run['id']})
             if result['status'] not in ('queued', 'running'):
                 break
             if cancel.is_set():
-                workspace.runner.cancel(episode_root, run['id'])
+                invoke_engine(workspace, project_id, 'evaluation', 'run.cancel', {'run_id': run['id']})
             time.sleep(.025)
         value_out = result.get('metrics', {}).get(specification.get('metric', 'vout_mean')) if result['status'] == 'succeeded' else None
         score = evaluate_metric(value_out, specification)

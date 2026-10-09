@@ -13,8 +13,8 @@ from .storage import atomic_json, confined, read_json
 from .agent_cli import validate_fast_mode
 
 ACTIVE = {'running', 'waiting_approval'}
-MODES = {'api': ('read-only', 'confirm'), 'codex': ('read-only', 'workspace-write'),
-         'claude': ('read-only', 'workspace-write')}
+MODES = {'api': ('read-only', 'confirm', 'automatic'), 'codex': ('read-only', 'workspace-write', 'automatic'),
+         'claude': ('read-only', 'workspace-write', 'automatic')}
 MAX_TURNS = 40
 MAX_RECORD = 4 * 1024 * 1024
 MAX_ATTACHMENTS = 20
@@ -25,9 +25,9 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def run_api_turn(*args):
+def run_api_turn(*args, **kwargs):
     from .agent_api import run_api_turn as run
-    return run(*args)
+    return run(*args, **kwargs)
 
 
 def run_cli_turn(*args, **kwargs):
@@ -48,7 +48,10 @@ class AgentManager:
         ready = bool(provider.get('base_url') and provider.get('model'))
         result = [{'id': 'api', 'name': 'Model API', 'available': ready,
                    'diagnostic': 'Configured model API' if ready else 'Configure a model provider in Settings',
-                   'modes': list(MODES['api'])}]
+                   'modes': list(MODES['api']),
+                   'capabilities': Provider(provider).capabilities,
+                   'model_capabilities': copy.deepcopy(provider.get('model_capabilities', {})),
+                   'default_model': provider.get('model', ''), 'capability_source': 'configured'}]
         for backend, label in [('codex', 'Codex CLI'), ('claude', 'Claude Code')]:
             path = shutil.which(config.get('tools', {}).get(backend) or backend)
             result.append({'id': backend, 'name': label, 'available': bool(path), 'path': path,
@@ -83,6 +86,8 @@ class AgentManager:
         record = copy.deepcopy(record)
         record.pop('history', None)
         record.pop('provider_binding', None)
+        record.pop('scope_grant', None)
+        record.setdefault('effort', None)
         if summary:
             record['turn_count'] = len(record.pop('turns'))
         return record
@@ -135,7 +140,7 @@ class AgentManager:
             self._path(pid, sid).unlink()
             return {'deleted': True, 'id': sid}
 
-    def create(self, pid, options):
+    def create(self, pid, options, *, scope_authorized=False):
         if not isinstance(options, dict):
             raise ValueError('Agent options must be an object')
         backend, mode = options.get('backend', 'api'), options.get('mode', 'read-only')
@@ -143,12 +148,22 @@ class AgentManager:
             raise ValueError('Supported agent backends: api, codex, claude')
         if mode not in MODES[backend]:
             raise ValueError('Unsupported permission mode for this backend')
+        if mode == 'automatic' and not scope_authorized:
+            raise PermissionError('Automatic scope requires a human approval-capable caller')
+        if mode != 'automatic' and options.get('scope') is not None:
+            raise ValueError('An action scope requires automatic mode')
         model = options.get('model', '')
         if not isinstance(model, str) or len(model) > 200 or any(ord(c) < 32 for c in model):
             raise ValueError('Agent model must be a string of up to 200 characters')
         fast_mode = options.get('fast_mode', False)
         validate_fast_mode(backend, model.strip(), fast_mode)
-        self.workspace.projects.path(pid)
+        root = self.workspace.projects.path(pid)
+        effort = options.get('effort')
+        if effort is not None:
+            from .agent_models import validate_session_effort
+            config = self.workspace.config(pid)
+            executable = shutil.which(config.get('tools', {}).get(backend) or backend)
+            validate_session_effort(backend, model.strip(), effort, executable, root)
         binding = None
         if backend == 'api':
             provider = self.workspace.provider(pid)
@@ -156,13 +171,18 @@ class AgentManager:
             if not provider.base_url or not model:
                 raise ValueError('Configure a model provider before creating an API session')
             binding = list(provider_binding(provider.config))
+            provider.with_model(model)
         record = {'id': uuid.uuid4().hex, 'backend': backend, 'model': model.strip(),
-                  'fast_mode': fast_mode,
+                  'fast_mode': fast_mode, 'effort': effort,
                   'mode': mode, 'created_at': now(), 'updated_at': now(), 'status': 'idle',
                   'title': 'New conversation', 'backend_session_id': None,
                   'provider_binding': binding, 'history': [], 'turns': [],
                   'pending_approval': None, 'usage': None}
         with self.lock:
+            if mode == 'automatic':
+                from .agent_scope import grant, validate_scope
+                record['scope'] = validate_scope(options.get('scope'))
+                record['scope_grant'] = grant(self.workspace, pid, record['id'], record['scope'])
             self._save(pid, record)
         return self._public(record)
 
@@ -174,17 +194,20 @@ class AgentManager:
         attachments = body.get('attachments', [])
         if (not isinstance(selected, list) or not isinstance(attachments, list)
                 or len(selected) + len(attachments) > MAX_ATTACHMENTS):
-            raise ValueError('Select up to 20 project files and text attachments combined')
+                raise ValueError('Select up to 20 project files and attachments combined')
         chunks = []
         total = 0
         for attachment in attachments:
-            if not isinstance(attachment, dict) or set(attachment) != {'name', 'content'}:
-                raise ValueError('Each text attachment must contain a name and content')
-            name, content = attachment['name'], attachment['content']
+            if not isinstance(attachment, dict) or set(attachment) not in ({'name', 'content'}, {'name', 'mime_type', 'data_base64'}):
+                raise ValueError('Each attachment must contain named text or an explicit image')
+            name = attachment['name']
             if (not isinstance(name, str) or not name.strip() or len(name) > 200
                     or name in ('.', '..') or '/' in name or '\\' in name
                     or any(ord(c) < 32 or 127 <= ord(c) < 160 for c in name)):
                 raise ValueError('Text attachment names must be plain filenames of up to 200 characters')
+            if 'content' not in attachment:
+                continue
+            content = attachment['content']
             if (not isinstance(content, str) or '\x00' in content
                     or len(content.encode()) > MAX_ATTACHMENT_BYTES):
                 raise ValueError('Text attachments must contain text of up to 64 KiB each')
@@ -230,18 +253,27 @@ class AgentManager:
             if len(record['turns']) >= MAX_TURNS or len(json.dumps(record).encode()) >= MAX_RECORD:
                 raise ValueError('Conversation limit reached; start a new session')
             message, prompt = self._context(pid, body)
+            from .agent_images import validate_images
+            images = validate_images(body.get('attachments', []))
+            if record['mode'] == 'automatic':
+                from .agent_scope import current
+                current(self.workspace, pid, record)
             provider, executable = None, None
             if record['backend'] == 'api':
                 provider = self.workspace.provider(pid)
                 if list(provider_binding(provider.config)) != record['provider_binding']:
                     raise ValueError('The provider endpoint changed; start a new session for that endpoint')
-                provider = Provider({**provider.config, 'model': record['model']}, provider.secret)
+                provider = provider.with_model(record['model'])
+                if images and not provider.capabilities['images']:
+                    raise ValueError('Image capability has not been declared for this model')
             else:
+                if images:
+                    raise ValueError('Image attachments are supported only by explicitly capable API models')
                 config = self.workspace.config(pid)
                 executable = shutil.which(config.get('tools', {}).get(record['backend']) or record['backend'])
                 if not executable:
                     raise ValueError(f'{record["backend"]} executable is not available; configure it in Settings')
-            control = {'cancel': threading.Event(), 'decision': threading.Event(), 'approved': False}
+            control = {'cancel': threading.Event(), 'decision': threading.Event(), 'approved': False, 'images': images}
             turn = {'id': uuid.uuid4().hex, 'message': message, 'files': copy.deepcopy(body.get('files', [])),
                     'attachments': copy.deepcopy(body.get('attachments', [])),
                     'run_id': body.get('run_id'), 'created_at': now(), 'status': 'running',
@@ -266,17 +298,40 @@ class AgentManager:
         turn = record['turns'][-1]
         cancel = control['cancel']
         event_bytes = 0
+        bridge_token = None
+        bridge_closed = threading.Event()
+
+        class BridgeCancellation:
+            def is_set(self):
+                return cancel.is_set() or bridge_closed.is_set()
 
         def emit(event):
             nonlocal event_bytes
             with self.lock:
                 if cancel.is_set():
                     raise InterruptedError('Agent turn cancelled')
+                # Generic native MCP results can include large immutable run
+                # provenance. Bound the conversation's display copy, retaining
+                # IDs/status and the authoritative full run/artifact records.
+                # This does not truncate the result delivered to the model.
+                if event.get('type') == 'tool_result' and isinstance(event.get('text'), str):
+                    encoded = event['text'].encode()
+                    if len(encoded) > 16384:
+                        marker = f'\n[display truncated; {len(encoded)} original bytes; inspect the operation/run record for full evidence]'
+                        event = {**event, 'text': encoded[:16384 - len(marker.encode())].decode(errors='ignore') + marker,
+                                 'truncated': True, 'original_bytes': len(encoded)}
+                previous = turn['events'][-1] if turn['events'] else None
+                replace_stream = bool(previous and previous.get('streaming') and event.get('type') == 'message')
+                if replace_stream:
+                    event_bytes -= len(json.dumps(previous, allow_nan=False).encode())
                 size = len(json.dumps(event, allow_nan=False).encode())
                 if len(turn['events']) >= 1000 or event_bytes + size > 1024 * 1024:
                     raise RuntimeError('Agent output limit exceeded')
                 event_bytes += size
-                turn['events'].append(copy.deepcopy(event))
+                if replace_stream:
+                    turn['events'][-1] = copy.deepcopy(event)
+                else:
+                    turn['events'].append(copy.deepcopy(event))
                 if event.get('type') == 'session' and event.get('backend_session_id'):
                     record['backend_session_id'] = event['backend_session_id']
                 if event.get('type') == 'usage':
@@ -284,11 +339,17 @@ class AgentManager:
                 self._save(pid, record)
 
         def approve(name, arguments):
-            if record['mode'] != 'confirm':
+            if record['mode'] not in ('confirm', 'workspace-write', 'automatic'):
                 return False
             with self.lock:
-                if cancel.is_set():
+                if cancel.is_set() or bridge_closed.is_set():
                     raise InterruptedError('Agent turn cancelled')
+                if record['mode'] == 'automatic':
+                    from .agent_scope import consume
+                    if consume(self.workspace, pid, record, name, arguments):
+                        emit({'type': 'status', 'status': 'scope_authorized',
+                              'text': 'Action authorized by the saved human scope', 'operation': name})
+                        return True
                 control['approved'] = False
                 control['decision'].clear()
                 record.update(status='waiting_approval', pending_approval={
@@ -298,7 +359,7 @@ class AgentManager:
             # A decision is also woken by cancellation or shutdown.
             control['decision'].wait(600)
             with self.lock:
-                if cancel.is_set():
+                if cancel.is_set() or bridge_closed.is_set():
                     raise InterruptedError('Agent turn cancelled')
                 record.update(status='running', pending_approval=None)
                 turn['status'] = 'running'
@@ -308,11 +369,34 @@ class AgentManager:
         try:
             if record['backend'] == 'api':
                 result = run_api_turn(provider, copy.deepcopy(record['history']), prompt,
-                                      self.workspace, pid, record['mode'], emit, cancel, approve)
+                                      self.workspace, pid, record['mode'], emit, cancel, approve,
+                                      **({'images': control['images']} if control['images'] else {}))
             else:
+                from .agent_api import _arguments, _context, _execute, _json, _redact
+                from .operation_mcp import NAMES
+                url = getattr(self.workspace, 'operation_url', None)
+                if not url:
+                    raise RuntimeError('Start the workspace server before using a native agent session')
+                mode = 'confirm' if record['mode'] == 'workspace-write' else record['mode']
+                def bridge(name, arguments):
+                    if name not in NAMES:
+                        raise ValueError('Unknown shared operation tool')
+                    arguments = _arguments(name, _json(_redact(arguments)))
+                    return _execute(name, arguments, self.workspace, pid, mode, emit, BridgeCancellation(), approve)
+                bridge_token = self.workspace.operations.issue_context_token(_context(pid, mode=mode), bridge)
+                policy = ('Only actions in the saved human scope execute automatically; all others wait for explicit approval. '
+                          if mode == 'automatic' else 'Mutations wait for explicit approval in the workspace. ')
+                prompt += ('\n\nUse the analog_factory MCP tools to discover and invoke workspace operations. '
+                           'All project reads, edits, EDA runs and browser actions are available through '
+                           'list_operations, describe_operation and invoke_operation. '
+                           'Poll with get_operation_status (compact by default) or run.get view=summary; '
+                           'subscribe_events can wait up to 25 seconds. Fetch full provenance once after completion. '
+                           + policy + 'Native writes are disabled.')
                 result = run_cli_turn(record['backend'], executable, self.workspace.projects.path(pid),
                                       record['model'], record['mode'], record['backend_session_id'],
-                                      prompt, emit, cancel, fast_mode=record.get('fast_mode'))
+                                      prompt, emit, cancel, fast_mode=record.get('fast_mode'),
+                                      effort=record.get('effort'),
+                                      operation_bridge={'url': url, 'token': bridge_token})
             with self.lock:
                 if cancel.is_set():
                     raise InterruptedError('Agent turn cancelled')
@@ -331,6 +415,10 @@ class AgentManager:
                 turn.update(status=status, error=str(error)[:2000])
                 record['status'] = status
         finally:
+            if bridge_token:
+                bridge_closed.set()
+                self.workspace.operations.revoke_context_token(bridge_token)
+                control['decision'].set()
             with self.lock:
                 record['pending_approval'] = None
                 turn['finished_at'] = now()

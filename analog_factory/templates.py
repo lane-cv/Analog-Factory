@@ -52,9 +52,12 @@ def tuning_workflow():
     }
 
 
-def files(template):
+def files(template, config=None):
+    if template == 'ota5':
+        from .ota5_reference import materialize
+        return materialize(config)
     if template not in ('amplifier', 'sky130'):
-        raise ValueError('Template must be amplifier or sky130')
+        raise ValueError('Template must be amplifier, sky130 or ota5')
     import json
     sky = template == 'sky130'
     return {

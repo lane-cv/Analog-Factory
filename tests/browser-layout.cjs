@@ -95,6 +95,8 @@ const {chromium} = require('playwright');
     await page.locator('#agent-model-toggle').click();
     await page.locator('.ai-sidebar [data-tab=settings]').click();
     await page.locator('#panel-backdrop').waitFor({state:'hidden'});
+    await page.waitForFunction(() => document.querySelector('.tabs [data-tab=settings]').getAttribute('aria-selected') === 'true');
+    assert.equal(await page.locator('#main-content').isVisible(), true, 'Assistant settings navigation opens the main workspace');
     assert.equal(await page.locator('.central-workspace').evaluate(element => element.inert), false, 'Sidebar navigation exposes the requested view');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Panels fit the narrow viewport');
     await page.locator('#toggle-ai').click();
@@ -110,8 +112,20 @@ const {chromium} = require('playwright');
     const storedLog = await page.evaluate(() => JSON.parse(localStorage.getItem('af-workspace-layout')).log);
     for (const viewport of [{width:844,height:390},{width:390,height:320}]) {
       await page.setViewportSize(viewport);
-      await page.waitForFunction(() => document.querySelector('#main-content').getBoundingClientRect().height >= 100, null, {timeout:3000});
-      assert.ok(await height('#main-content') >= 100, `Main workspace remains usable at ${viewport.width}×${viewport.height}`);
+      // The persistent global preferences make the narrow header taller. At
+      // 390×320 only 60px remain after tabs, footer and the minimum visible log.
+      // Require 100px when available, otherwise all physically remaining room.
+      await page.waitForFunction(() => {
+        const height = selector => document.querySelector(selector).getBoundingClientRect().height;
+        const available = height('.workspace') - height('.tabs') - height('.statusbar');
+        const minimum = Math.min(100, available - Number(document.querySelector('#log-resizer').getAttribute('aria-valuemin')));
+        return height('#main-content') >= minimum && height('#main-content') > 0;
+      }, null, {timeout:3000});
+      const minimumDesignHeight = await page.evaluate(() => {
+        const height = selector => document.querySelector(selector).getBoundingClientRect().height;
+        return Math.min(100, height('.workspace') - height('.tabs') - height('.statusbar') - Number(document.querySelector('#log-resizer').getAttribute('aria-valuemin')));
+      });
+      assert.ok(await height('#main-content') >= minimumDesignHeight, `Main workspace retains the available design area at ${viewport.width}×${viewport.height}`);
       assert.equal(await height('.log-panel'), Number(await page.locator('#log-resizer').getAttribute('aria-valuenow')), 'Log size matches its accessible value');
       assert.equal(await page.locator('.log-panel').evaluate(element => parseFloat(getComputedStyle(element).minHeight)), Number(await page.locator('#log-resizer').getAttribute('aria-valuemin')), 'Visual and accessible log minimum agree');
       assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('af-workspace-layout')).log), storedLog, 'Responsive clamping preserves the preferred log height');

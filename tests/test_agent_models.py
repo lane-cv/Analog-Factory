@@ -18,6 +18,13 @@ class AgentModelsTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.executable = self.root / 'fake-cli'
         agent_models._CACHE.clear()
+        self.config = self.root / 'claude-config'
+        self.config.mkdir()
+        environment = patch.dict(os.environ, {'CLAUDE_CONFIG_DIR': str(self.config),
+            'ANTHROPIC_DEFAULT_OPUS_MODEL': '', 'ANTHROPIC_DEFAULT_SONNET_MODEL': '',
+            'ANTHROPIC_DEFAULT_HAIKU_MODEL': '', 'CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST': ''})
+        environment.start()
+        self.addCleanup(environment.stop)
 
     def fixture(self, code):
         self.executable.write_text(f'#!{sys.executable}\n'
@@ -71,6 +78,74 @@ with Path('requests.jsonl').open('a') as log:
         self.assertEqual(len((self.root / 'requests.jsonl').read_text().splitlines()), 8)
         self.fixture("print('2.1.205 (Claude Code)')\n")
         self.assertEqual(self.catalog('claude')['source'], 'builtin')
+
+    def test_codex_effort_capabilities_preserve_advertised_levels_and_default(self):
+        self.fixture('''
+for line in sys.stdin:
+ req=json.loads(line)
+ if req['method']=='initialize': emit({'id':req['id'],'result':{}})
+ elif req['method']=='model/list': emit({'id':req['id'],'result':{'data':[
+  {'id':'new-model','supportedReasoningEfforts':[{'reasoningEffort':level} for level in
+   ('none','minimal','low','medium','high','xhigh','max','ultra')], 'defaultReasoningEffort':'high'},
+  {'id':'bad','supportedReasoningEfforts':[{}, {'reasoningEffort':[]}, {'reasoningEffort':'high'},
+   {'reasoningEffort':'high'}, {'reasoningEffort':'injected\\nvalue'}], 'defaultReasoningEffort':'max'},
+  {'id':'unknown','supportedReasoningEfforts':None}]}})
+''')
+        models = self.catalog()['models']
+        self.assertEqual(models[0].get('effort_levels'),
+                         ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
+        self.assertEqual(models[0].get('default_effort'), 'high')
+        self.assertEqual(models[1].get('effort_levels'), ['high'])
+        self.assertIsNone(models[1].get('default_effort'))
+        self.assertEqual(models[2].get('effort_levels'), [])
+
+    def test_claude_effort_requires_advertised_flag_and_capable_model(self):
+        self.fixture('''
+if sys.argv[1:] == ['--version']: print('2.1.280 (Claude Code)')
+elif sys.argv[1:] == ['--help']: print('--effort <level> Effort level (low, medium, high, xhigh, max)')
+else: raise AssertionError(sys.argv)
+''')
+        result = self.catalog('claude')
+        self.assertEqual(result.get('effort_levels'), ['low', 'medium', 'high', 'xhigh', 'max'])
+        rows = {row['id']: row for row in result['models']}
+        self.assertEqual(rows['opus'].get('effort_levels'), ['low', 'medium', 'high', 'max'])
+        self.assertEqual(rows['sonnet'].get('effort_levels'), [])
+        self.assertEqual(rows['haiku'].get('effort_levels'), [])
+        self.assertIsNone(rows['opus'].get('default_effort'))
+
+    def test_selected_model_effort_matches_exact_model_and_alias_overrides(self):
+        self.fixture('''
+if sys.argv[1:] == ['--version']: print('2.1.280 (Claude Code)')
+elif sys.argv[1:] == ['--help']: print('--effort <level> Effort level (low, medium, high, xhigh, max)')
+''')
+        for model in ('claude-opus-4-8', 'claude-sonnet-5-5', 'claude-fable-5-1'):
+            with self.subTest(model=model):
+                self.assertEqual(self.catalog('claude', model=model)['selected_model']['effort_levels'],
+                                 ['low', 'medium', 'high', 'xhigh', 'max'])
+                self.assertEqual(self.catalog('claude', model=model)['selected_model'].get('label'), model)
+        self.assertEqual(self.catalog('claude', model='claude-sonnet-4-6')['selected_model']['effort_levels'],
+                         ['low', 'medium', 'high', 'max'])
+        for model in ('', 'custom', 'claude-haiku-4-5'):
+            self.assertEqual(self.catalog('claude', model=model)['selected_model']['effort_levels'], [])
+        # Cached CLI help must not cache user alias configuration or leak it.
+        (self.config / 'settings.json').write_text(json.dumps({'env': {
+            'ANTHROPIC_DEFAULT_OPUS_MODEL': 'claude-haiku-4-5',
+            'ANTHROPIC_DEFAULT_SONNET_MODEL': 'claude-sonnet-5-5',
+            'ANTHROPIC_API_KEY': 'private-key'}}))
+        result = self.catalog('claude', model='opus')
+        self.assertEqual(result['selected_model']['effort_levels'], [])
+        self.assertEqual(result['models'][0]['effort_levels'], [])
+        result = self.catalog('claude', model='sonnet')
+        self.assertEqual(result['selected_model']['effort_levels'], ['low', 'medium', 'high', 'xhigh', 'max'])
+        self.assertNotIn('private-key', json.dumps(result))
+
+    def test_codex_default_and_unknown_model_do_not_inherit_catalog_default_effort(self):
+        self.successful_codex()
+        for model in ('', 'custom'):
+            self.assertEqual(self.catalog(model=model)['selected_model']['effort_levels'], [])
+            self.assertEqual(self.catalog(model=model)['selected_model'].get('label'), model)
+        with self.assertRaisesRegex(ValueError, '[Ee]ffort'):
+            agent_models.validate_session_effort('codex', '', 'high', self.executable, self.root)
 
     def test_failures_do_not_expose_cli_stderr_or_protocol_errors(self):
         self.fixture("print('private credential detail', file=sys.stderr)\nemit({'id':1,'error':{'message':'private credential detail'}})\ntime.sleep(10)\n")

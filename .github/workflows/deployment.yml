@@ -1,0 +1,44 @@
+name: Ubuntu deployment
+on:
+  workflow_dispatch:
+  push:
+    paths: ['scripts/**', 'deployment/**', 'pyproject.toml', '.github/workflows/deployment.yml']
+  pull_request:
+    paths: ['scripts/**', 'deployment/**', 'pyproject.toml', '.github/workflows/deployment.yml']
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publication content check
+        run: python3 scripts/check_publish.py
+      - name: Inspect full installation plan and install core
+        run: |
+          python3 scripts/install_ubuntu.py --dry-run --profile desktop --with-agents
+          python3 scripts/install_ubuntu.py --profile core --skip-system-packages
+          python3 scripts/install_ubuntu.py --profile core --skip-system-packages
+      - name: Start installed app and verify discovery
+        run: |
+          python3 scripts/run_deployment.py --config .tools/deployment/config.json > /tmp/af-deployment.log 2>&1 &
+          launcher=$!
+          trap 'kill -INT "$launcher"; wait "$launcher"' EXIT
+          python3 - <<'PY'
+          import json, time, urllib.request
+          for attempt in range(100):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:8765/api/operations', timeout=1) as response:
+                      result = json.load(response)
+                  assert len(result['operations']) > 200
+                  break
+              except OSError:
+                  time.sleep(.1)
+          else:
+              raise SystemExit('Installed deployment did not become ready')
+          PY
+      - name: Render explicit user service
+        run: python3 scripts/manage_service.py print --config .tools/deployment/config.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-log
+          path: /tmp/af-deployment.log

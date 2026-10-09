@@ -48,7 +48,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
       {id:'codex',name:'Codex CLI',available:true,modes:['read-only','workspace-write']},
       {id:'claude',name:'Claude CLI',available:false,diagnostic:'Claude executable not found',modes:['read-only','workspace-write']},
     ];
-    let sequence = 0, delaySession = null, releaseDelayed = null, rejectMessage = false;
+    let sequence = 0, delaySession = null, releaseDelayed = null, rejectMessage = false, delayMessage = false, releaseMessage = null;
     await page.route('**/api/agents*', route => route.fulfill({json:{backends}}));
     await page.route('**/api/projects/*/agent/sessions**', async route => {
       const request = route.request(), parts = new URL(request.url()).pathname.split('/');
@@ -75,6 +75,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
         if (rejectMessage) { rejectMessage = false; return route.fulfill({status:409,json:{error:'Previous turn is still shutting down'}}); }
         session.status = 'running';
         session.turns.push({id:`turn-${session.turns.length+1}`,message:body.message,status:'running',events:[{type:'status',text:'Inspecting project files'}],reply:'',usage:null,error:null});
+        if (delayMessage) { delayMessage = false; await new Promise(resolve => { releaseMessage = resolve; }); }
         return route.fulfill({status:202,json:session});
       }
       if (action === 'approval') {
@@ -102,7 +103,8 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.locator('#agent-attach-run').check();
     await page.keyboard.press('Escape');
     await page.locator('#chat-input').fill('Inspect <img src=x onerror="window.agentXss=1">');
-    await page.locator('#chat-send').click();
+    const accepted = await page.evaluate(() => AFOperations.dispatch('ui.agent.send'));
+    assert.equal(accepted.accepted_turn_id, 'turn-1', 'Semantic send confirms an accepted message turn');
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
     const first = [...sessions.values()][0];
     assert.equal(first.backend, 'api');
@@ -175,7 +177,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     assert.equal(await page.locator('#agent-mode').inputValue(), 'read-only');
     await page.locator('#agent-mode').selectOption('workspace-write');
     await page.locator('#agent-model-toggle').click();
-    assert.match(await page.locator('#agent-permission-note').innerText(), /without.*approval|without.*confirmation/i);
+    assert.match(await page.locator('#agent-permission-note').innerText(), /requires your approval/i);
     await page.locator('#agent-model').fill('cli-model-override');
     await page.locator('#agent-model-apply').click();
     await page.locator('#agent-add-context').click();
@@ -212,6 +214,24 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.waitForTimeout(200);
     assert.match(await page.locator('#agent-status').innerText(), /cancelled/, 'Late polls cannot undo cancellation');
 
+    // An accepted message whose response loses the project-selection race must
+    // report the conflict instead of claiming it is visible in the new project.
+    await page.locator('#chat-input').fill('Acknowledge only in the selected conversation');
+    delayMessage = true;
+    await page.evaluate(() => { window.semanticSendResult = null; AFOperations.dispatch('ui.agent.send').then(data => { window.semanticSendResult = {ok:true,data}; }, error => { window.semanticSendResult = {ok:false,code:error.code}; }); });
+    for (let attempt = 0; !releaseMessage && attempt < 100; attempt++) await page.waitForTimeout(20);
+    assert(releaseMessage, 'The semantic message reached its conversation');
+    await page.locator('#project-select').selectOption(local.projects[1].id);
+    await page.waitForFunction(() => document.querySelector('#footer-project').textContent.includes('Agent project B'));
+    releaseMessage();
+    await page.waitForFunction(() => window.semanticSendResult);
+    assert.deepEqual(await page.evaluate(() => window.semanticSendResult), {ok:false,code:'VERSION_CONFLICT'});
+    assert.doesNotMatch(await page.locator('#chat-messages').innerText(), /Acknowledge only/);
+    await page.locator('#project-select').selectOption(local.projects[0].id);
+    await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
+    await page.locator('#agent-stop').click();
+    await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('cancelled'));
+
     // A completed agent turn refreshes saved sources, but preserves editor drafts.
     await page.locator('[data-file="testbenches/pre.cir"]').click();
     const savedCircuit = await page.locator('#code-editor').inputValue();
@@ -236,6 +256,12 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.locator('#chat-messages').getByText('Change denied', {exact:true}).first().waitFor();
     assert.equal(await page.locator('#chat-messages').getByText('Change denied', {exact:true}).count(), 1, 'Final reply appears only once');
     await page.locator('.tabs [data-tab=settings]').click();
+    await page.locator('#toast-container').getByText('State changed; read the latest state before applying this change').waitFor();
+    assert.equal(await page.locator('#code-editor').inputValue(), dirtyCircuit, 'Leaving a stale editor cannot overwrite agent changes');
+    // Discard this disposable test draft before exercising unrelated settings.
+    await page.reload();
+    await page.locator('#chat-messages').getByText('Change denied', {exact:true}).first().waitFor();
+    await page.locator('.tabs [data-tab=settings]').click();
     await page.locator('#settings-form [name=tool-codex]').fill('/tmp/example-codex');
     await page.locator('#settings-form [name=tool-claude]').fill('/tmp/example-claude');
     const saved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/settings' && response.request().method() === 'PUT');
@@ -244,6 +270,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     const settings = await (await page.request.get(`${local.url}/api/settings`)).json();
     assert.equal(settings.tools.codex, '/tmp/example-codex');
     assert.equal(settings.tools.claude, '/tmp/example-claude');
+    await page.waitForFunction(() => document.querySelector('#settings-form').getAttribute('aria-busy') === 'false');
     const imported = page.waitForResponse(response => new URL(response.url()).pathname === '/api/settings' && response.request().method() === 'PUT');
     await page.locator('#settings-file').setInputFiles({name:'partial-settings.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({tools:{ngspice:''}}))});
     assert((await imported).ok());

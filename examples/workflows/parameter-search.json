@@ -1,0 +1,228 @@
+{
+  "schema_version": 2,
+  "name": "Specification-driven circuit parameter search",
+  "nodes": [
+    {
+      "id": "spec",
+      "type": "project",
+      "config": {
+        "path": "specifications.json",
+        "parse_json": true
+      },
+      "inputs": {},
+      "position": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "search",
+      "type": "loop",
+      "config": {
+        "body": {
+          "schema_version": 2,
+          "name": "Try one saved RD candidate",
+          "nodes": [
+            {
+              "id": "spec",
+              "type": "input",
+              "config": {
+                "name": "state",
+                "type": "object"
+              },
+              "inputs": {},
+              "outputs": {
+                "target": {
+                  "path": "value.target",
+                  "type": "number"
+                },
+                "tolerance": {
+                  "path": "value.tolerance",
+                  "type": "number"
+                },
+                "metric": {
+                  "path": "value.metric",
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "id": "candidate",
+              "type": "input",
+              "config": {
+                "name": "item",
+                "type": "number"
+              },
+              "inputs": {}
+            },
+            {
+              "id": "read",
+              "type": "project",
+              "config": {
+                "path": "testbenches/pre.cir"
+              },
+              "inputs": {}
+            },
+            {
+              "id": "deck",
+              "type": "netlist",
+              "config": {
+                "parameter": "RD"
+              },
+              "inputs": {
+                "content": {
+                  "node": "read",
+                  "port": "content"
+                },
+                "value": {
+                  "node": "candidate",
+                  "port": "value"
+                }
+              }
+            },
+            {
+              "id": "simulate",
+              "type": "simulate",
+              "config": {},
+              "inputs": {
+                "content": {
+                  "node": "deck",
+                  "port": "content"
+                }
+              }
+            },
+            {
+              "id": "measure",
+              "type": "measure",
+              "config": {},
+              "inputs": {
+                "result": {
+                  "node": "simulate",
+                  "port": "result"
+                },
+                "target": {
+                  "node": "spec",
+                  "port": "target"
+                },
+                "tolerance": {
+                  "node": "spec",
+                  "port": "tolerance"
+                },
+                "metric": {
+                  "node": "spec",
+                  "port": "metric"
+                }
+              }
+            }
+          ],
+          "edges": [],
+          "limits": {
+            "runtime_seconds": 120,
+            "max_node_executions": 500,
+            "max_iterations": 100
+          },
+          "outputs": {
+            "done": {
+              "node": "measure",
+              "port": "satisfied"
+            },
+            "measurement": {
+              "node": "measure",
+              "port": "value"
+            },
+            "parameter": {
+              "node": "candidate",
+              "port": "value"
+            },
+            "run_id": {
+              "node": "simulate",
+              "port": "run_id"
+            }
+          }
+        },
+        "max_iterations": 37,
+        "values": [
+          1000,
+          1250,
+          1500,
+          1750,
+          2000,
+          2250,
+          2500,
+          2750,
+          3000,
+          3250,
+          3500,
+          3750,
+          4000,
+          4250,
+          4500,
+          4750,
+          5000,
+          5250,
+          5500,
+          5750,
+          6000,
+          6250,
+          6500,
+          6750,
+          7000,
+          7250,
+          7500,
+          7750,
+          8000,
+          8250,
+          8500,
+          8750,
+          9000,
+          9250,
+          9500,
+          9750,
+          10000
+        ]
+      },
+      "inputs": {
+        "state": {
+          "node": "spec",
+          "port": "data"
+        }
+      },
+      "timeout_seconds": 120,
+      "position": {
+        "x": 310,
+        "y": 40
+      }
+    },
+    {
+      "id": "report",
+      "type": "report",
+      "config": {
+        "title": "Parameter search evidence"
+      },
+      "inputs": {
+        "candidates": {
+          "node": "search",
+          "port": "iterations"
+        },
+        "last": {
+          "node": "search",
+          "port": "result"
+        },
+        "satisfied": {
+          "node": "search",
+          "port": "satisfied"
+        }
+      },
+      "position": {
+        "x": 580,
+        "y": 40
+      }
+    }
+  ],
+  "edges": [],
+  "limits": {
+    "runtime_seconds": 120,
+    "max_node_executions": 500,
+    "max_iterations": 100
+  }
+}

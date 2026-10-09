@@ -1,0 +1,116 @@
+{
+  "schema_version": 2,
+  "name": "OTA pre-layout versus post-layout comparison",
+  "nodes": [
+    {
+      "id": "pre",
+      "type": "simulate",
+      "config": {
+        "options": {
+          "netlist": "testbenches/pre.cir"
+        }
+      },
+      "inputs": {},
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "timeout_seconds": 180
+    },
+    {
+      "id": "post",
+      "type": "simulate",
+      "config": {
+        "options": {
+          "netlist": "testbenches/post.cir"
+        }
+      },
+      "inputs": {},
+      "position": {
+        "x": 310,
+        "y": 40
+      },
+      "timeout_seconds": 180
+    },
+    {
+      "id": "compare",
+      "type": "report",
+      "config": {
+        "title": "Measured pre-layout and extracted-layout results"
+      },
+      "inputs": {
+        "pre_metrics": {
+          "node": "pre",
+          "port": "metrics"
+        },
+        "post_metrics": {
+          "node": "post",
+          "port": "metrics"
+        },
+        "pre_run": {
+          "node": "pre",
+          "port": "run_id"
+        },
+        "post_run": {
+          "node": "post",
+          "port": "run_id"
+        },
+        "coverage": {
+          "value": "Post-layout validity depends on the saved extraction provenance. Inspect the associated extraction and LVS records."
+        }
+      },
+      "position": {
+        "x": 580,
+        "y": 40
+      }
+    },
+    {
+      "id": "unavailable",
+      "type": "report",
+      "config": {
+        "title": "Comparison could not be completed"
+      },
+      "inputs": {
+        "pre_error": {
+          "node": "pre",
+          "port": "error",
+          "default": null
+        },
+        "post_error": {
+          "node": "post",
+          "port": "error",
+          "default": null
+        }
+      },
+      "position": {
+        "x": 40,
+        "y": 230
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "pre",
+      "target": "post"
+    },
+    {
+      "source": "post",
+      "target": "compare"
+    },
+    {
+      "source": "pre",
+      "target": "unavailable",
+      "on": "failure"
+    },
+    {
+      "source": "post",
+      "target": "unavailable",
+      "on": "failure"
+    }
+  ],
+  "limits": {
+    "runtime_seconds": 600,
+    "max_node_executions": 500,
+    "max_iterations": 100
+  }
+}

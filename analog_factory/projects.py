@@ -30,12 +30,15 @@ class ProjectStore:
             raise FileNotFoundError('Project does not exist')
         return path
 
-    def create(self, name: str, template: str = 'amplifier') -> dict:
+    def create(self, name: str, template: str = 'amplifier', *, config=None) -> dict:
         if not isinstance(name, str) or not name.strip() or len(name) > 100:
             raise ValueError('Project name must contain 1–100 characters')
-        contents = templates.files(template)
+        contents = templates.files(template, config)
         project = {'schema_version': 1, 'id': uuid.uuid4().hex, 'name': name.strip(),
                    'template': template, 'created_at': datetime.now(timezone.utc).isoformat(), 'config': {}}
+        if template == 'ota5':
+            from .ota5_reference import DESIGN
+            project['design'] = json.loads(json.dumps(DESIGN))
         with self.lock:
             path = self.root / project['id']
             path.mkdir()
@@ -46,12 +49,14 @@ class ProjectStore:
                 target.write_text(content)
         return project
 
-    def list(self) -> list:
+    def list(self, *, include_trashed=False) -> list:
         result = []
         for path in sorted(self.root.iterdir()):
             if not path.is_symlink() and path.is_dir() and re.fullmatch(r'[a-f0-9]{32}', path.name):
                 try:
-                    result.append(self.get(path.name))
+                    project = self.get(path.name)
+                    if include_trashed or not project.get('trashed_at'):
+                        result.append(project)
                 except (ValueError, OSError):
                     continue
         return result
@@ -95,6 +100,7 @@ class ProjectStore:
         with self.lock:
             root = self.path(project_id)
             target = confined(root, relative)
+            revision_id = None
             if target.exists():
                 old = target.read_bytes()
                 revision_id = uuid.uuid4().hex
@@ -114,7 +120,8 @@ class ProjectStore:
             finally:
                 if Path(temporary).exists():
                     Path(temporary).unlink()
-        return {'path': relative, 'sha256': hashlib.sha256(content.encode()).hexdigest()}
+        return {'path': relative, 'sha256': hashlib.sha256(content.encode()).hexdigest(),
+                'revision_id': revision_id}
 
     def history(self, project_id: str, relative: str) -> list:
         root = self.path(project_id)
@@ -155,7 +162,11 @@ class ProjectStore:
         root = self.path(project_id)
         output = io.BytesIO()
         with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
+            total = 0
             for item in self.files(project_id):
+                total += item['size']
+                if total > MAX_FILE_BYTES:
+                    raise ValueError('Project exceeds the 2 MiB inline export limit; use project.archive.prepare with mode export')
                 archive.write(confined(root, item['path']), item['path'])
             # Evidence is included, but revision history and credentials are not.
             for category in ('runs', 'jobs', 'episodes'):
@@ -163,5 +174,8 @@ class ProjectStore:
                 for path in sorted(evidence.rglob('*')):
                     if path.is_file() and not path.is_symlink():
                         safe = confined(evidence, path.relative_to(evidence).as_posix(), hidden=True)
+                        total += safe.stat().st_size
+                        if total > MAX_FILE_BYTES:
+                            raise ValueError('Project exceeds the 2 MiB inline export limit; use project.archive.prepare with mode export')
                         archive.write(safe, f'evidence/{category}/' + path.relative_to(evidence).as_posix())
         return output.getvalue()

@@ -17,8 +17,11 @@ fs.mkdirSync(evidence, {recursive:true});
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(baseURL);
     await page.waitForLoadState('networkidle');
-    await page.locator('.tabs [data-tab=settings]').click();
-    await page.locator('#ui-language').waitFor({timeout:5000});
+    await page.locator('body:not([inert])').waitFor();
+    assert.equal(await page.locator('.topbar #ui-language').count(), 1, 'Language is available in the header before opening Settings');
+    assert.equal(await page.locator('.topbar #ui-theme').count(), 1, 'Appearance is available in the header before opening Settings');
+    assert.equal(await page.getByLabel('Language', {exact:true}).count(), 1);
+    assert.equal(await page.getByLabel('Appearance', {exact:true}).count(), 1);
 
     const settings = async () => (await page.request.get(`${baseURL}/api/settings`)).json();
     const choose = async (id, value) => {
@@ -34,6 +37,10 @@ fs.mkdirSync(evidence, {recursive:true});
     const initial = await settings();
     const darkBackground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
+    await choose('#ui-theme', 'light');
+    await choose('#ui-theme', 'dark');
+    await page.locator('.tabs [data-tab=settings]').click();
+    assert.equal(await page.locator('#main-content #ui-language, #main-content #ui-theme').count(), 0, 'Settings does not duplicate the global controls');
     await page.locator('#settings-form [name=model]').fill('Unsaved model / Settings / English');
     await choose('#ui-language', 'zh-CN');
     assert.equal(await page.locator('html').getAttribute('lang'), 'zh-CN');
@@ -50,13 +57,13 @@ fs.mkdirSync(evidence, {recursive:true});
     await page.screenshot({path:path.join(evidence, 'settings-zh-light.png'), fullPage:true});
 
     await page.reload();
-    await page.locator('#ui-language').waitFor();
+    await page.locator('body:not([inert])').waitFor();
     assert.equal(await page.locator('#ui-language').inputValue(), 'zh-CN');
     assert.equal(await page.locator('#ui-theme').inputValue(), 'light');
     const fresh = await browser.newContext();
     const freshPage = await fresh.newPage();
-    await freshPage.goto(`${baseURL}/#settings`);
-    await freshPage.locator('#ui-theme').waitFor();
+    await freshPage.goto(`${baseURL}/#overview`);
+    await freshPage.locator('body:not([inert])').waitFor();
     assert.equal(await freshPage.locator('#ui-language').inputValue(), 'zh-CN');
     assert.equal(await freshPage.locator('#ui-theme').inputValue(), 'light');
     await fresh.close();
@@ -83,6 +90,9 @@ fs.mkdirSync(evidence, {recursive:true});
     await page.locator('[data-file="testbenches/pre.cir"]').click();
     const source = `${await page.locator('#code-editor').inputValue()}\n* Settings Save Dark English 模拟电路\n`;
     await page.locator('#code-editor').fill(source);
+    await choose('#ui-language', 'en');
+    await choose('#ui-language', 'zh-CN');
+    assert.equal(await page.locator('#code-editor').inputValue(), source, 'Global controls preserve unsaved source edits');
     const saved = page.waitForResponse(r => new URL(r.url()).pathname.endsWith('/files') && r.request().method() === 'PUT');
     await page.locator('#save-file').click();
     assert.equal((await saved).status(), 200);
@@ -90,6 +100,8 @@ fs.mkdirSync(evidence, {recursive:true});
       const control = page.locator(`.tabs [data-tab=${tab}]`);
       assert.match(await control.innerText(), /[\u4e00-\u9fff]/, `${tab} label should be localized`);
       await control.click();
+      assert.equal(await page.locator('.topbar #ui-language').isVisible(), true);
+      assert.equal(await page.locator('.topbar #ui-theme').isVisible(), true);
     }
 
     // Failure arriving after navigation must preserve the current tab's unapplied draft.
@@ -119,12 +131,39 @@ fs.mkdirSync(evidence, {recursive:true});
     assert.match(await page.locator('#footer-project').innerText(), /Settings - Save - Dark - English/);
     assert.equal(await page.locator('html').getAttribute('lang'), 'en');
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
-    await page.setViewportSize({width:390,height:844});
     await page.locator('.tabs [data-tab=settings]').click();
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Mobile settings must fit viewport');
+    const checkHeader = async () => {
+      const bounds = await page.evaluate(() => {
+        const rect = selector => {
+          const {x,y,width,height} = document.querySelector(selector).getBoundingClientRect();
+          return {x,y,width,height};
+        };
+        return {width:innerWidth, overflow:document.documentElement.scrollWidth > innerWidth,
+          header:rect('.topbar'), language:rect('#ui-language'), theme:rect('#ui-theme'), workspace:rect('.workspace')};
+      });
+      assert.equal(bounds.overflow, false, `Page fits ${bounds.width}px viewport`);
+      for (const control of [bounds.language, bounds.theme]) {
+        assert.ok(control.x >= 0 && control.x + control.width <= bounds.width, 'Preferences fit the viewport');
+        assert.ok(control.y >= 0 && control.y + control.height <= bounds.header.height, 'Preferences stay inside the header');
+      }
+      assert.ok(bounds.theme.x + bounds.theme.width >= bounds.width - 24, 'Appearance is at the right edge');
+      assert.ok(bounds.workspace.y >= bounds.header.height, 'Header does not overlap the workspace');
+      assert.equal(await page.locator('#ui-language').isVisible(), true);
+      assert.equal(await page.locator('#ui-theme').isVisible(), true);
+    };
+    for (const width of [1500,1280,1024,768,390,375]) {
+      await page.setViewportSize({width,height:844});
+      await checkHeader();
+    }
     await page.screenshot({path:path.join(evidence, 'settings-en-dark-mobile.png'), fullPage:true});
+    await choose('#ui-language', 'zh-CN');
+    await choose('#ui-theme', 'light');
+    await checkHeader();
+    await page.screenshot({path:path.join(evidence, 'settings-zh-light-mobile.png'), fullPage:true});
+    await choose('#ui-language', 'en');
+    await choose('#ui-theme', 'dark');
     assert.deepEqual(errors, []);
-    console.log('PASS: language/theme switching, saved preferences, fresh browser, form preservation, failed-save rollback, untranslated source content, and mobile layout');
+    console.log('PASS: global header preferences, language/theme switching, persistence, form/source preservation, failed-save rollback, keyboard focus, and responsive layout');
   } finally {
     await browser.close();
   }

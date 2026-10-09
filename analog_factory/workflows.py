@@ -1,8 +1,4 @@
-"""Versioned graph validation and a bounded, real-simulation tuning engine.
-
-The initial executable graph is deliberately constrained: a single bias-tuning chain.
-The wider node catalog is a design format, not an assertion of executable support.
-"""
+"""Version dispatch and backwards-compatible schema-v1 real-simulation tuning."""
 import copy
 import hashlib
 import math
@@ -23,6 +19,9 @@ def finite(value, name):
 
 
 def validate_workflow(workflow: dict) -> dict:
+    if isinstance(workflow, dict) and workflow.get('schema_version') == 2:
+        from .workflow_graph import validate_graph
+        return validate_graph(workflow)
     if not isinstance(workflow, dict) or workflow.get('schema_version') != 1:
         raise ValueError('Workflow schema_version must be 1')
     flow = copy.deepcopy(workflow)
@@ -81,12 +80,26 @@ def replace_parameter(content: str, name: str, value: float) -> str:
     return pattern.sub(lambda match: match[1] + format(value, '.12g'), content)
 
 
+def invoke_engine(workspace, project_id, source, operation_id, parameters=None):
+    """A confirmed parent job delegates its EDA work through the shared policy."""
+    from .operations import InvocationContext
+    result = workspace.operations.invoke(operation_id, {'project_id': project_id, **(parameters or {})},
+        context=InvocationContext(principal=source + '-engine', source=source, project_id=project_id,
+                                  permissions=frozenset({'read', 'execute'}), confirmed=True))
+    if not result['ok'] and not (result.get('task_id') and isinstance(result.get('data'), dict)):
+        raise ValueError(result['error']['message'])
+    return result['data']
+
+
 def execute_tuning(workspace, project_id, workflow, job, cancel, update):
+    if isinstance(workflow, dict) and workflow.get('schema_version') == 2:
+        from .workflow_graph import execute_graph
+        return execute_graph(workspace, project_id, workflow, job, cancel, update)
     from .evaluation import evaluate_metric
     flow = validate_workflow(workflow)
     tuning, limits = flow['tuning'], flow['limits']
     netlist = tuning.get('netlist', 'testbenches/pre.cir')
-    source = workspace.projects.read(project_id, netlist)['content']
+    source = invoke_engine(workspace, project_id, 'workflow', 'file.read', {'path': netlist})['content']
     project = workspace.projects.path(project_id)
     original = {f['path']: hashlib.sha256((project / f['path']).read_bytes()).hexdigest()
                 for f in workspace.projects.files(project_id)}
@@ -111,16 +124,17 @@ def execute_tuning(workspace, project_id, workflow, job, cancel, update):
         value = low if index == 0 else high if index == 1 else (low + high) / 2
         deck = replace_parameter(source, tuning['parameter'], value)
         update(active_node='simulate', active_iteration=index + 1)
-        run = workspace.run(project_id, 'simulate', {'netlist': netlist},
-            timeout=min(60, max(.1, deadline - time.monotonic())),
-            metadata={'generated_files': {netlist: deck}, 'workflow_id': job['id'],
-                      'conditions': {'parameter': tuning['parameter'], 'value': value}, 'iteration': index + 1})
+        run = invoke_engine(workspace, project_id, 'workflow', 'run.start', {
+            'kind': 'simulate', 'options': {'netlist': netlist},
+            'timeout': min(60, max(.1, deadline - time.monotonic())),
+            'metadata': {'generated_files': {netlist: deck}, 'workflow_id': job['id'],
+                        'conditions': {'parameter': tuning['parameter'], 'value': value}, 'iteration': index + 1}})
         while True:
-            result = workspace.runner.get(project, run['id'])
+            result = invoke_engine(workspace, project_id, 'workflow', 'run.get', {'run_id': run['id']})
             if result['status'] not in ('queued', 'running'):
                 break
             if cancel.is_set() or time.monotonic() >= deadline:
-                workspace.runner.cancel(project, run['id'])
+                invoke_engine(workspace, project_id, 'workflow', 'run.cancel', {'run_id': run['id']})
             time.sleep(.025)
         if cancel.is_set():
             termination = 'cancelled'

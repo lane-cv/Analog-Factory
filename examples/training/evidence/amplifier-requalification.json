@@ -1,0 +1,24 @@
+{
+  "id": "783844f77875443595eefd5ebff77e89",
+  "status": "succeeded",
+  "parameter_update_l2": 0.01644373353502051,
+  "optimizer_steps": 2,
+  "peak_rss_bytes": 3429343232,
+  "compute_seconds": 272.53784362319857,
+  "source_hashes": {
+    "manager.py": "b976e3d78d7d292bc6d354c9158caf55a7ccd3303b80255e05f823ebf2d8665b",
+    "worker.py": "4aadb7cdd2777de50dcb6415eb48a8119f8c76fd63ee4b6fccaa02190a5b0465",
+    "environment.py": "0e380a3b7bbe52c481627b3cb267dacdff2f45eeb1edf655e342f82670c09d4a",
+    "task_catalog.py": "082a23d8f64742cfc7ed7e91f3e1698671c272399309101f203e42866c552e63",
+    "configurable_environment.py": "b461bc4b779963c922d6b15581a86e2e80d40699952b92b07d73bff840e456ff",
+    "resume.py": "555ca5d94564fe001d6b36ef52274b95db91081cf7fa058196ad23c39ebb1db6"
+  },
+  "project_id": "6cba190b42734c6988e52ede15f7a9b3",
+  "adapter_sha256": "d1bcaecad30ee79695dbab328bc417115c631b443a8ab1255e3f5847a214d364",
+  "replay": {
+    "id": "eb6943f07d164d5396fc8c1669a802d7",
+    "status": "succeeded",
+    "original_reward": -0.3664354166666667
+  },
+  "replayed_reward": -0.3664354166666667
+}

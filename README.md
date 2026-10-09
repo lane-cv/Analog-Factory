@@ -5,52 +5,73 @@ optional embedded model/CLI agents. The browser UI and CLI share the same projec
 task, and artifact services. No model, API key, GPU, or Python package installation
 is required for the core workspace.
 
-**This is an incremental foundation, not completion of every phase in the project
-prompt.** The educational amplifier and scalar tuning loop run with actual ngspice.
-SKY130 layout verification, native GUI coordination, full external agent validation,
-general agent graphs, and model-weight training have not passed their acceptance gates.
-See [delivery status](docs/status.md) and [validation evidence](docs/validation.md).
+The workspace includes a real SKY130 five-transistor OTA reference, native editor
+coordination, typed visual agent graphs, and optional CPU model-weight training.
+The reference measures more than 43 dB gain before and after capacitive extraction.
+Training/checkpoint execution is verified; the held-out comparison shows **no
+success-rate improvement**. Final integrated acceptance is tracked in
+[delivery status](docs/status.md) and the [completion ledger](docs/completion-plan.md).
+
+Application actions now share a structured operation registry across the UI,
+assistants, workflows, and external HTTP callers. See the [operation guide and
+coverage inventory](docs/operations/README.md) for discovery, invocation, browser
+sessions, permissions, examples, and remaining integration boundaries.
 
 ## Start
 
-Requires Python **3.12+**. To simulate, install **ngspice** and place it on `PATH`.
-The initial deployment target is Ubuntu 24.04 LTS with GNOME/X11 or GNOME/Wayland
-plus XWayland for native EDA editors. Actual development validation used Ubuntu 26.04,
-Python 3.14.4 and ngspice 46; Ubuntu 24.04 acceptance is still pending.
+For a fresh **Ubuntu 24.04 LTS x86-64** checkout, use the
+[Linux deployment guide](docs/deploy-linux.md). Run as your normal user; the
+installer uses `sudo` only for Ubuntu packages. Preview the same options before
+installing:
 
 ```bash
 cd /path/to/Analog-Factory
-python3 -m analog_factory serve --open
+python3 scripts/install_ubuntu.py --profile desktop --with-agents --dry-run
+python3 scripts/install_ubuntu.py --profile desktop --with-agents
+python3 scripts/run_deployment.py --config .tools/deployment/config.json
 ```
 
-Open **http://127.0.0.1:8765**. Create an **Educational amplifier** project, run the
-pre-layout simulation, and inspect Simulation for waveforms, measurements, and logs.
-The SKY130 template requires a prepared PDK and an edited model library path.
+Open **http://127.0.0.1:8765**. The `desktop` profile prepares native EDA tools,
+SKY130 and an owned browser desktop. `--with-agents` adds project-local Node,
+Codex and Claude CLIs; sign in normally on this device before using each agent.
+Installation does not log in or change native approval settings. Use
+`--profile eda` (the default) for EDA without the managed desktop, or
+`--profile core` for the workspace alone. Training is a separate optional
+`--with-training` install.
 
-Data defaults to `./.workspace`. An explicit directory is supported:
+Data defaults to `./.workspace`; tools, deployment configuration and the Python
+environment are generated locally. Start from a fresh clone and an empty workspace.
+Move existing projects through the application's export/import UI and configure
+accounts on the new device. Repeating installation requires the same options
+and preserves saved workspace settings and runtime configuration. See the guide
+for service management, prepared PDK reuse and validation limits.
+
+For direct source use with Python **3.12+** and your own configured tools:
 
 ```bash
+python3 -m analog_factory serve --open
+# Or choose an explicit workspace:
 python3 -m analog_factory --workspace /path/to/data serve --port 8765
 ```
 
-Keep one workspace server per data directory. Stop with Ctrl+C after cancelling
-active jobs. EDA programs run as the current user; run trusted design inputs only.
-The API rejects foreign browser origins and binds to loopback by default.
+Simulation requires **ngspice**. Create an **Educational amplifier** project to
+inspect waveforms, measurements and logs, or follow the
+[five-transistor OTA workflow](docs/ota5-reference.md) with the prepared SKY130
+toolchain. The generic SKY130 starter needs its model-library path configured.
+Keep one server per workspace and stop foreground deployment with Ctrl+C.
 
-To access the workspace from another computer on your trusted LAN, explicitly bind
-to the server's LAN IPv4 address (replace this example with your server's address):
+For another computer on your trusted LAN, select the server's concrete local IPv4
+address using `--host` during the initial installation, for example:
 
 ```bash
-python3 -m analog_factory serve --host 192.168.1.14 --port 8765
-# With the existing graphical EDA desktop:
-./scripts/serve_with_desktop.sh --host 192.168.1.14 --port 8765
+python3 scripts/install_ubuntu.py --profile desktop --with-agents --host 192.168.1.14
 ```
 
-Open **http://192.168.1.14:8765** from the other computer. Choose one launch command
-and stop the previous workspace server first. Use a concrete address; `0.0.0.0`
-and IPv6 listeners are not supported. LAN access has no login: anyone able to reach
-the port can edit projects, run tools and access the configured desktop. Use it only
-on a trusted network; this is not a public or multi-user service.
+Replace the example address before running it, then start with the saved config
+and open **http://192.168.1.14:8765**. `0.0.0.0` and IPv6 listeners are unsupported.
+LAN access has no authentication: anyone able to reach the application can edit
+projects, execute tools and use its desktop. Use a trusted network and trusted
+design inputs; do not expose it as a public or multi-user service.
 
 ## Reproduce a real result
 
@@ -81,26 +102,32 @@ HTTP integration tests require permission to open localhost sockets.
 
 ## Workspace features
 
-- Project templates, source tree, text editing/import, saved revisions and restore.
-- Actual operating-point, DC, AC, transient and noise analysis through editable
-  SPICE decks. PVT/statistical analysis requires manual directives and validated models.
-- Waveform traces, cursor values, zoom/pan, CSV download, measurement provenance,
-  run comparisons, tool logs and artifact downloads.
-- Input snapshots, SHA-256 hashes, tool/PDK metadata, stale-result checks, process-group
-  cancellation, timeouts and fresh execution records for retries.
-- Native xschem/magic launch adapters and headless netlisting, DRC, LVS and extraction
-  adapters. These require actual installed tools and prepared PDK assets; no passes
-  are supplied with the project.
-- A draggable workflow graph, JSON save/load/export, and an executable bounded scalar
-  tuning chain. Unsupported graphs fail explicitly.
-- Isolated evaluation episodes with real ngspice measurements and a seeded random
-  search baseline. This is circuit evaluation, **not model training**.
-- Embedded project conversations with OpenAI-compatible Chat Completions, native
-  Ollama, Codex CLI and Claude Code. Durable sessions, selected file/run context,
-  visible tool activity, cancellation, and permission controls share one sidebar.
-  API agents can read files, propose reviewed edits and run recorded simulations.
-  Minimal authenticated Codex and Claude conversations have been verified. Live
-  model API and CLI project-editing acceptance remain open.
+- Project templates, source editing/history, rename/move, reversible trash, restore,
+  and bounded disk-backed ZIP backups/imports including inert training artifacts.
+- Operating point, DC, AC, transient/noise; graphical parameter, temperature, supply
+  and corner sweeps with measurement definitions and actual run provenance.
+  Statistical modes require installed-model qualification; unavailable modes fail.
+- Complex/multiple waveforms, phase/dB/log axes, trace ratios, cursors, comparisons
+  and CSV. Large rawfiles use bounded display samples; original artifacts and
+  exact original-sample statistics remain available separately.
+- Immutable run inputs, SHA-256 manifests, tool/PDK identity, stale-result checks,
+  process cancellation, deadlines and independent retry records.
+- Native Xschem/Magic and headless netlisting, DRC, LVS and capacitance extraction.
+  Prepared tools/models are required; templates carry sources, never saved passes.
+- v1 scalar tuning and v2 typed visual workflows with branches, bounded loops,
+  retries, debug/review controls and JSON/YAML interchange (optional PyYAML).
+- Independent educational amplifier/current-mirror tasksets, real EDA rewards,
+  replay/baselines and optional TRL GRPO model training with saved checkpoints.
+- API and Codex/Claude conversations with model/effort choices, context/images,
+  capability-driven streaming/tool support, reviewed actions and bounded human
+  authorization. A human-only native PTY retains the CLI's own approval interface.
+- Global and per-project tool/PDK/provider configuration, operation discovery,
+  acknowledged browser commands and durable deduplication/events.
+
+See [operations](docs/operations/README.md), [workflow graphs](docs/workflow-graphs.md),
+[simulation batches](docs/simulation-batches.md), [training](docs/training.md),
+[provider capabilities](docs/provider-capabilities.md), and
+[artifact transfers](docs/artifact-transfers.md) for contracts and limits.
 
 ## Embedded agents
 
@@ -108,6 +135,12 @@ Choose **Model API**, **Codex CLI**, or **Claude Code** in the assistant sidebar
 select a permission mode, and start a conversation. Existing sessions can be
 selected again after a page reload or project switch. Attach files with explorer
 checkboxes and optionally attach the selected execution's record and log.
+
+Open **Settings → Agent CLIs** to configure project-specific Codex/Claude executable
+paths, inspect installed versions, read official release notes, or enable periodic
+release checks. These use the shared operations and retain version-conflict guards.
+Checks never install software or verify account login; automatic checks run only
+while the server is running. See [CLI configuration and updates](docs/agent-cli-updates.md).
 
 The chat follows Netcatty's compact header, continuous transcript, and bottom
 composer. **Expand agent workspace** opens the same live conversation in the center
@@ -140,11 +173,12 @@ setting display an inherited state and can explicitly switch to standard speed.
 These controls affect this application's sessions, without changing CLI defaults.
 
 For **Model API**, configure the existing Model API settings. **Read-only** exposes
-project reading tools. **Confirm each action** additionally proposes file writes and
-simulations; approve or reject each action in the sidebar. Write proposals include
-a diff, reject stale source changes, and use the editor's revision history for
-restore. Simulations use the same execution records as manual runs. The selected
-model must support its protocol's function/tool calling to use these tools.
+project queries. **Confirm each action** permits proposed mutations through the
+shared operation registry; approve or reject each action in the sidebar. File
+writes use the editor's revision history, and the legacy write tool also presents
+a diff. Approvals reject changed project sources. Simulations, workflows and
+evaluation use the same execution records as manual runs. The selected model must
+support its protocol's function/tool calling to use these tools.
 
 For **CLI agents**, install and log in to the CLI separately, then use its PATH
 entry or configure its executable in Settings. Analog Factory passes prompts over
@@ -155,14 +189,22 @@ connection/authentication and model environment allowlist from
 Claude child process, and preserves the user default model. Secrets never enter
 command arguments or workspace settings. Project settings, hooks and permission
 overrides remain excluded; native login storage is handled by Claude itself.
-**Read-only** is the default; **Allow project writes** authorizes the CLI's available
-write tools for that session. CLI session IDs are retained for native continuation.
-Codex uses its `read-only` or `workspace-write` sandbox with interactive approvals
-disabled. Claude requires `--restricted` support and uses only confined Read/Glob/
-Grep tools, plus Edit/Write in edit mode; it cannot run shell commands through this
-adapter. Unsupported CLI options fail visibly. There is no per-tool approval UI
-for CLI sessions. Review CLI edits in the source editor; API writes use application
-revisions, while CLI writes are managed by the CLI.
+**Read-only** is the default; **Allow project writes** enables mutation proposals,
+each approved in the workspace sidebar. Native sessions require the running
+workspace server and receive a temporary, project-scoped MCP connection. Both
+native backends discover and invoke the same operations as the API agent, including
+file revisions and recorded EDA runs. Codex's native sandbox stays read-only with
+shell tools disabled; Claude uses `--restricted` with built-in tools disabled and
+only the workspace MCP tools allowed. Native credentials stay with the installed
+CLI. The MCP turn credential is passed through the child environment and revoked
+when the turn ends. CLI session IDs are retained for continuation, and unsupported
+CLI options fail visibly.
+
+All backends expose `list_operations`, `describe_operation`, `invoke_operation`,
+`get_operation_status`, `cancel_operation`, and `subscribe_events`. Discovery
+returns compact availability summaries; descriptions provide complete schemas.
+Browser operations require a connected client from `ui.sessions` and return its
+acknowledged state. Agents cannot approve their own requests or configure secrets.
 
 The **Stop** button cancels the current turn and terminates CLI process groups or
 agent-owned simulations. An in-flight API request may finish after Stop, but its

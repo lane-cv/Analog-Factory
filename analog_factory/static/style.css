@@ -460,6 +460,10 @@ textarea.directives{font:12px/1.7 var(--mono);resize:vertical;min-height:94px;wi
 .workflow-edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .workflow-node{position:absolute;width:155px;border:1px solid var(--node-border);border-radius:7px;background:var(--node-bg);box-shadow:0 5px 17px var(--shadow-soft);user-select:none;cursor:grab;padding:0;text-align:left;overflow:visible}
 .workflow-node.selected{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),0 6px 14px var(--shadow-medium)}
+.waveform-display-controls{flex-wrap:wrap;align-items:end}
+.waveform-display-controls label{min-width:130px;flex:1}
+.waveform-display-controls .checkbox-label{display:flex;align-items:center;gap:8px;min-height:38px}
+.project-lifecycle-controls{display:flex;gap:4px;align-items:center}
 .workflow-node.planned{background:var(--node-planned-bg);border-color:var(--node-planned-border)}
 .workflow-node::before,.workflow-node::after{content:'';position:absolute;width:7px;height:7px;top:33px;border-radius:50%;border:1px solid var(--teal);background:var(--node-port-bg)}
 .workflow-node::before{left:-5px}

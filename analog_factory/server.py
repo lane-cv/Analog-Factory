@@ -3,16 +3,13 @@ import ipaddress
 import json
 import mimetypes
 import os
-import shutil
 import traceback
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from .storage import confined
-from .providers import public_config
 from .desktop import BROWSER_URL, DesktopProxy, DesktopUnavailable
-from .agent_models import catalog as cli_model_catalog
 
 STATIC = Path(__file__).parent / 'static'
 BODY_LIMIT = 4 * 1024 * 1024
@@ -39,6 +36,8 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
             self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(length))
             self.send_header('Cache-Control', 'no-store')
+            if getattr(self, '_operation_version', None):
+                self.send_header('ETag', '"' + self._operation_version + '"')
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Referrer-Policy', 'no-referrer')
             self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'")
@@ -125,120 +124,8 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
                     if not target.is_file():
                         raise FileNotFoundError('File not found')
                     return self._file(target)
-                if path == '/api/status' and method == 'GET':
-                    status = workspace.status()
-                    if desktop:
-                        status['toolchain']['desktop']['browser_url'] = BROWSER_URL
-                    return self._json(status)
-                if path == '/api/settings':
-                    if method == 'GET':
-                        return self._json(workspace.settings())
-                    if method == 'PUT':
-                        return self._json(workspace.save_settings(body))
-                if path == '/api/provider/test' and method == 'POST':
-                    return self._json(workspace.provider_test())
-                if path == '/api/agents' and method == 'GET':
-                    return self._json(workspace.agents.backends(arg('project_id') or None))
-                if path == '/api/agents/models' and method == 'GET':
-                    backend = arg('backend')
-                    if backend not in {'codex', 'claude'}:
-                        raise ValueError('Model discovery supports Codex and Claude CLI backends')
-                    project_id = arg('project_id') or None
-                    root = workspace.projects.path(project_id) if project_id else workspace.root
-                    config = workspace.config(project_id)
-                    executable = shutil.which(config.get('tools', {}).get(backend) or backend)
-                    return self._json(cli_model_catalog(backend, executable, root, refresh=arg('refresh') == '1'))
-                if path == '/api/projects':
-                    if method == 'GET':
-                        return self._json(workspace.projects.list())
-                    if method == 'POST':
-                        return self._json(workspace.projects.create(body.get('name'), body.get('template', 'amplifier')), 201)
-                parts = path.strip('/').split('/')
-                if len(parts) < 3 or parts[:2] != ['api', 'projects']:
-                    raise FileNotFoundError('API route not found')
-                pid = parts[2]
-                root = workspace.projects.path(pid)
-                suffix = parts[3:]
-                if suffix[:2] == ['agent', 'sessions']:
-                    if len(suffix) == 2:
-                        if method == 'GET':
-                            return self._json(workspace.agents.list(pid, arg('q')))
-                        if method == 'POST':
-                            return self._json(workspace.agents.create(pid, body), 201)
-                    if len(suffix) == 3:
-                        if method == 'GET':
-                            return self._json(workspace.agents.get(pid, suffix[2]))
-                        if method == 'PUT':
-                            return self._json(workspace.agents.update(pid, suffix[2], body))
-                        if method == 'DELETE':
-                            return self._json(workspace.agents.delete(pid, suffix[2]))
-                    if len(suffix) == 4 and method == 'POST':
-                        sid, action = suffix[2:]
-                        if action == 'messages':
-                            return self._json(workspace.agents.send(pid, sid, body), 202)
-                        if action == 'cancel':
-                            return self._json(workspace.agents.cancel(pid, sid))
-                        if action == 'approval':
-                            return self._json(workspace.agents.approve(pid, sid, body.get('approval_id'), body.get('approved')))
-                    raise FileNotFoundError('Agent API route not found')
-                if not suffix and method == 'GET':
-                    return self._json(workspace.detail(pid))
-                if suffix == ['config'] and method == 'PUT':
-                    return self._json(workspace.configure_project(pid, body))
-                if suffix == ['files']:
-                    if method == 'GET':
-                        return self._json(workspace.projects.read(pid, arg('path')))
-                    if method == 'PUT':
-                        return self._json(workspace.projects.write(pid, arg('path'), body.get('content')))
-                if suffix == ['history'] and method == 'GET':
-                    return self._json(workspace.projects.history(pid, arg('path')))
-                if suffix == ['restore'] and method == 'POST':
-                    return self._json(workspace.projects.restore(pid, body.get('path'), body.get('revision')))
-                if suffix == ['simulation'] and method == 'POST':
-                    return self._json(workspace.configure_simulation(pid, body))
-                if suffix == ['export'] and method == 'GET':
-                    return self._bytes(workspace.projects.export(pid), 'application/zip', f'analog-factory-{pid[:8]}.zip')
-                if suffix == ['chat'] and method == 'POST':
-                    return self._json(workspace.chat(pid, body.get('message'), body.get('files', [])))
-                if suffix == ['workflows']:
-                    if method == 'GET':
-                        return self._json(workspace.workflows(pid))
-                    if method == 'POST':
-                        return self._json(workspace.save_workflow(pid, body.get('workflow', {})))
-                if suffix == ['workflows', 'run'] and method == 'POST':
-                    return self._json(workspace.start_workflow(pid, body.get('workflow', {})), 202)
-                if suffix == ['evaluate'] and method == 'POST':
-                    return self._json(workspace.evaluate(pid, body), 202)
-                if suffix[:1] == ['jobs']:
-                    if len(suffix) == 1 and method == 'GET':
-                        return self._json(workspace.jobs.list(root))
-                    if len(suffix) == 2 and method == 'GET':
-                        return self._json(workspace.jobs.get(root, suffix[1]))
-                    if len(suffix) == 3 and suffix[2] == 'cancel' and method == 'POST':
-                        return self._json(workspace.jobs.cancel(root, suffix[1]))
-                if suffix == ['runs']:
-                    if method == 'GET':
-                        return self._json(workspace.runs(pid))
-                    if method == 'POST':
-                        return self._json(workspace.run(pid, body.get('kind', 'simulate'), body.get('options', {}), body.get('timeout')), 202)
-                if suffix[:1] == ['runs'] and len(suffix) >= 2:
-                    rid = suffix[1]
-                    run_root = workspace.run_root(pid, rid)
-                    if len(suffix) == 2 and method == 'GET':
-                        return self._json(workspace.runner.get(run_root, rid))
-                    if len(suffix) == 3:
-                        action = suffix[2]
-                        if method == 'POST' and action == 'cancel':
-                            return self._json(workspace.runner.cancel(run_root, rid))
-                        if method == 'POST' and action == 'retry':
-                            return self._json(workspace.runner.retry(run_root, rid), 202)
-                        if method == 'GET' and action == 'log':
-                            return self._json(workspace.log(pid, rid))
-                        if method == 'GET' and action == 'waveforms':
-                            return self._json(workspace.waveforms(pid, rid))
-                        if method == 'GET' and action == 'artifact':
-                            return self._file(workspace.artifact(pid, rid, arg('path')), download=True)
-                raise FileNotFoundError('API route not found')
+                from .operation_http import serve_api
+                return serve_api(self, workspace, method, path, query, body, desktop)
             except DesktopUnavailable as error:
                 self._json({'error': str(error)}, 502)
             except PermissionError as error:
@@ -257,6 +144,8 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
     class WorkspaceServer(ThreadingHTTPServer):
         def server_close(self):
             try:
+                if workspace._operations is not None:
+                    workspace._operations.close()
                 agents = getattr(workspace, 'agents', None)
                 if agents:
                     agents.close()
@@ -267,4 +156,6 @@ def create_server(workspace, port=8765, desktop_url=None, *, host='127.0.0.1'):
                 finally:
                     super().server_close()
 
-    return WorkspaceServer((str(address), port), Handler)
+    server = WorkspaceServer((str(address), port), Handler)
+    workspace.operation_url = f'http://{server.server_address[0]}:{server.server_port}'
+    return server

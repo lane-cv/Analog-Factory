@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "project_id": "d98cbc6fb25f45f4a70b9b48c6d4de98",
+  "conditions": {
+    "vdd_v": 1.8,
+    "input_common_mode_v": 0.9,
+    "bias_v": 0.65,
+    "load_f": 1e-12,
+    "temperature_c": 27,
+    "corner": "tt",
+    "differential_ac_v": 1,
+    "gain_frequency_hz": 1
+  },
+  "coverage": "Magic local DRC; Netgen device/connectivity LVS; capacitance-inclusive extraction. Distributed resistance, density/antenna signoff, mismatch and silicon validation are outside this reference.",
+  "parasitic_capacitors": 28,
+  "gain_delta_db": 0.000499999999995282,
+  "derivation": {
+    "schematic": "Xschem top wrapper enabled and six named ports put in documented order; all device records unchanged.",
+    "pex": "Magic six named ports put in documented order; all devices and capacitances unchanged.",
+    "lvs": "Remove only 28 C records from PEX; keep MOS records, terminals and geometry unchanged.",
+    "pex_sha256": "176e2823765a97c7bf8b9a261b0fa8102afb51bf912546bcbff65187459fd982",
+    "lvs_sha256": "23548cd756e45674f5949e3b98c1a7648e36d54e14f038d4d4673776e8136994"
+  },
+  "schematic_publication": {
+    "run_id": "29616f840c16469a9ccb66b10373580c",
+    "kind": "xschem",
+    "artifact": "ota5.spice",
+    "artifact_sha256": "af22b69af3de218acbc466160126abe8d9633f781f19ceebfa41f5f99be8ce9d",
+    "parasitic_capacitors": 0,
+    "derivation": "Canonical six named ports; device records preserved. LVS view removes only capacitance records.",
+    "outputs": {
+      "netlists/schematic.spice": "0594a582196184c8b644a8d5cd9a1418e8a46e1c8b838e847deee892a343f79e"
+    }
+  },
+  "extraction_publication": {
+    "run_id": "03d905f2ba8f408fae7851cd1d19ab07",
+    "kind": "extract",
+    "artifact": "extracted.spice",
+    "artifact_sha256": "6deb393056267937f93c99dd3ac7a5f4e887065e5f28faa30a0a8142d3d59a78",
+    "parasitic_capacitors": 28,
+    "derivation": "Canonical six named ports; device records preserved. LVS view removes only capacitance records.",
+    "outputs": {
+      "netlists/extracted.spice": "176e2823765a97c7bf8b9a261b0fa8102afb51bf912546bcbff65187459fd982",
+      "netlists/extracted-lvs.spice": "23548cd756e45674f5949e3b98c1a7648e36d54e14f038d4d4673776e8136994"
+    }
+  },
+  "recorded_date": "2026-10-08",
+  "full_report": ".validation/ota5-template-cli/ota5-validation.json",
+  "full_report_sha256": "fcf7e5391eb625a5c092567332bc7c1aa365d30d01f5201a860a65ff42983019",
+  "reproduce": "python3 scripts/validate_ota5.py --template --workspace .validation/ota5-template-cli",
+  "template": "ota5",
+  "implicit_source_defaults": true,
+  "checks": {
+    "xschem": {
+      "run_id": "29616f840c16469a9ccb66b10373580c",
+      "verification": {
+        "status": "unknown",
+        "reason": "No recognized verification report",
+        "reports": []
+      },
+      "tool_versions": {
+        "xschem": "XSCHEM V3.4.7"
+      },
+      "input_hashes": {
+        "project.json": "79a110eff690a41133f638dbec5311d1531f3daa7767d3f237163aafea473664",
+        "specifications.json": "ca6f462a89a1279ddc72f535c3572a6047d52681fb3589d23149e68a3105bfc7",
+        "layout/ota5.mag": "e255752bb1e255ca784a06a1822d96ae0ab3a47e90fb6dd0f7697e702a108b98",
+        "netlists/ota5.spice": "0d6c93bcde2750c6846067e6d14b2d54cde8a03739459a11f257bf314b24334d",
+        "netlists/schematic.spice": "0636f71c1f7726789c0e71386173c5d7e8b83879f9f6e040d3bc415d4b9d053b",
+        "reports/README.txt": "49d302879803e3175e9d0bb6b8d5ac934ddbcf8c3f23e833b0ce2235cf808b0d",
+        "schematics/ota5.sch": "a68f48d65b6d6a26ec291c0c715aa1831b4ddc0a2cf9c020a7616c66245e69e7",
+        "testbenches/post.cir": "85f74474d30aab58af21a859148d30064d43ced85819862c4a30b89e753847eb",
+        "testbenches/pre.cir": "374a30c929b9398628372bc72ae1029f5053376f557849c538fc670bac4fca2d"
+      },
+      "artifact_hashes": {
+        "ota5.spice": "af22b69af3de218acbc466160126abe8d9633f781f19ceebfa41f5f99be8ce9d",
+        "process.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "drc": {
+      "run_id": "956c6c86125a4413826172ebbf58661c",
+      "verification": {
+        "status": "pass",
+        "error_count": 0,
+        "reports": [
+          "drc.txt"
+        ],
+        "reason": "Magic DRC completed; see rule coverage in the PDK"
+      },
+      "tool_versions": {
+        "magic": "8.3.684"
+      },
+      "input_hashes": {
+        "project.json": "79a110eff690a41133f638dbec5311d1531f3daa7767d3f237163aafea473664",
+        "specifications.json": "ca6f462a89a1279ddc72f535c3572a6047d52681fb3589d23149e68a3105bfc7",
+        "af_scripts/drc.tcl": "4327e9522ef823038b820add173a49f3f4a185cebb58f10afd4a24cb065fd3e1",
+        "layout/ota5.mag": "e255752bb1e255ca784a06a1822d96ae0ab3a47e90fb6dd0f7697e702a108b98",
+        "netlists/ota5.spice": "0d6c93bcde2750c6846067e6d14b2d54cde8a03739459a11f257bf314b24334d",
+        "netlists/schematic.spice": "0594a582196184c8b644a8d5cd9a1418e8a46e1c8b838e847deee892a343f79e",
+        "reports/README.txt": "49d302879803e3175e9d0bb6b8d5ac934ddbcf8c3f23e833b0ce2235cf808b0d",
+        "reports/ota5-xschem-derivation.json": "57b85289d49dcdf572a76408d24ec502bf8dca9598342e98183306d7172268f4",
+        "schematics/ota5.sch": "a68f48d65b6d6a26ec291c0c715aa1831b4ddc0a2cf9c020a7616c66245e69e7",
+        "testbenches/post.cir": "85f74474d30aab58af21a859148d30064d43ced85819862c4a30b89e753847eb",
+        "testbenches/pre.cir": "374a30c929b9398628372bc72ae1029f5053376f557849c538fc670bac4fca2d"
+      },
+      "artifact_hashes": {
+        "drc.txt": "dd95abcc1c1d917a2ed93e666f4ce10d65bfb45f331a29e00412f522f12136b6",
+        "process.log": "1ed13b82aa76e4b38d5797cb5402a86cbadb2a0eea5840c1b0cef7140649fe6e"
+      }
+    },
+    "extract": {
+      "run_id": "03d905f2ba8f408fae7851cd1d19ab07",
+      "verification": {
+        "status": "unknown",
+        "reason": "No recognized verification report",
+        "reports": []
+      },
+      "tool_versions": {
+        "magic": "8.3.684"
+      },
+      "input_hashes": {
+        "project.json": "79a110eff690a41133f638dbec5311d1531f3daa7767d3f237163aafea473664",
+        "specifications.json": "ca6f462a89a1279ddc72f535c3572a6047d52681fb3589d23149e68a3105bfc7",
+        "af_scripts/extract.tcl": "e6483001f8ab5fb46bee882ed42dd10f68309e0d564c0d49a88fa7af745c6e6d",
+        "layout/ota5.mag": "e255752bb1e255ca784a06a1822d96ae0ab3a47e90fb6dd0f7697e702a108b98",
+        "netlists/ota5.spice": "0d6c93bcde2750c6846067e6d14b2d54cde8a03739459a11f257bf314b24334d",
+        "netlists/schematic.spice": "0594a582196184c8b644a8d5cd9a1418e8a46e1c8b838e847deee892a343f79e",
+        "reports/README.txt": "49d302879803e3175e9d0bb6b8d5ac934ddbcf8c3f23e833b0ce2235cf808b0d",
+        "reports/ota5-xschem-derivation.json": "57b85289d49dcdf572a76408d24ec502bf8dca9598342e98183306d7172268f4",
+        "schematics/ota5.sch": "a68f48d65b6d6a26ec291c0c715aa1831b4ddc0a2cf9c020a7616c66245e69e7",
+        "testbenches/post.cir": "85f74474d30aab58af21a859148d30064d43ced85819862c4a30b89e753847eb",
+        "testbenches/pre.cir": "374a30c929b9398628372bc72ae1029f5053376f557849c538fc670bac4fca2d"
+      },
+      "artifact_hashes": {
+        "extracted.spice": "6deb393056267937f93c99dd3ac7a5f4e887065e5f28faa30a0a8142d3d59a78",
+        "extraction.txt": "650c87cab4ccb950f9e9e9553eb4556e21053674d808c96b88cd220631f47b3d",
+        "ota5.ext": "5b7a85556f8716ce6bc2f14f3fb7847102a1ee7063fac5cfb2a774c07aa88363",
+        "process.log": "42951b640a6c6051627e02617f7cf27fa14e80ff513f94a4d7e4a1c5cbb9eb7a"
+      }
+    },
+    "lvs": {
+      "run_id": "b5d1309e301c465186cddcb2dd197898",
+      "verification": {
+        "status": "pass",
+        "reports": [
+          "lvs.txt"
+        ],
+        "reason": "Netgen reported unique matching; see report and setup coverage"
+      },
+      "tool_versions": {
+        "netgen": "Netgen 1.5.133 compiled on Thu Dec  1 22:32:11 UTC 2022"
+      },
+      "input_hashes": {
+        "project.json": "79a110eff690a41133f638dbec5311d1531f3daa7767d3f237163aafea473664",
+        "specifications.json": "ca6f462a89a1279ddc72f535c3572a6047d52681fb3589d23149e68a3105bfc7",
+        "af_scripts/lvs.tcl": "40481654869fc1cfa579c3a55712a9f0baff30a67ff6c954958129489d6a1c4d",
+        "layout/ota5.mag": "e255752bb1e255ca784a06a1822d96ae0ab3a47e90fb6dd0f7697e702a108b98",
+        "netlists/extracted-lvs.spice": "23548cd756e45674f5949e3b98c1a7648e36d54e14f038d4d4673776e8136994",
+        "netlists/extracted.spice": "176e2823765a97c7bf8b9a261b0fa8102afb51bf912546bcbff65187459fd982",
+        "netlists/ota5.spice": "0d6c93bcde2750c6846067e6d14b2d54cde8a03739459a11f257bf314b24334d",
+        "netlists/schematic.spice": "0594a582196184c8b644a8d5cd9a1418e8a46e1c8b838e847deee892a343f79e",
+        "reports/README.txt": "49d302879803e3175e9d0bb6b8d5ac934ddbcf8c3f23e833b0ce2235cf808b0d",
+        "reports/ota5-extract-derivation.json": "ab7a56c68a4481d112cceac6ed8c40fa63e0ef10aa9f80106d029580b0b43f21",
+        "reports/ota5-xschem-derivation.json": "57b85289d49dcdf572a76408d24ec502bf8dca9598342e98183306d7172268f4",
+        "schematics/ota5.sch": "a68f48d65b6d6a26ec291c0c715aa1831b4ddc0a2cf9c020a7616c66245e69e7",
+        "testbenches/post.cir": "85f74474d30aab58af21a859148d30064d43ced85819862c4a30b89e753847eb",
+        "testbenches/pre.cir": "374a30c929b9398628372bc72ae1029f5053376f557849c538fc670bac4fca2d"
+      },
+      "artifact_hashes": {
+        "lvs.txt": "5aa20f4a17d4e0a7a68a0c575ea5fee1bcc085e65088e3b21980915a817f111f",
+        "process.log": "218867f6cb6631f8aa1f5934efad72ebab90083916e65c8dd10b4ce686408c51"
+      }
+    },
+    "independent_lvs": {
+      "run_id": "c898d51f3ae241c292642d0c95490e2f",
+      "verification": {
+        "status": "pass",
+        "reports": [
+          "lvs.txt"
+        ],
+        "reason": "Netgen reported unique matching; see report and setup coverage"
+      },
+      "tool_versions": {
+        "netgen": "Netgen 1.5.133 compiled on Thu Dec  1 22:32:11 UTC 2022"
+      },
+      "input_hashes": {
+        "project.json": "79a110eff690a41133f638dbec5311d1531f3daa7767d3f237163aafea473664",
+        "specifications.json": "ca6f462a89a1279ddc72f535c3572a6047d52681fb3589d23149e68a3105bfc7",
+        "af_scripts/lvs.tcl": "3edfa39291e67e0c94876c2100f35a849ca767800eacec32ed45a37f972ea1d2",
+        "layout/ota5.mag": "e255752bb1e255ca784a06a1822d96ae0ab3a47e90fb6dd0f7697e702a108b98",
+        "netlists/extracted-lvs.spice": "23548cd756e45674f5949e3b98c1a7648e36d54e14f038d4d4673776e8136994",
+        "netlists/extracted.spice": "176e2823765a97c7bf8b9a261b0fa8102afb51bf912546bcbff65187459fd982",
+        "netlists/ota5.spice": "0d6c93bcde2750c6846067e6d14b2d54cde8a03739459a11f257bf314b24334d",
+        "netlists/schematic.spice": "0594a582196184c8b644a8d5cd9a1418e8a46e1c8b838e847deee892a343f79e",
+        "reports/README.txt": "49d302879803e3175e9d0bb6b8d5ac934ddbcf8c3f23e833b0ce2235cf808b0d",
+        "reports/ota5-extract-derivation.json": "ab7a56c68a4481d112cceac6ed8c40fa63e0ef10aa9f80106d029580b0b43f21",
+        "reports/ota5-xschem-derivation.json": "57b85289d49dcdf572a76408d24ec502bf8dca9598342e98183306d7172268f4",
+        "schematics/ota5.sch": "a68f48d65b6d6a26ec291c0c715aa1831b4ddc0a2cf9c020a7616c66245e69e7",
+        "testbenches/post.cir": "85f74474d30aab58af21a859148d30064d43ced85819862c4a30b89e753847eb",
+        "testbenches/pre.cir": "374a30c929b9398628372bc72ae1029f5053376f557849c538fc670bac4fca2d"
+      },
+      "artifact_hashes": {
+        "lvs.txt": "5aa20f4a17d4e0a7a68a0c575ea5fee1bcc085e65088e3b21980915a817f111f",
+        "process.log": "64bf97ced5cef8a4557e68d08c63733b9f10cb766748941eacdae6b95f8dc143"
+      }
+    },
+    "negative_lvs": {
+      "run_id": "9ab336b5db0148fe8b6a410d338bfaf3",
+      "verification": {
+        "status": "fail",
+        "reports": [
+          "lvs.txt"
+        ],
+        "reason": "Netgen reported a mismatch"
+      },
+      "tool_versions": {
+        "netgen": "Netgen 1.5.133 compiled on Thu Dec  1 22:32:11 UTC 2022"
+      },
+      "input_hashes": {
+        "project.json": "79a110eff690a41133f638dbec5311d1531f3daa7767d3f237163aafea473664",
+        "specifications.json": "ca6f462a89a1279ddc72f535c3572a6047d52681fb3589d23149e68a3105bfc7",
+        "af_scripts/lvs.tcl": "e06383ce2032557710dac8950d2a0d0a9daafeb339bfe7063d9be8a9baf4f1d3",
+        "layout/ota5.mag": "e255752bb1e255ca784a06a1822d96ae0ab3a47e90fb6dd0f7697e702a108b98",
+        "netlists/extracted-lvs.spice": "23548cd756e45674f5949e3b98c1a7648e36d54e14f038d4d4673776e8136994",
+        "netlists/extracted.spice": "176e2823765a97c7bf8b9a261b0fa8102afb51bf912546bcbff65187459fd982",
+        "netlists/ota5.spice": "0d6c93bcde2750c6846067e6d14b2d54cde8a03739459a11f257bf314b24334d",
+        "netlists/schematic.spice": "0594a582196184c8b644a8d5cd9a1418e8a46e1c8b838e847deee892a343f79e",
+        "netlists/wrong-width.spice": "00d46d3be4e57b3767af960584c06f0e7d43c2f5f643469f0966441f5a271aca",
+        "reports/README.txt": "49d302879803e3175e9d0bb6b8d5ac934ddbcf8c3f23e833b0ce2235cf808b0d",
+        "reports/ota5-extract-derivation.json": "ab7a56c68a4481d112cceac6ed8c40fa63e0ef10aa9f80106d029580b0b43f21",
+        "reports/ota5-xschem-derivation.json": "57b85289d49dcdf572a76408d24ec502bf8dca9598342e98183306d7172268f4",
+        "schematics/ota5.sch": "a68f48d65b6d6a26ec291c0c715aa1831b4ddc0a2cf9c020a7616c66245e69e7",
+        "testbenches/post.cir": "85f74474d30aab58af21a859148d30064d43ced85819862c4a30b89e753847eb",
+        "testbenches/pre.cir": "374a30c929b9398628372bc72ae1029f5053376f557849c538fc670bac4fca2d"
+      },
+      "artifact_hashes": {
+        "lvs.txt": "9458755ca70f9ebde214012839052bd6c0bf0d3a4f2eb48c0c3adde0aebe8eb1",
+        "process.log": "0fd1c3ad803ecbfa8e9045ee5871ec7fb354cbe63a39703f9da5d5f432b4d77a"
+      }
+    },
+    "negative_drc": {
+      "run_id": "791b3d08f3c143ad8cee491500b97539",
+      "verification": {
+        "status": "fail",
+        "error_count": 2,
+        "reports": [
+          "drc.txt"
+        ],
+        "reason": "Magic DRC completed; see rule coverage in the PDK"
+      },
+      "tool_versions": {
+        "magic": "8.3.684"
+      },
+      "input_hashes": {
+        "project.json": "79a110eff690a41133f638dbec5311d1531f3daa7767d3f237163aafea473664",
+        "specifications.json": "ca6f462a89a1279ddc72f535c3572a6047d52681fb3589d23149e68a3105bfc7",
+        "af_scripts/drc.tcl": "62b89b5b4a8e37506e9dc6e32da0f14d0542c13230470362b7231ead24ef5864",
+        "layout/ota5-drc-negative.mag": "fa2bc21985f9dc145ff087827a04c456b395dcbd063bf5bb1b7f0340274e16e2",
+        "layout/ota5.mag": "e255752bb1e255ca784a06a1822d96ae0ab3a47e90fb6dd0f7697e702a108b98",
+        "netlists/extracted-lvs.spice": "23548cd756e45674f5949e3b98c1a7648e36d54e14f038d4d4673776e8136994",
+        "netlists/extracted.spice": "176e2823765a97c7bf8b9a261b0fa8102afb51bf912546bcbff65187459fd982",
+        "netlists/ota5.spice": "0d6c93bcde2750c6846067e6d14b2d54cde8a03739459a11f257bf314b24334d",
+        "netlists/schematic.spice": "0594a582196184c8b644a8d5cd9a1418e8a46e1c8b838e847deee892a343f79e",
+        "netlists/wrong-width.spice": "00d46d3be4e57b3767af960584c06f0e7d43c2f5f643469f0966441f5a271aca",
+        "reports/README.txt": "49d302879803e3175e9d0bb6b8d5ac934ddbcf8c3f23e833b0ce2235cf808b0d",
+        "reports/ota5-extract-derivation.json": "ab7a56c68a4481d112cceac6ed8c40fa63e0ef10aa9f80106d029580b0b43f21",
+        "reports/ota5-xschem-derivation.json": "57b85289d49dcdf572a76408d24ec502bf8dca9598342e98183306d7172268f4",
+        "schematics/ota5.sch": "a68f48d65b6d6a26ec291c0c715aa1831b4ddc0a2cf9c020a7616c66245e69e7",
+        "testbenches/post.cir": "85f74474d30aab58af21a859148d30064d43ced85819862c4a30b89e753847eb",
+        "testbenches/pre.cir": "374a30c929b9398628372bc72ae1029f5053376f557849c538fc670bac4fca2d"
+      },
+      "artifact_hashes": {
+        "drc.txt": "562de48462ebc64201d6d94879049cc4f2dec5196abdfae87443fd876691a963",
+        "process.log": "ab7a8a9ba8d8c03cdc2f6d31912d2d2bea220d9ed8ebd006c0cc0dc2d38f19e8"
+      }
+    }
+  },
+  "metrics": {
+    "pre": {
+      "gain_db": 43.3676,
+      "waveform_gain_db": 43.36763425071535,
+      "unity_gain_hz": 3731160.0,
+      "output_dc_v": 0.706702,
+      "supply_current_a": -2.44021e-06
+    },
+    "post": {
+      "gain_db": 43.3681,
+      "waveform_gain_db": 43.36809649745585,
+      "unity_gain_hz": 3691100.0,
+      "output_dc_v": 0.706686,
+      "supply_current_a": -2.44238e-06
+    }
+  },
+  "simulations": {
+    "pre": {
+      "run_id": "de00b924ab1f4338af12d5ea4e909e4a",
+      "bias_run_id": "f8b96e4a49ea420f8047420a8050f6a6",
+      "tool_versions": {
+        "ngspice": "ngspice-46 : Circuit level simulation program"
+      },
+      "artifact_hashes": {
+        "ngspice.log": "3ace32033afd917ff42107fc9765b228c1915126bff8c2de8aa17868c575df4f",
+        "process.log": "ed0397b6598203cb1878fcaf49af8b54fff6be4e7bb74ad657e453149fd3651d",
+        "waveforms.raw": "bb5f708855f5d82773c25b4365f097fe97588ab54275a83afa62beaeb4f07565"
+      }
+    },
+    "post": {
+      "run_id": "3fb56443be8444729d2c7be27b5689de",
+      "bias_run_id": "7a657464492746b1b29309a4e21a7f3c",
+      "tool_versions": {
+        "ngspice": "ngspice-46 : Circuit level simulation program"
+      },
+      "artifact_hashes": {
+        "ngspice.log": "ff0753f093265bef9bcba84d0041e48ad9cd54f78f7aa9ecac850ffeef6be887",
+        "process.log": "3df2349e72a20251cdf4e4e92ba6dd9497f06ded16e8211da82c1f6c9871efbf",
+        "waveforms.raw": "9e22905a0a1ab36a87c7d808f5d3bfcfeacc695388f414ec71ba09038de2bbd2"
+      }
+    }
+  },
+  "browser": {
+    "status": "pass",
+    "project_id": "f436a28b15254d62831a3df704ad4291",
+    "workspace": ".validation/ota5-template",
+    "template_create": true,
+    "no_supplied_results": true,
+    "default_sources": true,
+    "headless_netlisting": true,
+    "acknowledged_publication": true,
+    "actual_extraction": true,
+    "actual_lvs": true,
+    "post_gain_db": 43.3681
+  },
+  "retained_artifacts": {
+    "note": "The retained schematic replaces only its absolute sch_path comment prefix with [VALIDATION_WORKSPACE]. Original tool/publication hashes remain in the run evidence above; device records are unchanged.",
+    "sha256": {
+      "extracted.spice": "176e2823765a97c7bf8b9a261b0fa8102afb51bf912546bcbff65187459fd982",
+      "extracted-lvs.spice": "23548cd756e45674f5949e3b98c1a7648e36d54e14f038d4d4673776e8136994",
+      "independent_lvs-lvs.txt": "5aa20f4a17d4e0a7a68a0c575ea5fee1bcc085e65088e3b21980915a817f111f",
+      "negative_lvs-lvs.txt": "9458755ca70f9ebde214012839052bd6c0bf0d3a4f2eb48c0c3adde0aebe8eb1",
+      "negative_drc-drc.txt": "562de48462ebc64201d6d94879049cc4f2dec5196abdfae87443fd876691a963",
+      "drc-drc.txt": "dd95abcc1c1d917a2ed93e666f4ce10d65bfb45f331a29e00412f522f12136b6",
+      "schematic.spice": "d5cc68ab78f49c38013f5cf830ee3fd7f903965d586907080b33b609c7157778",
+      "lvs-lvs.txt": "5aa20f4a17d4e0a7a68a0c575ea5fee1bcc085e65088e3b21980915a817f111f"
+    }
+  }
+}

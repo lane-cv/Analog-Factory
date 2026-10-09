@@ -1,89 +1,123 @@
 # Installation and environment validation
 
-For the tool installation subsequently configured on this checkout, see
-[configured local EDA tools](local-toolchain.md).
+Use the [Linux deployment guide](deploy-linux.md) for a fresh Ubuntu 24.04 LTS
+x86-64 machine. It covers cloning, installation, startup and user-service management.
+The installer also accepts Ubuntu 26.04 x86-64; other distributions require manual
+dependency setup. Its new validation checklist is separate from the earlier
+[Ubuntu replay](deployment-ubuntu24.md) and [host toolchain evidence](local-toolchain.md).
 
 ## Core and desktop
 
-The core uses Python 3.12+ and its standard library. Running from this checkout
-requires no dependency download. A modern browser with Canvas, Fetch and SVG support
-is needed. Node is only used for a JavaScript syntax check, not to start the application.
+The core uses Python 3.12+ and its standard library. Direct source use requires no
+Python dependency download. A modern browser with Canvas, Fetch and SVG support
+is needed. The deployment installer creates `.venv`, installs the application and
+YAML support there, and configures a new workspace through the shared operation
+registry. Node is optional for the core; it is required by the optional native agents.
 
-Ubuntu 24.04 LTS is the initial support target, with GNOME on X11 or Wayland plus
-XWayland. This checkout was actually tested on Ubuntu 26.04, Python 3.14.4 and ngspice 46.
-The target-version and native desktop acceptance tests remain open.
+| Installer option | Result |
+| --- | --- |
+| `--profile core` | Application and workspace; no EDA, PDK or managed desktop installation. |
+| `--profile eda` | Default: core plus ngspice, LVS Netgen, local Magic/Xschem and prepared SKY130. |
+| `--profile desktop` | EDA plus an owned Xvfb/Fluxbox/noVNC desktop for native editors. |
+| `--with-agents` | Optional local Node 22.23.3, Codex 0.159.2 and Claude Code 2.1.280; no login. |
+| `--with-training` | Optional separate CPU training runtime and pinned model under `.tools/training`. |
+
+The desktop profile does not require an existing GNOME session. Manually launched
+native editors need an X11 or XWayland display. The historical Ubuntu 24.04 replay
+includes native GUI lifecycle checks; acceptance of this new installation workflow
+must be recorded separately.
 
 For the small educational example, a 2-core CPU, 4 GB RAM and 1 GB free space are
-reasonable starting estimates, not measured limits. PDKs and run archives require
-additional disk space, often several GB. Large simulations need circuit-dependent RAM.
-A GPU is not required for any implemented manual or evaluation feature.
+starting estimates for core use, not measured limits or a complete EDA installation
+budget. Tools, PDKs and run archives need several additional GiB. Large simulations
+need circuit-dependent RAM. Manual EDA and the implemented CPU trainer need no GPU.
 
-Optional distribution packages on Ubuntu:
-
-```bash
-sudo apt-get update
-sudo apt-get install python3 ngspice xschem magic netgen-lvs
-```
-
-These commands install distro versions; they are **not a validated version lock**.
-Depending on packaging, the LVS executable may be `netgen`, `netgen-lvs`, or installed
-under `/usr/lib/netgen/bin/`. Configure its explicit path in Settings. The similarly
-named `netgen` mesh-generator package does not implement LVS. The doctor rejects a
-recognized mesh-generator executable.
+Preview a complete plan without downloads, writes or sudo:
 
 ```bash
-python3 -m analog_factory doctor
-python3 -m analog_factory --workspace .validation demo
+python3 scripts/install_ubuntu.py --profile desktop --with-agents --dry-run
 ```
 
-Record the detected executable paths and versions before adopting a combination.
-`scripts/validate.py` writes observed host/tool information and executable hashes.
-No all-tools-plus-PDK combination is marked validated until the complete manual
-reference design passes with archived reports.
+The installer uses apt for host dependencies, ngspice and `netgen-lvs`. Magic 8.3.684
+and Xschem 3.4.7 are built locally from verified source pins against the host's
+development libraries. Apt versions depend on the configured Ubuntu repositories.
+The similarly named `netgen` mesh-generator package does not implement LVS. The
+installer selects the LVS executable and records explicit tool paths in the new
+workspace. These builds must be repeated on each target machine.
+
+After installation:
+
+```bash
+.venv/bin/python -m analog_factory --workspace .workspace doctor
+```
+
+Use the chosen workspace path if you changed `--workspace`. Record executable
+paths, versions and actual circuit reports before adopting a combination. A doctor
+report or successful install does not replace the complete reference-design flow.
 
 ## Prepared SKY130
 
-Raw `skywater-pdk` source is not a usable installation for this application by itself.
-Build it with open_pdks or use a prepared distribution such as Ciel. Volare is archived;
-consult the [current upstream matrix](integration-matrix.md) for sources and versions.
+Raw `skywater-pdk` source is not a prepared installation. EDA/desktop installation
+downloads the checked Ciel analog subset at open_pdks revision
+`1689ac3f2dc763876eaf967227c7dfe831b031ae` by default, under
+`.tools/pdks/sky130/1689ac3f2dc763876eaf967227c7dfe831b031ae`. Its root contains `sky130A`.
 
-Choose an immutable available open_pdks build revision from Ciel, install it into
-an explicit PDK root, and record the revision and download checksum. Do not rely on
-a changing user-wide default. This project does not invent a validated build ID.
-The detector checks these files under `PDK_ROOT/sky130A`:
+To reuse an installation prepared separately on this machine, pass
+`--pdk-root /absolute/path/to/PDK_ROOT` with EDA or desktop during the first install.
+The installer requires these files under `PDK_ROOT/sky130A`:
 
 ```text
 libs.tech/xschem/xschemrc
 libs.tech/ngspice/sky130.lib.spice
+libs.tech/combined/sky130.lib.spice
 libs.tech/magic/sky130A.magicrc
 libs.tech/netgen/sky130A_setup.tcl
 ```
 
-Configure `pdk_root` and `pdk_variant` in workspace Settings, or explicitly export
-`PDK_ROOT` and `PDK` before starting. Update the SKY130 template's model library path
-to the installed `sky130.lib.spice`. The current template intentionally fails until
-that real path is configured. Model paths are not guessed or silently downloaded.
-
-Configuration-file presence indicates readiness for further validation, not model,
-rule or signoff correctness. Run the full reference flow and retain tool reports.
+The installer records the PDK root, variant, revision and tool paths in the new
+workspace. The five-transistor OTA template uses that prepared PDK. For a generic
+SKY130 starter or imported source project, verify the model-library path and corner
+in its testbench. The default subset excludes digital standard-cell, I/O and SRAM
+libraries. File presence establishes readiness for further validation, not model
+accuracy or foundry signoff. Follow the [OTA reference workflow](ota5-reference.md)
+and retain actual reports.
 
 ## AI and training isolation
 
-The assistant needs an explicitly configured service. Local Ollama uses its native
-`/api/chat` and `/api/tags` interfaces; OpenAI-compatible endpoints use Chat Completions
-and model listing. Check the chosen provider's actual protocol and model capabilities.
-Configure the endpoint, model and API key directly in **Settings → Model API**.
-**Save and test connection** saves the form and retrieves the model list without
-sending project contents. Keep **Remember API key on this server** checked to store
-the key in the workspace's `.credentials/provider.json` (private directory `0700`,
-file `0600`, not encrypted), or uncheck it for session-only storage. Session-only
-keys disappear when the service stops. Saved keys are excluded from settings and
-configuration exports and are bound to the endpoint and protocol. A selected
-environment variable is an optional fallback; the app never searches for credentials.
+An API assistant needs an explicitly configured endpoint, protocol, model and key
+in **Settings → Model API**. **Save and test connection** checks model listing
+without sending project contents. **Remember API key on this server** stores it
+in the workspace's private, unencrypted `.credentials/provider.json` file; uncheck
+it for session-only storage that disappears when the service stops. Saved keys
+are excluded from configuration exports and bound to the endpoint and protocol.
+A selected environment variable is an optional fallback. See
+[provider capabilities](provider-capabilities.md) for protocol and model limits.
 
-Model-weight training is not implemented in this delivery. Do not install training
-dependencies into the core environment. Current AReaL and AgentFly requirements exclude
-Python 3.13+, so plan separate pinned Python 3.12 environments/containers. Agent Lightning
-v1 has a different architecture from older examples. The PyPI package named `agentfly`
-is unrelated to the requested Agent-One-Lab project. Framework installation, accelerator
-availability and saved checkpoint validation are future gates, documented in the matrix.
+With `--with-agents`, the local CLI launchers are `.tools/agent-clis/bin/codex` and
+`.tools/agent-clis/bin/claude`; they retain the selected local Node runtime. Sign in
+normally on each device using the same OS account as the running service. The
+installer verifies versions, not login. It does not copy native login files or
+change approval settings.
+
+CPU model-weight training is implemented as an optional TRL GRPO/LoRA worker.
+Install it with `--with-training` during deployment, or separately with
+`python3 scripts/setup_training.py`. It uses its own pinned Python 3.12 environment
+and dependencies under `.tools/training`; the core never imports torch or TRL.
+The documented runtime/model installation occupied approximately 2.3 GiB before
+checkpoints and run artifacts. Actual pilots changed weights and reloaded
+checkpoints, but did **not** improve held-out electrical success over the base
+model. Setup alone establishes neither successful training nor improved design
+quality. See [training evidence and resource limits](training.md).
+
+## Existing projects
+
+The installer refuses an existing nonempty workspace without its matching
+deployment record. Use a fresh clone and empty workspace, export projects through
+the old application's UI, then import them into the new deployment. Reinstall
+tools and configure accounts locally; do not copy `.tools`, `.workspace`, virtual
+environments or native login state between machines.
+
+Repeating the same installation options preserves saved workspace settings and
+runtime configuration. Use the [deployment validation checklist](deploy-linux.md#validation-status-and-checklist)
+to qualify the new machine and retain the source revision, installation manifests
+and actual circuit reports.

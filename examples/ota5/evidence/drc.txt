@@ -1,0 +1,4 @@
+AF_DRC_COUNT=0
+DRC_STYLE=drc(fast)
+
+AF_DRC_COMPLETE=1

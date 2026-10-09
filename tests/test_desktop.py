@@ -4,17 +4,26 @@ import http.client
 import json
 import os
 import socket
+import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
+from pathlib import Path
 
 from analog_factory.server import create_server
+from analog_factory.service import Workspace
 
 
-class WorkspaceStub:
+class WorkspaceStub(Workspace):
+    def __init__(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        super().__init__(Path(self.temporary.name))
+
     def status(self):
-        return {'toolchain': {'desktop': {'available': True}}}
+        return {'version': 'test', 'project_id': None, 'capabilities': {}, 'operation_availability': {},
+                'toolchain': {'tools': {}, 'pdk': {'available': False, 'diagnostic': 'Test fixture'},
+                              'desktop': {'available': True}}}
 
 
 class DesktopTests(unittest.TestCase):
@@ -68,7 +77,9 @@ class DesktopTests(unittest.TestCase):
         self.server = self.start_workspace(self.upstream_url)
 
     def start_workspace(self, desktop_url, **kwargs):
-        server = create_server(WorkspaceStub(), port=0, desktop_url=desktop_url, **kwargs)
+        workspace = WorkspaceStub()
+        self.addCleanup(workspace.temporary.cleanup)
+        server = create_server(workspace, port=0, desktop_url=desktop_url, **kwargs)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
@@ -122,12 +133,14 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(self.request('/desktop/vnc.html', server=disabled)[0], 404)
 
     def test_remote_or_ambiguous_upstreams_are_rejected(self):
+        workspace = WorkspaceStub()
+        self.addCleanup(workspace.temporary.cleanup)
         for url in ('https://127.0.0.1:8081/', 'http://example.com:8081/', 'http://127.0.0.2:8081/',
                     'http://user:password@127.0.0.1:8081/', 'http://127.0.0.1:8081/path',
                     'http://127.0.0.1:8081/?token=secret', 'http://127.0.0.1:8081/#fragment',
                     'http://127.0.0.1/', 'http://127.0.0.1:0/', ' http://127.0.0.1:8081/'):
             with self.subTest(url=url), self.assertRaises(ValueError):
-                create_server(WorkspaceStub(), port=0, desktop_url=url)
+                create_server(workspace, port=0, desktop_url=url)
 
     def test_path_traversal_arbitrary_routes_and_redirects_are_rejected(self):
         for path in ('/desktop/../settings.json', '/desktop/%2e%2e/settings.json',

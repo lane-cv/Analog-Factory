@@ -1,0 +1,9 @@
+* Five-transistor OTA, independent electrical reference. Dimensions in um.
+* External bias voltage is a testbench source, not a sixth transistor.
+.subckt ota5 inp inn bias vdd vss out
+X1 nmirror inp tail vss sky130_fd_pr__nfet_01v8 l=2 w=4
+X2 out inn tail vss sky130_fd_pr__nfet_01v8 l=2 w=4
+X3 nmirror nmirror vdd vdd sky130_fd_pr__pfet_01v8 l=2 w=8
+X4 out nmirror vdd vdd sky130_fd_pr__pfet_01v8 l=2 w=8
+X5 tail bias vss vss sky130_fd_pr__nfet_01v8 l=2 w=4
+.ends ota5

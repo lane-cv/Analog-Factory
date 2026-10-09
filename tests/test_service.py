@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from analog_factory.service import Workspace
@@ -19,6 +20,20 @@ class ServiceTests(unittest.TestCase):
         self.workspace.save_settings({'provider': {'protocol': 'openai-compatible', 'base_url': 'http://localhost:1/v1', 'model': 'test', 'api_key': 'do-not-persist'}})
         self.assertNotIn('do-not-persist', (Path(self.tmp.name) / 'settings.json').read_text())
         self.assertNotIn('api_key', self.workspace.settings()['provider'])
+
+    def test_status_uses_actual_training_resources_and_project_provider(self):
+        self.workspace.projects.configure(self.pid, {'provider': {
+            'protocol': 'openai-compatible', 'base_url': 'http://localhost:1/v1', 'model': 'local'}})
+        for available in (False, True):
+            with self.subTest(available=available), patch('analog_factory.training.manager.resources',
+                    return_value={'frameworks': {'trl_cpu': {'available': available,
+                                  'reason': '' if available else 'Pinned model is missing'}}}):
+                capabilities = self.workspace.status(self.pid)['capabilities']
+                self.assertEqual(capabilities['training']['available'], available)
+                self.assertEqual(capabilities['training']['reason'], '' if available else 'Pinned model is missing')
+                self.assertNotEqual(capabilities['training']['status'], 'planned')
+                self.assertTrue(capabilities['assistant']['available'])
+                self.assertIn('typed graph', capabilities['workflows']['status'])
 
     def test_credentials_are_scoped_to_configured_provider(self):
         self.workspace.save_settings({'provider': {'protocol': 'openai-compatible', 'base_url': 'https://trusted.invalid/v1', 'model': 'a', 'api_key': 'secret', 'api_key_env': 'TRUSTED_KEY'}})

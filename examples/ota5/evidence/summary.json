@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "recorded_date": "2026-10-08",
+  "project_id": "d3b164087cec4e85a840806bc6e9e8a1",
+  "full_report": ".validation/ota5-reference/ota5-validation.json",
+  "reproduce": "python3 scripts/validate_ota5.py",
+  "conditions": {
+    "vdd_v": 1.8,
+    "input_common_mode_v": 0.9,
+    "bias_v": 0.65,
+    "load_f": 1e-12,
+    "temperature_c": 27,
+    "corner": "tt",
+    "differential_ac_v": 1,
+    "gain_frequency_hz": 1
+  },
+  "pdk_revision": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+  "coverage": "Magic local DRC; Netgen device/connectivity LVS; capacitance-inclusive extraction. Distributed resistance, density/antenna signoff, mismatch and silicon validation are outside this reference.",
+  "parasitic_capacitors": 25,
+  "gain_delta_db": 0.000499999999995282,
+  "derivation": {
+    "schematic": "Xschem top wrapper enabled and six named ports put in documented order; all device records unchanged.",
+    "pex": "Magic six named ports put in documented order; all devices and capacitances unchanged.",
+    "lvs": "Remove only 25 C records from PEX; keep MOS records, terminals and geometry unchanged.",
+    "pex_sha256": "fbd64e637f7fb43f70faedb0ec531e9f48303c80a163744c2b4bed5926630311",
+    "lvs_sha256": "d0ec0b15e4db52a793fa21cf6e5c1d4d7ad5e57b8a10c862f53eb3d07004782e"
+  },
+  "checks": {
+    "drc": {
+      "run_id": "e150fbd08cd44fd3b8f379b993eb92a4",
+      "verification": {
+        "status": "pass",
+        "error_count": 0,
+        "reports": [
+          "drc.txt"
+        ],
+        "reason": "Magic DRC completed; see rule coverage in the PDK"
+      },
+      "tool_versions": {
+        "magic": "8.3.684"
+      }
+    },
+    "lvs": {
+      "run_id": "9bd58a2f11d84fe5b6024cf3343e6b6e",
+      "verification": {
+        "status": "pass",
+        "reports": [
+          "lvs.txt"
+        ],
+        "reason": "Netgen reported unique matching; see report and setup coverage"
+      },
+      "tool_versions": {
+        "netgen": "Netgen 1.5.133 compiled on Thu Dec  1 22:32:11 UTC 2022"
+      }
+    },
+    "independent_lvs": {
+      "run_id": "a2df9242c4584d67bca31574e68a4c94",
+      "verification": {
+        "status": "pass",
+        "reports": [
+          "lvs.txt"
+        ],
+        "reason": "Netgen reported unique matching; see report and setup coverage"
+      },
+      "tool_versions": {
+        "netgen": "Netgen 1.5.133 compiled on Thu Dec  1 22:32:11 UTC 2022"
+      }
+    },
+    "negative_lvs": {
+      "run_id": "81d3ee4847d04fb0856479239e81d623",
+      "verification": {
+        "status": "fail",
+        "reports": [
+          "lvs.txt"
+        ],
+        "reason": "Netgen reported a mismatch"
+      },
+      "tool_versions": {
+        "netgen": "Netgen 1.5.133 compiled on Thu Dec  1 22:32:11 UTC 2022"
+      }
+    },
+    "negative_drc": {
+      "run_id": "3975a4f72b134f8ca244bea4d5339a96",
+      "verification": {
+        "status": "fail",
+        "error_count": 2,
+        "reports": [
+          "drc.txt"
+        ],
+        "reason": "Magic DRC completed; see rule coverage in the PDK"
+      },
+      "tool_versions": {
+        "magic": "8.3.684"
+      }
+    }
+  },
+  "metrics": {
+    "pre": {
+      "gain_db": 43.3676,
+      "waveform_gain_db": 43.36763425071535,
+      "unity_gain_hz": 3731160.0,
+      "output_dc_v": 0.706702,
+      "supply_current_a": -2.44021e-06
+    },
+    "post": {
+      "gain_db": 43.3681,
+      "waveform_gain_db": 43.36809649744286,
+      "unity_gain_hz": 3689560.0,
+      "output_dc_v": 0.706686,
+      "supply_current_a": -2.44238e-06
+    }
+  },
+  "simulation_runs": {
+    "pre": {
+      "run": "aec332c70aae4d48a862b16c25c5dcaf",
+      "bias_run": "9eab1ce3b1fc481caea24cb43fadc36d"
+    },
+    "post": {
+      "run": "d0648fae1f974507997ff9d4181d0baf",
+      "bias_run": "6a60e1d0a1ff42cda6eef90ccdd057fe"
+    }
+  },
+  "tool_versions": {
+    "xschem": "XSCHEM V3.4.7",
+    "magic": "8.3.684",
+    "netgen": "Netgen 1.5.133 compiled on Thu Dec  1 22:32:11 UTC 2022",
+    "ngspice": "ngspice-46 : Circuit level simulation program"
+  },
+  "source_sha256": {
+    "examples/ota5/schematics/ota5.sch": "a68f48d65b6d6a26ec291c0c715aa1831b4ddc0a2cf9c020a7616c66245e69e7",
+    "examples/ota5/layout/generate.py": "8c815495eb0683e51a2c13486e69915539e7a9c2cb33744b88b657b8278fa588",
+    "examples/ota5/layout/ota5.mag": "e255752bb1e255ca784a06a1822d96ae0ab3a47e90fb6dd0f7697e702a108b98",
+    "examples/ota5/netlists/ota5.spice": "0d6c93bcde2750c6846067e6d14b2d54cde8a03739459a11f257bf314b24334d",
+    "examples/ota5/testbenches/pre.cir": "5a907eb2add06d34c803b8270ae9e2df798f485c5741f27bb0c2769d32fef077",
+    "examples/ota5/testbenches/post.cir": "55c757a815c69d5b68825390d74d26980681eac32b589683ea0299be33f9b364"
+  },
+  "artifact_sha256": {
+    "extracted.spice": "fbd64e637f7fb43f70faedb0ec531e9f48303c80a163744c2b4bed5926630311",
+    "drc-full.log": "99bad1b9b52865234527d1664eaf0b894e456520fe8d51d1fd5d0a3df574ddc5",
+    "lvs-negative.txt": "9458755ca70f9ebde214012839052bd6c0bf0d3a4f2eb48c0c3adde0aebe8eb1",
+    "lvs.txt": "5aa20f4a17d4e0a7a68a0c575ea5fee1bcc085e65088e3b21980915a817f111f",
+    "post-dc.log": "a28a1c94eb805039f9eefc7dde1e209b089f460e8659f8afcdbdd0df018f2b29",
+    "pre-dc.log": "60130f613cffb33bd5bfdfaa1e281f66a1fe419393f3357221330963fc48ff62",
+    "pre-ac.log": "3ace32033afd917ff42107fc9765b228c1915126bff8c2de8aa17868c575df4f",
+    "post-ac.log": "4e98be3452bd483d75995fd9e6c0c9141263c17b99d3a7428041842449167fc2",
+    "drc-negative.txt": "562de48462ebc64201d6d94879049cc4f2dec5196abdfae87443fd876691a963",
+    "lvs-independent.txt": "5aa20f4a17d4e0a7a68a0c575ea5fee1bcc085e65088e3b21980915a817f111f",
+    "drc.txt": "dd95abcc1c1d917a2ed93e666f4ce10d65bfb45f331a29e00412f522f12136b6"
+  }
+}

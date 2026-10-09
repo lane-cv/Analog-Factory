@@ -67,7 +67,7 @@ class AgentHTTPTests(unittest.TestCase):
     def test_cli_model_catalog_uses_project_executable_and_refresh(self):
         self.workspace.save_settings({'tools': {'codex': '/configured/codex'}})
         expected = {'backend': 'codex', 'models': [{'id': 'catalog-model', 'label': 'Catalog model', 'fast_mode': True}], 'source': 'cli', 'fast_mode': {'supported': True}}
-        with patch('analog_factory.server.cli_model_catalog', create=True, return_value=expected) as discover, patch('shutil.which', return_value='/configured/codex'):
+        with patch('analog_factory.operation_catalog.model_catalog', return_value=expected) as discover, patch('shutil.which', return_value='/configured/codex'):
             status, result = self.request(f'/api/agents/models?backend=codex&project_id={self.pid}&refresh=1')
         self.assertEqual(status, 200)
         self.assertEqual(result, expected)

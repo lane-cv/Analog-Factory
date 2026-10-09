@@ -11,6 +11,9 @@ license = "Apache-2.0"
 readme = "README.md"
 dependencies = []
 
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0,<7"]
+
 [project.scripts]
 analog-factory = "analog_factory.__main__:main"
 
@@ -18,4 +21,4 @@ analog-factory = "analog_factory.__main__:main"
 include = ["analog_factory*"]
 
 [tool.setuptools.package-data]
-analog_factory = ["static/*.html", "static/*.js", "static/*.css", "static/fonts/*"]
+analog_factory = ["*.tcl", "static/*.html", "static/*.js", "static/*.css", "static/*.txt", "static/*.json", "static/fonts/*", "assets/ota5/*.json", "assets/ota5/schematics/*.sch", "assets/ota5/layout/*.mag", "assets/ota5/netlists/*.spice", "assets/ota5/testbenches/*.cir"]

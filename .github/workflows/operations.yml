@@ -1,0 +1,62 @@
+name: Operation contract
+on: [push, pull_request]
+jobs:
+  operations:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install simulator, browser and native bridge test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ngspice tcl8.6
+          python3 -m pip install '.[yaml]' build==1.3.0 setuptools==80.9.0 wheel==0.45.1
+          npm install --prefix "$RUNNER_TEMP/af-browser" playwright@1.63.0 @openai/codex@0.159.2
+          echo "$RUNNER_TEMP/af-browser/node_modules/.bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/af-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Validate operation registrations, schemas and generated interfaces
+        run: python3 scripts/check_operations.py
+      - name: Python contracts and real EDA integration
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Source distribution, wheel and isolated installed service
+        run: python3 scripts/validate_release.py --output "$RUNNER_TEMP/release-validation"
+      - name: Waveform mathematical contracts
+        run: |
+          node tests/waveform-view.test.cjs
+          node tests/provider-fields.test.cjs
+          node tests/operations-state.test.cjs
+          node tests/editor-recovery-contracts.cjs
+          node tests/editor-recovery-variants.cjs
+          node tests/graph-source-patch.test.cjs
+          node tests/native-canvas-races.cjs
+          node tests/training-controls-budget.cjs
+          node tests/agent-cli-controls.cjs
+      - name: Browser acknowledgement, synchronization and extension parity
+        run: |
+          export NODE_PATH="$RUNNER_TEMP/af-browser/node_modules"
+          python3 scripts/validate_browser.py --output "$RUNNER_TEMP/browser-validation"
+      - name: Browser DRC controls with local acknowledgment fixture
+        env:
+          AF_URL: http://127.0.0.1:8879
+        run: |
+          export NODE_PATH="$RUNNER_TEMP/af-browser/node_modules"
+          DISPLAY=:af-test-fixture python3 tests/operation_test_server.py --workspace "$RUNNER_TEMP/drc-browser-workspace" --port 8879 > "$RUNNER_TEMP/drc-browser-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          python3 - <<'PY'
+          import time, urllib.request
+          for attempt in range(100):
+              try:
+                  urllib.request.urlopen('http://127.0.0.1:8879/api/operations', timeout=1).close()
+                  break
+              except OSError:
+                  time.sleep(.1)
+          else:
+              raise SystemExit('DRC fixture server did not start')
+          PY
+          node tests/browser-drc-navigation.cjs

@@ -1,0 +1,20 @@
+{
+  "source": "testbenches/phase-margin.cir",
+  "analysis": {
+    "type": "ac",
+    "parameters": {
+      "start": 1,
+      "stop": 10000000.0,
+      "points": 200
+    }
+  },
+  "measurements": [
+    {
+      "kind": "phase_margin",
+      "name": "margin_deg",
+      "input": "in",
+      "output": "out",
+      "loop_gain_convention": "negative_feedback_L"
+    }
+  ]
+}

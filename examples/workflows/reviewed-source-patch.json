@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "name": "Reviewed resistor replacement",
+  "nodes": [
+    {"id": "read", "type": "project", "config": {"path": "testbenches/pre.cir"}, "position": {"x": 30, "y": 40}},
+    {"id": "rd", "type": "parameter", "config": {"value": 2200}, "position": {"x": 30, "y": 170}},
+    {"id": "deck", "type": "netlist", "config": {"parameter": "RD"}, "inputs": {
+      "content": {"node": "read", "port": "content"}, "value": {"node": "rd", "port": "value"}
+    }, "position": {"x": 260, "y": 40}},
+    {"id": "patch", "type": "source_patch", "config": {"path": "testbenches/pre.cir", "prompt": "Review the exact RD replacement before saving"}, "inputs": {
+      "content": {"node": "deck", "port": "content"}, "expected_sha256": {"node": "read", "port": "sha256"}
+    }, "position": {"x": 490, "y": 40}, "timeout_seconds": 300},
+    {"id": "simulate", "type": "simulate", "position": {"x": 720, "y": 40}},
+    {"id": "report", "type": "report", "inputs": {
+      "change": {"node": "patch", "port": "receipt"}, "result": {"node": "simulate", "port": "result"}
+    }, "position": {"x": 720, "y": 170}}
+  ],
+  "edges": [{"source": "patch", "target": "simulate"}],
+  "limits": {"runtime_seconds": 360, "max_node_executions": 20, "max_iterations": 1},
+  "outputs": {"report": {"node": "report", "port": "report"}}
+}

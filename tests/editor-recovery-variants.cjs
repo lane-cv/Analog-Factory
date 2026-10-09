@@ -1,0 +1,31 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {create}=require('../analog_factory/static/editor-recovery.js');
+const values=new Map(),storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)};
+function page(store=storage){const state={project:{id:'p'},files:[{path:'file.txt'}],file:'file.txt',content:'base',savedContent:'base',fileVersion:'old',dirty:false};const ui=create({state,storage:()=>store,readLatest:async()=>({content:'latest',version:'new'}),applyDraft:({content,base,version})=>Object.assign(state,{content,savedContent:base,fileVersion:version,dirty:content!==base})});return {state,ui};}
+(async()=>{
+ const a=page(),b=page();a.state.content='dirty A';a.state.dirty=true;b.state.content='dirty B';b.state.dirty=true;
+ await Promise.all([a.ui.edited(),b.ui.edited()]);
+ const records=await a.ui.commands.list();assert.equal(records.length,2,'same-profile tabs retain both variants');
+ assert.notEqual(records[0].draft_id,records[1].draft_id);
+ await assert.rejects(a.ui.commands.read({path:'file.txt'}),/draft|variant/i);
+ const recordA=(await Promise.all(records.map(row=>a.ui.commands.read({path:row.path,draft_id:row.draft_id})))).find(row=>row.content==='dirty A');
+ b.state.savedContent=b.state.content;b.state.dirty=false;b.state.fileVersion='saved';await b.ui.saved();
+ assert.equal((await a.ui.commands.list()).length,1,'B clean save removes only B variant');
+ assert.equal((await a.ui.commands.read({path:'file.txt',draft_id:recordA.draft_id})).content,'dirty A');
+ const reload=page();await reload.ui.commands.restore({path:'file.txt',draft_id:recordA.draft_id});
+ assert.equal(reload.state.content,'dirty A');assert.equal(reload.state.fileVersion,'old');
+ assert.equal((await reload.ui.commands.list()).length,2,'restoration retains foreign original');
+ await reload.ui.commands.discard({path:'file.txt',draft_id:recordA.draft_id});
+ assert.equal(a.state.content,'dirty A','explicit discard never edits another in-memory draft');
+ const legacy=new Map([['af-editor-recovery-v1',JSON.stringify({schema_version:1,records:{'["p","file.txt"]':{project_id:'p',path:'file.txt',version:'original version',base:'old base',content:'old recovered text',updated_at:12}}})]]);
+ const legacyStore={getItem:key=>legacy.get(key)||null,setItem:(key,value)=>legacy.set(key,value)},migrated=page(legacyStore);
+ const old=await migrated.ui.commands.read({path:'file.txt'});assert.ok(old.draft_id);assert.equal(old.content,'old recovered text');
+ migrated.state.content='new page draft';migrated.state.dirty=true;await migrated.ui.edited();
+ assert.equal(JSON.parse(legacy.get('af-editor-recovery-v1')).schema_version,2);
+ assert.deepEqual((await migrated.ui.commands.read({path:'file.txt',draft_id:old.draft_id})),old,'migration preserves complete old record');
+ const boundedStoreValues=new Map(),boundedStore={getItem:key=>boundedStoreValues.get(key)||null,setItem:(key,value)=>boundedStoreValues.set(key,value)},pages=Array.from({length:9},()=>page(boundedStore));
+ await Promise.all(pages.map((p,i)=>{p.state.content='variant '+i;p.state.dirty=true;return p.ui.edited();}));
+ assert.equal((await pages[0].ui.commands.list()).length,8);assert.match(pages[8].ui.snapshot().storage_error,/eight/);
+ console.log('Editor recovery variants: concurrent same-profile owners, exact IDs, unambiguous compatibility, foreign preservation, legacy migration and shared bounds PASS.');
+})().catch(error=>{console.error(error);process.exit(1);});

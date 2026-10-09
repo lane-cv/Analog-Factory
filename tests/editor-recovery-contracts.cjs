@@ -1,0 +1,74 @@
+'use strict';
+const assert = require('node:assert/strict');
+const {create} = require('../analog_factory/static/editor-recovery.js');
+const storage = () => { const values = new Map(); return {getItem:key=>values.get(key) ?? null,setItem:(key,value)=>values.set(key,value)}; };
+function fixture(savedStorage = storage()) {
+  const state = {project:{id:'p'},files:[{path:'source.cir'}],file:'source.cir',content:'base',savedContent:'base',fileVersion:'old',dirty:false};
+  let latest={content:'disk',version:'latest'}, errors=[], reads=0;
+  const ui=create({state,storage:()=>savedStorage,notify:message=>errors.push(message),readLatest:async()=>{reads++;return latest;},applyDraft:({content,base,version})=>{state.content=content;state.savedContent=base;state.fileVersion=version;state.dirty=content!==base;}});
+  return {state,ui,errors,storage:savedStorage,latest:value=>{latest=value;},reads:()=>reads};
+}
+(async()=>{
+  const f=fixture(); f.state.content='human';f.state.dirty=true;await f.ui.edited();
+  assert.equal((await f.ui.commands.list())[0].path,'source.cir');
+  assert.ok(!JSON.stringify(f.ui.snapshot()).includes('human'),'normal snapshot excludes source');
+  const inspection=await f.ui.commands.inspect();
+  assert.deepEqual([inspection.base,inspection.latest,inspection.draft],['base','disk','human']);
+  assert.equal(f.state.fileVersion,'old','inspection cannot grant newer version');
+  await f.ui.commands.resolve({inspection_id:inspection.inspection_id,content:'human + disk'});
+  assert.deepEqual([f.state.content,f.state.savedContent,f.state.fileVersion],['human + disk','disk','latest']);
+  assert.equal(f.reads(),1,'resolve never writes or performs hidden reads');
+  const reload=fixture(f.storage);
+  const recovery=await reload.ui.commands.read({path:'source.cir'});
+  assert.equal(recovery.content,'human + disk');
+  reload.latest({content:'third actor',version:'newer'});
+  await reload.ui.commands.restore({path:'source.cir'});
+  assert.equal(reload.state.fileVersion,'latest','restoration retains old pin despite latest server version');
+  assert.equal(reload.state.savedContent,'disk');
+  const conflict=await reload.ui.commands.inspect();
+  reload.state.content='new typing';await reload.ui.edited();
+  await assert.rejects(reload.ui.commands.resolve({inspection_id:conflict.inspection_id,content:'wrong'}),/changed/);
+  assert.equal(reload.state.content,'new typing');
+  let release;reload.latest(new Promise(resolve=>{release=resolve;}));
+  const pending=reload.ui.commands.inspect();reload.state.content='typing during read';await reload.ui.edited();
+  release({content:'read',version:'v'});
+  await assert.rejects(pending,/changed/);assert.equal(reload.state.content,'typing during read');
+  let releaseProject;reload.latest(new Promise(resolve=>{releaseProject=resolve;}));
+  const pendingProject=reload.ui.commands.inspect();reload.state.project={id:'other'};
+  releaseProject({content:'read',version:'v'});await assert.rejects(pendingProject,/changed/);
+  const bad=fixture({getItem:()=>null,setItem:()=>{throw new Error('quota exceeded');}});
+  bad.state.content='kept in memory';bad.state.dirty=true;await bad.ui.edited();
+  assert.match(bad.ui.snapshot().storage_error,/quota/);assert.equal(bad.state.content,'kept in memory');
+  assert.ok(bad.errors.length);
+  const broken=fixture({getItem:()=>'{broken',setItem:()=>{}});
+  await assert.rejects(broken.ui.commands.list(),/recovery/i);
+  const unavailable=fixture({getItem:()=>{throw new Error('storage disabled');},setItem:()=>{}});
+  await assert.rejects(unavailable.ui.commands.list(),/storage disabled/);
+  const localizedState={...f.state,content:'Invalid recovery storage.',dirty:true};
+  const translations={'Recovery storage is unavailable: ':'存储不可用：','Invalid recovery storage.':'恢复存储无效。'};
+  const localized=create({state:localizedState,storage:()=>({getItem:()=>'{"schema_version":999,"records":{}}',setItem:()=>{}}),
+    readLatest:async()=>{},applyDraft:()=>{},t:value=>translations[value]??value});
+  await localized.edited();assert.match(localized.snapshot().storage_error,/存储不可用：恢复存储无效/);
+  assert.equal(localizedState.content,'Invalid recovery storage.','localized errors never translate user source text');
+  const opaque=create({state:localizedState,storage:()=>({getItem:()=>{throw new Error('opaque native storage detail');},setItem:()=>{}}),
+    readLatest:async()=>{},applyDraft:()=>{},t:value=>translations[value]??value});
+  await opaque.edited();assert.match(opaque.snapshot().storage_error,/存储不可用：opaque native storage detail/,'unknown messages retain their exact detail');
+  const uncertain=fixture();uncertain.state.content='uncertain draft';uncertain.state.dirty=true;await uncertain.ui.edited();
+  uncertain.ui.saveFailed(new Error('Connection lost'));
+  assert.match(uncertain.ui.snapshot().status,/unknown or failed/);
+  assert.equal((await uncertain.ui.commands.read({path:'source.cir'})).content,'uncertain draft');
+  const discarded=fixture(f.storage);for(const row of await discarded.ui.commands.list())await discarded.ui.commands.discard({path:row.path,draft_id:row.draft_id});
+  assert.equal((await discarded.ui.commands.list()).length,0);
+  assert.equal(discarded.state.content,'base','discard affects recovery, not editor');
+  const missing=fixture();missing.state.files=[];await assert.rejects(missing.ui.commands.inspect(),/file/);
+  const changing=fixture();changing.state.projectRequest=1;
+  let resume;changing.latest(new Promise(resolve=>{resume=resolve;}));
+  const restoring=changing.ui.commands.inspect();changing.state.projectRequest=2;
+  resume({content:'disk',version:'v'});await assert.rejects(restoring,/changed/);
+  const bounded=fixture();
+  for(let i=0;i<9;i++){bounded.state.file=`file${i}.cir`;bounded.state.files.push({path:bounded.state.file});bounded.state.content=`draft ${i}`;bounded.state.dirty=true;await bounded.ui.edited();}
+  assert.equal((await bounded.ui.commands.list()).length,8);assert.match(bounded.ui.snapshot().storage_error,/eight/);
+  const large=fixture();large.state.content='é'.repeat(1024*1024+1);large.state.dirty=true;await large.ui.edited();
+  assert.match(large.ui.snapshot().storage_error,/2 MiB/);
+  console.log('Editor recovery contracts: base/disk/draft, exact version restore, stale and delayed inspection, project changes, quota, corruption, bounds, and no hidden writes PASS.');
+})().catch(error=>{console.error(error);process.exit(1);});

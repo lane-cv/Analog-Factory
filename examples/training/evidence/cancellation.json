@@ -1,0 +1,25 @@
+{
+  "project_id": "fe58a1528edd415cbc212bdb2a5bbc95",
+  "job_id": "ee11a870b76a4c7881e1c92fd462446e",
+  "status": "cancelled",
+  "compute_seconds": 11.449558044783771,
+  "active_simulator_children": [],
+  "credential_sentinel_excluded": true,
+  "worker_environment_names": [
+    [
+      "HF_HOME",
+      "HF_HUB_DISABLE_IMPLICIT_TOKEN",
+      "HF_HUB_DISABLE_TELEMETRY",
+      "HF_HUB_OFFLINE",
+      "LANG",
+      "LC_ALL",
+      "MKL_NUM_THREADS",
+      "OMP_NUM_THREADS",
+      "PATH",
+      "PYTHONPATH",
+      "TOKENIZERS_PARALLELISM",
+      "TRANSFORMERS_OFFLINE",
+      "WANDB_MODE"
+    ]
+  ]
+}

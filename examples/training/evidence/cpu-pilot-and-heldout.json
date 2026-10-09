@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-08",
+  "scope": "Real CPU LoRA/GRPO update; no electrical-success improvement demonstrated",
+  "pilot": {
+    "id": "fdcfb096e6db476f98c6c8d47cf0cdcd",
+    "status": "succeeded",
+    "model": {
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "license": "Apache-2.0"
+    },
+    "optimizer_steps": 2,
+    "trainable_parameter_count": 540672,
+    "parameter_update_l2": 0.01644373353502051,
+    "model_weights_updated": true,
+    "peak_rss_bytes": 3435880448,
+    "compute_seconds": 264.26821835245937,
+    "training_process_pid": 6,
+    "checkpoint": {
+      "path": "checkpoint",
+      "hashes": {
+        "adapter_model.safetensors": "d1bcaecad30ee79695dbab328bc417115c631b443a8ab1255e3f5847a214d364",
+        "adapter_config.json": "7f106460a510b895d44c9a9a6b99dffbc90ad3a6b71f319ab9a4f24e4f63fb0a",
+        "tokenizer.json": "3fd169731d2cbde95e10bf356d66d5997fd885dd8dbb6fb4684da3f23b2585d8",
+        "README.md": "a3ba878ea226754a147a7d086cc01638d160a486aa3840655476cd7794deb1e3",
+        "chat_template.jinja": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f",
+        "tokenizer_config.json": "a804ca8a2c2c8c063680e1d94c26c44899e2875667374f60b2f68cd97c9b4143",
+        "training_args.bin": "8c860070d5718882eed70e5a95bcfaf8855147f271d4428510c4ae8dbaf841bc"
+      },
+      "format": "PEFT safetensors",
+      "optimizer_state": "optimizer/checkpoint-2"
+    },
+    "curves": [
+      {
+        "step": 1,
+        "loss": 0.0,
+        "grad_norm": 0.0,
+        "learning_rate": 0.0001,
+        "num_tokens": 1147.0,
+        "completions/mean_length": 75.5,
+        "completions/min_length": 55.0,
+        "completions/max_length": 96.0,
+        "completions/clipped_ratio": 1.0,
+        "completions/mean_terminated_length": 0.0,
+        "completions/min_terminated_length": 0.0,
+        "completions/max_terminated_length": 0.0,
+        "tools/call_frequency": 0.5,
+        "tools/failure_frequency": 0.0,
+        "rewards/Tools/mean": -1.0,
+        "rewards/Tools/std": 0.0,
+        "reward": -1.0,
+        "reward_std": 0.0,
+        "frac_reward_zero_std": 1.0,
+        "kl": 0.0,
+        "entropy": 0.21475554257631302,
+        "clip_ratio/low_mean": 0.0,
+        "clip_ratio/high_mean": 0.0,
+        "clip_ratio/region_mean": 0.0,
+        "clip_ratio/low_min": 0.0,
+        "clip_ratio/high_max": 0.0,
+        "step_time": 84.15862568281591,
+        "epoch": 0.25
+      },
+      {
+        "step": 2,
+        "loss": 0.3370104432106018,
+        "grad_norm": 0.7452458739280701,
+        "learning_rate": 5e-05,
+        "num_tokens": 2273.0,
+        "completions/mean_length": 65.0,
+        "completions/min_length": 34.0,
+        "completions/max_length": 96.0,
+        "completions/clipped_ratio": 0.5,
+        "completions/mean_terminated_length": 34.0,
+        "completions/min_terminated_length": 34.0,
+        "completions/max_terminated_length": 34.0,
+        "tools/call_frequency": 0.5,
+        "tools/failure_frequency": 0.0,
+        "rewards/Tools/mean": -0.8940340280532837,
+        "rewards/Tools/std": 0.14985854923725128,
+        "reward": -0.8940340280532837,
+        "reward_std": 0.14985854923725128,
+        "frac_reward_zero_std": 0.0,
+        "kl": 0.0,
+        "entropy": 0.07165935635566711,
+        "clip_ratio/low_mean": 0.0,
+        "clip_ratio/high_mean": 0.0,
+        "clip_ratio/region_mean": 0.0,
+        "clip_ratio/low_min": 0.0,
+        "clip_ratio/high_max": 0.0,
+        "step_time": 78.50910060666502,
+        "epoch": 0.5
+      },
+      {
+        "step": 2,
+        "train_runtime": 163.2414,
+        "train_samples_per_second": 0.025,
+        "train_steps_per_second": 0.012,
+        "total_flos": 0.0,
+        "train_loss": 0.1685052216053009,
+        "epoch": 0.5
+      }
+    ]
+  },
+  "full_heldout": {
+    "id": "0ee3a9ca912441e69f6bb3d9f5d8309f",
+    "status": "succeeded",
+    "parent_id": "fdcfb096e6db476f98c6c8d47cf0cdcd",
+    "compute_seconds": 156.09833596646786,
+    "aggregate_compute_seconds": 1961.9053167225793,
+    "peak_rss_bytes": 3408338944,
+    "resume_source_job_id": "2510c341ebbc4d2c839c66b7cc3b55de",
+    "resumed_completed_counts": {
+      "before": 32,
+      "random": 32,
+      "after": 24
+    }
+  },
+  "budgets": {
+    "environment_actions_per_task": 3,
+    "conditions_per_action": 2,
+    "maximum_ngspice_calls_per_task": 6,
+    "language_model_completion_tokens": 96,
+    "language_model_tool_rounds": 2,
+    "equal_actual_compute": false
+  },
+  "comparison": {
+    "before": {
+      "tasks": 32,
+      "successes": 1,
+      "success_rate": 0.03125,
+      "mean_reward": -0.8291716686083699,
+      "simulator_calls": 26,
+      "episodes_with_valid_tool_calls": 13,
+      "tool_call_validity_rate": 0.40625,
+      "successes_among_valid_tool_episodes": 1,
+      "episodes_without_valid_tool_calls": 19
+    },
+    "random": {
+      "tasks": 32,
+      "successes": 17,
+      "success_rate": 0.53125,
+      "mean_reward": 0.20228676387975147,
+      "simulator_calls": 150,
+      "episodes_with_valid_tool_calls": 32,
+      "tool_call_validity_rate": 1.0,
+      "successes_among_valid_tool_episodes": 17,
+      "episodes_without_valid_tool_calls": 0
+    },
+    "after": {
+      "tasks": 32,
+      "successes": 1,
+      "success_rate": 0.03125,
+      "mean_reward": -0.8144237936083699,
+      "simulator_calls": 30,
+      "episodes_with_valid_tool_calls": 15,
+      "tool_call_validity_rate": 0.46875,
+      "successes_among_valid_tool_episodes": 1,
+      "episodes_without_valid_tool_calls": 17
+    },
+    "same_tasks_and_budget": true,
+    "checkpoint_reloaded": true,
+    "reload_process_pid": 5,
+    "success_rate_change": 0.0,
+    "mean_reward_change": 0.014747874999999966
+  },
+  "qualified_evaluator_sha256": "6ecfc37071a0bbee53c0d4f8c33dce5c78a7ea3a074fd1aba2924dbfaaf68cc9",
+  "evidence_paths": {
+    "workspace": ".validation/training-pilot",
+    "project_id": "139160807efb40d4b90a1dc399ec5632"
+  }
+}

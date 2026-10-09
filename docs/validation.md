@@ -1,3 +1,8 @@
+> This document preserves earlier development evidence. Current acceptance is in
+> [delivery status](status.md), [operation validation](operations/validation.md),
+> [OTA reference](ota5-reference.md), and [training evidence](training.md).
+> Earlier “not validated” statements below apply to their recorded stage.
+
 # Execution evidence
 
 Validated **2026-09-30**. The [machine-readable record](validation.json) contains

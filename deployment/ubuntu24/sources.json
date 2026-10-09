@@ -1,0 +1,14 @@
+{
+  "magic": {
+    "version": "8.3.684",
+    "commit": "4f53bb3091d1e4a9b2009a58f157a8a4331d4c84",
+    "sha256": "d4dc0e873354fb13c802400124b757aff04372c9b8202af56409c33267ac46fd",
+    "url": "https://codeload.github.com/RTimothyEdwards/magic/tar.gz/4f53bb3091d1e4a9b2009a58f157a8a4331d4c84"
+  },
+  "xschem": {
+    "version": "3.4.7",
+    "commit": "92dd8fe5f4d5c1057489710d8a22f18fdc9d7ed0",
+    "sha256": "db5250690bc193bb2874e7a3b43d7bfc3499c882feb7fa885080434cc9a81c7c",
+    "url": "https://codeload.github.com/StefanSchippers/xschem/tar.gz/92dd8fe5f4d5c1057489710d8a22f18fdc9d7ed0"
+  }
+}

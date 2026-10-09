@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 from pathlib import Path
 import shutil
 import tempfile
@@ -12,7 +13,7 @@ from analog_factory.execution import RunManager
 
 
 _LOCAL_MAGIC = Path(__file__).resolve().parents[1] / '.tools/eda/bin/magic'
-_MAGIC = str(_LOCAL_MAGIC) if os.access(_LOCAL_MAGIC, os.X_OK) else shutil.which('magic')
+_MAGIC = os.environ.get('AF_TEST_MAGIC') or (str(_LOCAL_MAGIC) if os.access(_LOCAL_MAGIC, os.X_OK) else shutil.which('magic'))
 
 # One generic scmos NFET with source/drain/gate labels. This is a runtime
 # integration fixture, not a SKY130 design or a foundry-qualified layout.
@@ -62,7 +63,11 @@ class MagicIntegrationTests(unittest.TestCase):
             self.assertTrue(extracted.is_file(), log)
             spice = extracted.read_text()
             self.assertRegex(spice, r'(?m)^M\S+\s+drain\s+gate\s+source\s+Gnd\s+nfet\b')
-            self.assertRegex(spice, r'(?m)^C\S+\s+gate\s+Gnd\s+\S+')
+            # Older releases name the implicit substrate Gnd, while the
+            # flattened converter uses SPICE's reserved ground node 0.
+            capacitor = re.search(r'(?m)^C\S+\s+gate\s+(?:Gnd|0)\s+([0-9.]+)fF?\b', spice)
+            self.assertIsNotNone(capacitor, spice)
+            self.assertAlmostEqual(float(capacitor[1]), 2.544, delta=.01)
             self.assertIn('extracted.spice', result['artifact_hashes'])
             self.assertTrue(any((run / 'output').glob('*.ext')), log)
             self.assertEqual(list((run / 'input').rglob('*.ext')), [])

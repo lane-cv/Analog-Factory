@@ -1,0 +1,209 @@
+{
+  "id": "88408f5cb5564426be1b09f5c0b784f4",
+  "status": "succeeded",
+  "options": {
+    "framework": "trl_cpu",
+    "steps": 2,
+    "train_tasks": 4,
+    "eval_tasks": 2,
+    "seed": 42,
+    "wall_seconds": 1800,
+    "taskset_id": "taskset-fc10326d0d2afc14a736bdc3"
+  },
+  "model": {
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "license": "Apache-2.0",
+    "safetensors_sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+  },
+  "taskset": {
+    "id": "taskset-fc10326d0d2afc14a736bdc3",
+    "name": "Educational current mirror",
+    "family": "current_mirror",
+    "counts": {
+      "train": 64,
+      "validation": 16,
+      "test": 32
+    },
+    "hashes": {
+      "train": "fafb00a931e40b39bdb0ad966dfab5c2b010afdd6a5d8a5981a0a958e6850e27",
+      "validation": "483a05c254397b0aff507c0548c7ccfbc5f4e721476180c74217209e72e52652",
+      "test": "4717a075d368d1ef3bef1a81cca7f14bbd7afc32b7476cf4eae9b709d25efee0"
+    },
+    "bounds": {
+      "reference_width": [
+        2.0,
+        4.0,
+        6.0,
+        8.0,
+        10.0,
+        12.0
+      ],
+      "output_width": [
+        2.0,
+        4.0,
+        6.0,
+        8.0,
+        10.0,
+        12.0
+      ],
+      "length": [
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0
+      ]
+    },
+    "max_actions": 3,
+    "conditions_per_action": 2,
+    "coverage": "Educational level-1 MOS; voltage/temperature probes, not foundry process qualification",
+    "evaluator_version": "trusted-educational-v2"
+  },
+  "source_hashes": {
+    "manager.py": "98a63f4b301a6c58fb1a9e28f767d9c536fb2ee1d1165a8282ef78f827ba9228",
+    "worker.py": "967785972ebcf4862e64d7a05920e8d30c294098576df1c3d9194f739d21c307",
+    "environment.py": "0e380a3b7bbe52c481627b3cb267dacdff2f45eeb1edf655e342f82670c09d4a",
+    "task_catalog.py": "082a23d8f64742cfc7ed7e91f3e1698671c272399309101f203e42866c552e63",
+    "configurable_environment.py": "b461bc4b779963c922d6b15581a86e2e80d40699952b92b07d73bff840e456ff",
+    "resume.py": "555ca5d94564fe001d6b36ef52274b95db91081cf7fa058196ad23c39ebb1db6"
+  },
+  "policy_limits": {
+    "completion_tokens": 96,
+    "tool_rounds": 3,
+    "environment_actions": 3,
+    "simulator_conditions_per_action": 2
+  },
+  "model_weights_updated": true,
+  "optimizer_steps": 2,
+  "parameter_update_l2": 0.06408644236450649,
+  "trainable_parameter_count": 540672,
+  "peak_rss_bytes": 3567452160,
+  "compute_seconds": 231.83489549160004,
+  "checkpoint": {
+    "path": "checkpoint",
+    "hashes": {
+      "adapter_model.safetensors": "d66dc58bb7e29fc0d400d15ac49833dafde4d7de9f810b7eb92e0925f1cbb0bb",
+      "adapter_config.json": "7f106460a510b895d44c9a9a6b99dffbc90ad3a6b71f319ab9a4f24e4f63fb0a",
+      "tokenizer.json": "3fd169731d2cbde95e10bf356d66d5997fd885dd8dbb6fb4684da3f23b2585d8",
+      "README.md": "a3ba878ea226754a147a7d086cc01638d160a486aa3840655476cd7794deb1e3",
+      "chat_template.jinja": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f",
+      "tokenizer_config.json": "a804ca8a2c2c8c063680e1d94c26c44899e2875667374f60b2f68cd97c9b4143",
+      "training_args.bin": "a3b5a6b90f663b0d5927c3ad24b14284ef61914b58bb451ec8a3e1cae13fae39"
+    },
+    "format": "PEFT safetensors",
+    "optimizer_state": "optimizer/checkpoint-2"
+  },
+  "curves": [
+    {
+      "step": 1,
+      "loss": 0.3212350904941559,
+      "grad_norm": 0.4166565239429474,
+      "learning_rate": 0.0001,
+      "num_tokens": 1156.0,
+      "completions/mean_length": 66.0,
+      "completions/min_length": 36.0,
+      "completions/max_length": 96.0,
+      "completions/clipped_ratio": 0.5,
+      "completions/mean_terminated_length": 36.0,
+      "completions/min_terminated_length": 36.0,
+      "completions/max_terminated_length": 36.0,
+      "tools/call_frequency": 0.5,
+      "tools/failure_frequency": 0.0,
+      "rewards/ConfigurableTools/mean": -0.8715975284576416,
+      "rewards/ConfigurableTools/std": 0.1815885603427887,
+      "reward": -0.8715975284576416,
+      "reward_std": 0.1815885603427887,
+      "frac_reward_zero_std": 0.0,
+      "kl": 0.0,
+      "entropy": 0.1045592650771141,
+      "clip_ratio/low_mean": 0.0,
+      "clip_ratio/high_mean": 0.0,
+      "clip_ratio/region_mean": 0.0,
+      "clip_ratio/low_min": 0.0,
+      "clip_ratio/high_max": 0.0,
+      "step_time": 75.05694000981748,
+      "epoch": 0.25
+    },
+    {
+      "step": 2,
+      "loss": 0.32144320011138916,
+      "grad_norm": 0.34854647517204285,
+      "learning_rate": 5e-05,
+      "num_tokens": 2314.0,
+      "completions/mean_length": 66.0,
+      "completions/min_length": 36.0,
+      "completions/max_length": 96.0,
+      "completions/clipped_ratio": 0.5,
+      "completions/mean_terminated_length": 36.0,
+      "completions/min_terminated_length": 36.0,
+      "completions/max_terminated_length": 36.0,
+      "tools/call_frequency": 0.5,
+      "tools/failure_frequency": 0.0,
+      "rewards/ConfigurableTools/mean": -0.022472739219665527,
+      "rewards/ConfigurableTools/std": 1.3824323415756226,
+      "reward": -0.022472739219665527,
+      "reward_std": 1.3824323415756226,
+      "frac_reward_zero_std": 0.0,
+      "kl": 0.003828456756309606,
+      "entropy": 0.10335420072078705,
+      "clip_ratio/low_mean": 0.0,
+      "clip_ratio/high_mean": 0.0,
+      "clip_ratio/region_mean": 0.0,
+      "clip_ratio/low_min": 0.0,
+      "clip_ratio/high_max": 0.0,
+      "step_time": 79.21500925719738,
+      "epoch": 0.5
+    },
+    {
+      "step": 2,
+      "train_runtime": 154.5169,
+      "train_samples_per_second": 0.026,
+      "train_steps_per_second": 0.013,
+      "total_flos": 0.0,
+      "train_loss": 0.3213391453027725,
+      "epoch": 0.5
+    }
+  ],
+  "evaluation": {
+    "before": {
+      "tasks": 2,
+      "successes": 1,
+      "success_rate": 0.5,
+      "mean_reward": -0.020275812500000046,
+      "simulator_calls": 2,
+      "episodes_with_valid_tool_calls": 1,
+      "tool_call_validity_rate": 0.5,
+      "successes_among_valid_tool_episodes": 1,
+      "episodes_without_valid_tool_calls": 1
+    },
+    "random": {
+      "tasks": 2,
+      "successes": 0,
+      "success_rate": 0.0,
+      "mean_reward": -0.60238734375,
+      "simulator_calls": 12,
+      "episodes_with_valid_tool_calls": 2,
+      "tool_call_validity_rate": 1.0,
+      "successes_among_valid_tool_episodes": 0,
+      "episodes_without_valid_tool_calls": 0
+    },
+    "after": {
+      "tasks": 2,
+      "successes": 1,
+      "success_rate": 0.5,
+      "mean_reward": -0.020275812500000046,
+      "simulator_calls": 2,
+      "episodes_with_valid_tool_calls": 1,
+      "tool_call_validity_rate": 0.5,
+      "successes_among_valid_tool_episodes": 1,
+      "episodes_without_valid_tool_calls": 1
+    },
+    "same_tasks_and_budget": true,
+    "checkpoint_reloaded": true,
+    "reload_process_pid": 274,
+    "success_rate_change": 0.0,
+    "mean_reward_change": 0.0
+  }
+}

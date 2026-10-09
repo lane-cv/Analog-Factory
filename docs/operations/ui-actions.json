@@ -1,0 +1,742 @@
+{
+  "agent-cli-controls.js": {
+    "owner": "Project CLI configuration drafts, guarded settings and official release observations",
+    "action_attributes": [
+      "check_updates",
+      "close",
+      "refresh",
+      "reset_paths",
+      "save_paths",
+      "tracking"
+    ],
+    "action_namespaces": {
+      "data-cli-action": [
+        "check_updates",
+        "close",
+        "refresh",
+        "reset_paths",
+        "save_paths",
+        "tracking"
+      ]
+    },
+    "data_attributes": [
+      "data-cli-action",
+      "data-cli-automatic",
+      "data-cli-error",
+      "data-cli-interval",
+      "data-cli-path",
+      "data-cli-status",
+      "data-open-agent-cli"
+    ],
+    "event_types": [
+      "cancel",
+      "change",
+      "click",
+      "input"
+    ],
+    "switch_cases": [],
+    "literal_operations": [
+      "agent.cli.check_updates",
+      "agent.cli.status",
+      "file.read",
+      "project.configure",
+      "settings.get",
+      "settings.update"
+    ],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "agent-content.js": {
+    "owner": "Escaped conversation rendering helper",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [
+      "data-agent-action",
+      "data-copy-code",
+      "data-disclosure",
+      "data-status",
+      "data-tool-call-id",
+      "data-turn-id",
+      "data-user-turn"
+    ],
+    "event_types": [],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "agents.js": {
+    "owner": "Agent conversations, stream display, attachments and human scope drafts",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [
+      "data-agent-action",
+      "data-agent-command",
+      "data-agent-delete",
+      "data-agent-export",
+      "data-agent-favorite",
+      "data-agent-manage-quick",
+      "data-agent-model",
+      "data-agent-project-context",
+      "data-agent-prompt",
+      "data-agent-quick",
+      "data-agent-rename",
+      "data-agent-session",
+      "data-delete-quick",
+      "data-disclosure",
+      "data-remove-attachment",
+      "data-save-quick",
+      "data-scope-actions",
+      "data-scope-operation",
+      "data-scope-paths",
+      "data-scope-runs",
+      "data-turn-id"
+    ],
+    "event_types": [
+      "change",
+      "click",
+      "close",
+      "keydown",
+      "pagehide"
+    ],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 1,
+    "registered_modules": [
+      "agent"
+    ]
+  },
+  "app.js": {
+    "owner": "Workspace selection, editor, workflow and provider forms",
+    "action_attributes": [
+      "add-edge",
+      "add-node",
+      "apply-workflow-json",
+      "cancel-",
+      "cancel-workflow",
+      "clear-provider-key",
+      "delete-node",
+      "detect-tools",
+      "export",
+      "export-settings",
+      "export-waveform",
+      "export-workflow",
+      "export-workflow-yaml",
+      "history",
+      "import-settings",
+      "import-workflow",
+      "load-workflow",
+      "new-file",
+      "new-graph",
+      "new-project",
+      "new-tuning",
+      "next-sample",
+      "pan-left-waveform",
+      "pan-right-waveform",
+      "previous-sample",
+      "reference-netlist",
+      "reference-post",
+      "reference-publish",
+      "reload-desktop",
+      "reset-waveform",
+      "run-workflow",
+      "save-file",
+      "save-node",
+      "save-workflow",
+      "test-provider",
+      "zoom-in-waveform",
+      "zoom-out-waveform"
+    ],
+    "action_namespaces": {
+      "data-action": [
+        "add-edge",
+        "add-node",
+        "apply-workflow-json",
+        "cancel-",
+        "cancel-workflow",
+        "clear-provider-key",
+        "delete-node",
+        "detect-tools",
+        "export",
+        "export-settings",
+        "export-waveform",
+        "export-workflow",
+        "export-workflow-yaml",
+        "history",
+        "import-settings",
+        "import-workflow",
+        "load-workflow",
+        "new-file",
+        "new-graph",
+        "new-project",
+        "new-tuning",
+        "next-sample",
+        "pan-left-waveform",
+        "pan-right-waveform",
+        "previous-sample",
+        "reference-netlist",
+        "reference-post",
+        "reference-publish",
+        "reload-desktop",
+        "reset-waveform",
+        "run-workflow",
+        "save-file",
+        "save-node",
+        "save-workflow",
+        "test-provider",
+        "zoom-in-waveform",
+        "zoom-out-waveform"
+      ]
+    },
+    "data_attributes": [
+      "data-action",
+      "data-context",
+      "data-file",
+      "data-folder",
+      "data-job-kind",
+      "data-metric",
+      "data-node",
+      "data-operation-disclosure",
+      "data-remove-context",
+      "data-remove-edge",
+      "data-restore",
+      "data-run-id",
+      "data-run-kind",
+      "data-tab",
+      "data-table",
+      "data-trace",
+      "data-workflow-load"
+    ],
+    "event_types": [
+      "beforeunload",
+      "change",
+      "click",
+      "focusin",
+      "input",
+      "keydown",
+      "load",
+      "pointercancel",
+      "pointerdown",
+      "pointerleave",
+      "pointermove",
+      "pointerup",
+      "resize",
+      "scroll",
+      "submit",
+      "wheel"
+    ],
+    "switch_cases": [
+      "add-edge",
+      "add-node",
+      "apply-workflow-json",
+      "cancel-evaluation",
+      "cancel-workflow",
+      "clear-provider-key",
+      "delete-node",
+      "detect-tools",
+      "export",
+      "export-settings",
+      "export-waveform",
+      "export-workflow",
+      "export-workflow-yaml",
+      "history",
+      "import-settings",
+      "import-workflow",
+      "load-workflow",
+      "new-file",
+      "new-graph",
+      "new-project",
+      "new-tuning",
+      "next-sample",
+      "pan-left-waveform",
+      "pan-right-waveform",
+      "previous-sample",
+      "reference-netlist",
+      "reference-post",
+      "reference-publish",
+      "reload-desktop",
+      "reset-waveform",
+      "run-workflow",
+      "save-file",
+      "save-node",
+      "save-workflow",
+      "test-provider",
+      "zoom-in-waveform",
+      "zoom-out-waveform"
+    ],
+    "literal_operations": [
+      "file.change.preview",
+      "project.archive.prepare",
+      "project.configure",
+      "project.detail",
+      "reference.derive_netlists",
+      "ui.agent.set_context",
+      "ui.editor.open",
+      "ui.runs.derive_reference",
+      "ui.runs.netlist_reference",
+      "ui.runs.select",
+      "ui.runs.simulate_reference_post",
+      "ui.waveform.select_plot",
+      "ui.waveform.set_display",
+      "ui.workflow.disconnect",
+      "ui.workflow.new_graph",
+      "ui.workflow.select_node",
+      "ui.workspace.navigate",
+      "ui.workspace.select_project",
+      "workflow.export",
+      "workflow.parse"
+    ],
+    "dynamic_operation_calls": 0,
+    "registered_modules": [
+      "agent_cli",
+      "characterization",
+      "drc_navigation",
+      "editor",
+      "editor_recovery",
+      "form",
+      "lifecycle",
+      "native_canvas",
+      "native_terminal",
+      "runs",
+      "settings",
+      "simulation_batch",
+      "training",
+      "waveform",
+      "workflow",
+      "workspace"
+    ]
+  },
+  "characterization.js": {
+    "owner": "Registered OTA characterization drafts, PVT execution and raw measurement evidence",
+    "action_attributes": [
+      "add",
+      "cancel",
+      "close",
+      "refresh",
+      "start"
+    ],
+    "action_namespaces": {
+      "data-characterize-action": [
+        "add",
+        "cancel",
+        "close",
+        "refresh",
+        "start"
+      ]
+    },
+    "data_attributes": [
+      "data-characterize-action",
+      "data-characterize-case",
+      "data-characterize-inspect",
+      "data-characterize-remove",
+      "data-characterize-results",
+      "data-characterize-select",
+      "data-characterize-target",
+      "data-characterize-waveform",
+      "data-key",
+      "data-table"
+    ],
+    "event_types": [
+      "cancel",
+      "change",
+      "click"
+    ],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "drc-navigation.js": {
+    "owner": "Registered DRC report selection and human native Magic focus controls",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [
+      "data-drc-error-index",
+      "data-drc-focus",
+      "data-drc-focus-status",
+      "data-drc-navigation",
+      "data-drc-stop"
+    ],
+    "event_types": [
+      "change",
+      "click"
+    ],
+    "switch_cases": [],
+    "literal_operations": [
+      "project.detail",
+      "run.cancel",
+      "verification.drc.focus",
+      "verification.drc.focus_status"
+    ],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "editor-recovery.js": {
+    "owner": "Browser-owned draft recovery and version-pinned conflict inspection; registered file writer remains authoritative",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [
+      "data-recovery"
+    ],
+    "event_types": [
+      "change",
+      "click",
+      "input"
+    ],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "graph-controls.js": {
+    "owner": "Graph node forms and registered live execution controls",
+    "action_attributes": [
+      "continue",
+      "pause",
+      "review",
+      "step"
+    ],
+    "action_namespaces": {
+      "data-graph-action": [
+        "continue",
+        "pause",
+        "review",
+        "step"
+      ]
+    },
+    "data_attributes": [
+      "data-graph-action",
+      "data-graph-approved",
+      "data-graph-error",
+      "data-graph-job",
+      "data-graph-node",
+      "data-graph-review-token",
+      "data-table"
+    ],
+    "event_types": [
+      "click"
+    ],
+    "switch_cases": [],
+    "literal_operations": [
+      "job.control",
+      "job.get"
+    ],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "layout.js": {
+    "owner": "Local layout geometry and acknowledged semantic layout commands",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [
+      "data-file",
+      "data-tab"
+    ],
+    "event_types": [
+      "DOMContentLoaded",
+      "blur",
+      "click",
+      "dblclick",
+      "keydown",
+      "lostpointercapture",
+      "pointercancel",
+      "pointerdown",
+      "pointermove",
+      "pointerup",
+      "resize"
+    ],
+    "switch_cases": [],
+    "literal_operations": [
+      "ui.layout.expand_agent",
+      "ui.layout.set_panel"
+    ],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "native-canvas.js": {
+    "owner": "Acknowledged semantic commands for owned Xschem and Magic sessions",
+    "action_attributes": [
+      "close",
+      "connect_pins",
+      "move",
+      "paint_box",
+      "save",
+      "select",
+      "start"
+    ],
+    "action_namespaces": {
+      "data-native-action": [
+        "close",
+        "connect_pins",
+        "move",
+        "paint_box",
+        "save",
+        "select",
+        "start"
+      ]
+    },
+    "data_attributes": [
+      "data-native-action",
+      "data-native-field"
+    ],
+    "event_types": [
+      "cancel",
+      "change",
+      "click"
+    ],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "native-terminal.js": {
+    "owner": "Human-only registered PTY byte and lifecycle controls",
+    "action_attributes": [
+      "close",
+      "interrupt",
+      "refresh",
+      "start",
+      "stop"
+    ],
+    "action_namespaces": {
+      "data-terminal-action": [
+        "close",
+        "interrupt",
+        "refresh",
+        "start",
+        "stop"
+      ]
+    },
+    "data_attributes": [
+      "data-native-terminal-open",
+      "data-terminal-action",
+      "data-terminal-error",
+      "data-terminal-option",
+      "data-terminal-screen",
+      "data-terminal-select",
+      "data-terminal-settings",
+      "data-terminal-status"
+    ],
+    "event_types": [
+      "cancel",
+      "change",
+      "click"
+    ],
+    "switch_cases": [],
+    "literal_operations": [
+      "native.terminal.capabilities",
+      "native.terminal.get",
+      "native.terminal.input",
+      "native.terminal.list",
+      "native.terminal.read",
+      "native.terminal.resize",
+      "native.terminal.start",
+      "native.terminal.stop",
+      "project.detail"
+    ],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "operations.js": {
+    "owner": "Shared browser HTTP transport, discovery and acknowledgement owner",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [],
+    "event_types": [
+      "pagehide"
+    ],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "preferences.js": {
+    "owner": "Local theme/language controller and shared settings transport",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [],
+    "event_types": [],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "project-controls.js": {
+    "owner": "Project/file lifecycle forms and registered lifecycle operations",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [
+      "data-lifecycle-archive",
+      "data-lifecycle-backup",
+      "data-lifecycle-close",
+      "data-lifecycle-error",
+      "data-lifecycle-open",
+      "data-lifecycle-restore-file",
+      "data-lifecycle-restore-project"
+    ],
+    "event_types": [
+      "cancel",
+      "change",
+      "click",
+      "input",
+      "submit"
+    ],
+    "switch_cases": [],
+    "literal_operations": [
+      "file.trash.list",
+      "project.archive.prepare",
+      "project.import.append",
+      "project.import.begin",
+      "project.list",
+      "project.trash.list",
+      "transfer.release"
+    ],
+    "dynamic_operation_calls": 2,
+    "registered_modules": []
+  },
+  "provider-fields.js": {
+    "owner": "Capability-aware provider form helper; no independent transport",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [
+      "data-provider-advanced"
+    ],
+    "event_types": [
+      "change"
+    ],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "simulation-batches.js": {
+    "owner": "Bounded scenario, qualification and evidence controller",
+    "action_attributes": [
+      "add_axis",
+      "add_measure",
+      "add_variable",
+      "cancel",
+      "close",
+      "preview",
+      "qualify",
+      "refresh",
+      "start"
+    ],
+    "action_namespaces": {
+      "data-batch-action": [
+        "add_axis",
+        "add_measure",
+        "add_variable",
+        "cancel",
+        "close",
+        "preview",
+        "qualify",
+        "refresh",
+        "start"
+      ]
+    },
+    "data_attributes": [
+      "data-batch-action",
+      "data-batch-error",
+      "data-batch-field",
+      "data-batch-inspect",
+      "data-batch-job",
+      "data-batch-open",
+      "data-batch-preview",
+      "data-batch-remove-axis",
+      "data-batch-remove-measure",
+      "data-batch-remove-variable",
+      "data-batch-waveform",
+      "data-table"
+    ],
+    "event_types": [
+      "cancel",
+      "change",
+      "click"
+    ],
+    "switch_cases": [],
+    "literal_operations": [
+      "job.cancel",
+      "job.get",
+      "job.list",
+      "project.detail",
+      "run.get",
+      "run.log",
+      "simulation.batch.capabilities",
+      "simulation.batch.preview",
+      "simulation.batch.start",
+      "simulation.statistics.qualify"
+    ],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  },
+  "training-controls.js": {
+    "owner": "Taskset, training, evaluation, resume and replay controller",
+    "action_attributes": [
+      "cancel",
+      "close",
+      "create_taskset",
+      "evaluate",
+      "refresh",
+      "resume_evaluation",
+      "start",
+      "validate_taskset"
+    ],
+    "action_namespaces": {
+      "data-training-action": [
+        "cancel",
+        "close",
+        "create_taskset",
+        "evaluate",
+        "refresh",
+        "resume_evaluation",
+        "start",
+        "validate_taskset"
+      ]
+    },
+    "data_attributes": [
+      "data-training-action",
+      "data-training-curve",
+      "data-training-error",
+      "data-training-evidence",
+      "data-training-family",
+      "data-training-job",
+      "data-training-open",
+      "data-training-option",
+      "data-training-policy-limits",
+      "data-training-replay",
+      "data-training-taskset",
+      "data-training-taskset-draft",
+      "data-training-taskset-editor"
+    ],
+    "event_types": [
+      "cancel",
+      "change",
+      "click",
+      "input"
+    ],
+    "switch_cases": [],
+    "literal_operations": [
+      "training.cancel",
+      "training.get",
+      "training.list",
+      "training.resources",
+      "training.taskset.create",
+      "training.taskset.list",
+      "training.taskset.validate"
+    ],
+    "dynamic_operation_calls": 1,
+    "registered_modules": []
+  },
+  "waveform-view.js": {
+    "owner": "Waveform numerical/display helper; no business transport",
+    "action_attributes": [],
+    "action_namespaces": {},
+    "data_attributes": [],
+    "event_types": [],
+    "switch_cases": [],
+    "literal_operations": [],
+    "dynamic_operation_calls": 0,
+    "registered_modules": []
+  }
+}

@@ -19,6 +19,8 @@ import subprocess
 import threading
 import time
 
+from .agent_effort import EFFORT_LEVELS, CLAUDE_LEVELS, claude_effort_levels, validate_effort
+
 
 _TIMEOUT = 8
 _MAX_OUTPUT = 2 * 1024 * 1024
@@ -130,6 +132,18 @@ def _text(value, limit):
     return value.strip()[:limit]
 
 
+def _codex_effort(row):
+    entries = row.get('supportedReasoningEfforts', [])
+    levels = []
+    if isinstance(entries, list):
+        for item in entries[:32]:
+            value = item.get('reasoningEffort') if isinstance(item, dict) else None
+            if isinstance(value, str) and value in EFFORT_LEVELS and value not in levels:
+                levels.append(value)
+    default = row.get('defaultReasoningEffort')
+    return {'effort_levels': levels, 'default_effort': default if default in levels else None}
+
+
 def _codex(executable, project_root):
     process = _Process([str(executable), 'app-server', '--stdio'], project_root)
     try:
@@ -164,6 +178,7 @@ def _codex(executable, project_root):
                                'label': _text(row.get('displayName'), 120) or identifier,
                                'description': _text(row.get('description'), 500),
                                'is_default': row.get('isDefault') is True,
+                               **_codex_effort(row),
                                'fast_mode': bool(fast)})
                 identifiers.add(identifier)
                 if len(models) >= _MAX_MODELS:
@@ -180,6 +195,26 @@ def _codex(executable, project_root):
             raise _DiscoveryError('empty catalog')
         return {'backend': 'codex', 'models': models, 'source': 'cli', 'diagnostic': '',
                 'fast_mode': {'supported': any(model['fast_mode'] for model in models)}}
+    finally:
+        process.close()
+
+
+def _claude_help_effort(executable, project_root, deadline):
+    """Inspect the local CLI's advertised flag without opening a model turn."""
+    process = _Process([str(executable), '--help'], project_root)
+    process.deadline = min(process.deadline, deadline)
+    try:
+        lines = []
+        while (line := process.line()) is not None:
+            lines.append(line.decode('utf-8', errors='replace'))
+        if process.process.wait(timeout=max(.01, process.deadline - time.monotonic())) != 0:
+            return []
+        match = re.search(r'--effort\s+<\w+>[^\n]*(?:\n[^\n]*){0,2}', '\n'.join(lines))
+        if not match:
+            return []
+        return [level for level in CLAUDE_LEVELS if re.search(r'\b' + level + r'\b', match[0])]
+    except (OSError, ValueError, _DiscoveryError, subprocess.SubprocessError):
+        return []
     finally:
         process.close()
 
@@ -206,11 +241,15 @@ def _claude(executable, project_root):
             fast_mode['reason'] = 'Fast mode is disabled by the CLI environment.'
         elif not supported:
             fast_mode['reason'] = 'Fast mode requires Claude Code 2.1.205 or newer.'
+        effort_levels = _claude_help_effort(executable, project_root, process.deadline)
         return {'backend': 'claude', 'source': 'builtin',
                 'diagnostic': 'Built-in CLI aliases; availability depends on your CLI account.',
                 'models': [{'id': name, 'label': name.title(), 'is_default': False,
+                            'effort_levels': [level for level in claude_effort_levels(name) if level in effort_levels],
+                            'default_effort': None,
                             'fast_mode': supported and name == 'opus'}
                            for name in ('opus', 'sonnet', 'haiku')],
+                'effort_levels': effort_levels,
                 'fast_mode': fast_mode}
     finally:
         process.close()
@@ -226,10 +265,36 @@ def _discover(backend, executable, project_root):
                               'reason': 'CLI model capabilities could not be verified.'}}
 
 
-def catalog(backend, executable, project_root, refresh=False):
+def _selected_model_metadata(result, backend, model):
+    if backend == 'claude' and result.get('source') != 'unavailable':
+        from .agent_cli import _claude_configuration
+        try:
+            environment, _ = _claude_configuration()
+        except RuntimeError:
+            environment = None
+        syntax = result.get('effort_levels', []) if environment is not None else []
+        for row in result.get('models', []):
+            row['effort_levels'] = [level for level in claude_effort_levels(row['id'], environment)
+                                    if level in syntax]
+        if model is not None:
+            label = next((row['label'] for row in result.get('models', []) if row['id'] == model), model)
+            result['selected_model'] = {'id': model, 'label': label, 'default_effort': None,
+                'effort_levels': [level for level in claude_effort_levels(model, environment) if level in syntax]}
+    elif model is not None:
+        row = next((row for row in result.get('models', []) if model and row['id'] == model), {})
+        result['selected_model'] = {'id': model, 'label': row.get('label', model),
+                                    'effort_levels': row.get('effort_levels', []),
+                                    'default_effort': row.get('default_effort')}
+    return result
+
+
+def catalog(backend, executable, project_root, refresh=False, *, model=None):
     """Return bounded public metadata, cached per executable and project scope."""
     if backend not in {'codex', 'claude'}:
         raise ValueError('Unknown CLI backend')
+    if model is not None and (not isinstance(model, str) or len(model) > 200
+                              or any(ord(c) < 32 for c in model)):
+        raise ValueError('Agent model must be a string of up to 200 characters')
     executable = Path(executable or '/nonexistent-analog-factory-cli').resolve()
     project_root = Path(project_root).resolve()
     try:
@@ -244,7 +309,7 @@ def catalog(backend, executable, project_root, refresh=False):
         cached = _CACHE.get(key)
         if not refresh and cached and cached[0] > now:
             _CACHE.move_to_end(key)
-            return deepcopy(cached[1])
+            return _selected_model_metadata(deepcopy(cached[1]), backend, model)
     result = _discover(backend, executable, project_root)
     ttl = 30 if result['source'] == 'unavailable' else 300
     with _CACHE_LOCK:
@@ -252,4 +317,26 @@ def catalog(backend, executable, project_root, refresh=False):
         _CACHE.move_to_end(key)
         while len(_CACHE) > 128:
             _CACHE.popitem(last=False)
-    return result
+    return _selected_model_metadata(result, backend, model)
+
+
+def validate_session_effort(backend, model, effort, executable, project_root):
+    """Verify explicit preferences against discoverable CLI/model capabilities."""
+    environment = None
+    if backend == 'claude' and effort is not None:
+        from .agent_cli import _claude_configuration
+        environment, _ = _claude_configuration()
+    validate_effort(backend, model, effort, environment=environment)
+    if effort is None:
+        return
+    if not model:
+        raise ValueError('Effort requires an explicit model; the CLI default model can vary')
+    metadata = catalog(backend, executable, project_root, model=model)
+    if backend == 'claude':
+        levels = [level for level in claude_effort_levels(model, environment)
+                  if level in metadata.get('effort_levels', [])]
+    else:
+        row = next((row for row in metadata.get('models', []) if row.get('id') == model), {})
+        levels = row.get('effort_levels', [])
+    if effort not in levels:
+        raise ValueError('Effort is not advertised for this CLI/model; choose Default or refresh the model catalog')

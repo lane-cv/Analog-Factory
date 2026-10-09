@@ -14,6 +14,7 @@ class AgentSessionTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.workspace = Workspace(Path(self.temp.name))
+        self.workspace.operation_url = 'http://127.0.0.1:8765'
         self.pid = self.workspace.projects.create('Agent project')['id']
         self.other = self.workspace.projects.create('Other project')['id']
         self.workspace.save_settings({'provider': {'model': 'test', 'base_url': 'http://localhost:1/v1'}})
@@ -53,6 +54,47 @@ class AgentSessionTests(unittest.TestCase):
             self.agents.get(self.other, session['id'])
         self.assertNotIn('history', result)
 
+    def test_effort_is_validated_persisted_and_immutable_across_resume(self):
+        capabilities = {'models': [{'id': 'selected-model', 'is_default': True,
+                                    'effort_levels': ['low', 'high', 'ultra'], 'default_effort': 'high'}]}
+        with patch('analog_factory.agent_models.catalog', return_value=capabilities):
+            session = self.session(backend='codex', model='selected-model', effort='ultra')
+            self.assertEqual(session.get('effort'), 'ultra')
+            self.assertEqual(self.agents.list(self.pid)[0].get('effort'), 'ultra')
+            again = Workspace(Path(self.temp.name))
+            self.addCleanup(again.agents.close)
+            self.assertEqual(again.agents.get(self.pid, session['id']).get('effort'), 'ultra')
+            for effort in (True, 3, [], {}, '', 'default', 'medium'):
+                with self.subTest(effort=effort), self.assertRaisesRegex(ValueError, '[Ee]ffort'):
+                    self.session(backend='codex', model='selected-model', effort=effort)
+            with self.assertRaisesRegex(ValueError, '[Ee]ffort'):
+                self.session(backend='codex', model='unknown', effort='high')
+        with self.assertRaisesRegex(ValueError, '[Ee]ffort'):
+            self.session(effort='high')
+        with self.assertRaises(ValueError):
+            self.agents.update(self.pid, session['id'], {'effort': 'low'})
+        calls = []
+        def driver(*args, effort=None, **kwargs):
+            calls.append((args[5], effort))
+            return {'reply': 'Done', 'backend_session_id': 'native-session'}
+        with patch('analog_factory.agents.shutil.which', return_value='/fake/codex'), \
+                patch('analog_factory.agents.run_cli_turn', driver):
+            for message in ('First', 'Continue'):
+                self.agents.send(self.pid, session['id'], {'message': message, 'effort': 'low'})
+                self.assertEqual(self.wait(session['id'])['status'], 'succeeded')
+        self.assertEqual(calls, [(None, 'ultra'), ('native-session', 'ultra')])
+        path = self.workspace.projects.path(self.pid) / '.af/agent-sessions' / (session['id'] + '.json')
+        old = json.loads(path.read_text())
+        old.pop('effort')
+        path.write_text(json.dumps(old))
+        self.assertIn('effort', self.agents.get(self.pid, session['id']))
+        self.assertIsNone(self.agents.get(self.pid, session['id'])['effort'])
+        with patch('analog_factory.agents.shutil.which', return_value='/fake/codex'), \
+                patch('analog_factory.agents.run_cli_turn', driver):
+            self.agents.send(self.pid, session['id'], {'message': 'Continue legacy session'})
+            self.assertEqual(self.wait(session['id'])['status'], 'succeeded')
+        self.assertEqual(calls[-1], ('native-session', None))
+
     def test_fast_preference_is_durable_and_sessions_without_it_keep_legacy_behavior(self):
         first = self.session(backend='codex', model='selected-model', fast_mode=True)
         second = self.session(backend='claude', model='opus')
@@ -69,7 +111,7 @@ class AgentSessionTests(unittest.TestCase):
         path.write_text(json.dumps(old))
         calls = []
         def driver(backend, executable, root, model, mode, session_id, prompt, emit, cancel,
-                   *, fast_mode):
+                   *, fast_mode, operation_bridge, effort=None):
             calls.append(fast_mode)
             return {'reply': 'Done'}
         with patch('analog_factory.agents.shutil.which', return_value='/fake/codex'), \
@@ -82,7 +124,7 @@ class AgentSessionTests(unittest.TestCase):
         session = self.session(backend='claude', model='opus', fast_mode=True)
         calls = []
         def driver(backend, executable, root, model, mode, session_id, prompt, emit, cancel,
-                   *, fast_mode):
+                   *, fast_mode, operation_bridge, effort=None):
             calls.append((model, fast_mode, session_id))
             return {'reply': 'Done', 'backend_session_id': 'native-session'}
         with patch('analog_factory.agents.shutil.which', return_value='/fake/claude'), \
@@ -94,6 +136,68 @@ class AgentSessionTests(unittest.TestCase):
         self.assertEqual(calls, [('opus', True, None), ('opus', True, 'native-session')])
         with self.assertRaises(ValueError):
             self.agents.update(self.pid, session['id'], {'fast_mode': False})
+
+    def test_native_turn_receives_project_scoped_tools_and_revokes_credential_after_completion(self):
+        session = self.session(backend='codex', mode='read-only')
+        observed = {}
+        def driver(*args, operation_bridge=None, **kwargs):
+            self.assertIsNotNone(operation_bridge, 'Native session bypassed shared operations')
+            observed.update(operation_bridge)
+            context = self.workspace.operations.resolve_context_token(operation_bridge['token'])
+            self.assertEqual(context.project_id, self.pid)
+            self.assertEqual(context.permissions, frozenset({'read'}))
+            result = self.workspace.operations.invoke_agent_tool(operation_bridge['token'], 'invoke_operation',
+                {'operation_id': 'file.read', 'parameters': {'path': 'testbenches/pre.cir'}})
+            self.assertTrue(result['ok'], result)
+            return {'reply': 'Read through operation bridge'}
+        with patch('analog_factory.agents.shutil.which', return_value='/fake/codex'), \
+                patch('analog_factory.agents.run_cli_turn', driver):
+            self.agents.send(self.pid, session['id'], {'message': 'Inspect circuit'})
+            result = self.wait(session['id'])
+        self.assertEqual(result['status'], 'succeeded', result['turns'][-1]['error'])
+        self.assertIsNone(self.workspace.operations.resolve_context_token(observed['token']))
+        self.assertNotIn(observed['token'], json.dumps(result))
+
+    def test_native_workspace_write_uses_existing_user_approval_callback(self):
+        session = self.session(backend='claude', mode='workspace-write')
+        def driver(*args, operation_bridge=None, **kwargs):
+            self.assertIsNotNone(operation_bridge, 'Native mutation bypassed shared operations')
+            result = self.workspace.operations.invoke_agent_tool(operation_bridge['token'], 'invoke_operation',
+                {'operation_id': 'file.write', 'parameters': {'path': 'approved.txt', 'content': 'native edit'}})
+            self.assertTrue(result['ok'], result)
+            return {'reply': 'Saved through operation bridge'}
+        with patch('analog_factory.agents.shutil.which', return_value='/fake/claude'), \
+                patch('analog_factory.agents.run_cli_turn', driver):
+            self.agents.send(self.pid, session['id'], {'message': 'Save notes'})
+            pending = self.wait(session['id'], ('waiting_approval', 'failed'))
+            self.assertEqual(pending['status'], 'waiting_approval', pending['turns'][-1]['error'])
+            self.assertFalse((self.workspace.projects.path(self.pid) / 'approved.txt').exists())
+            self.agents.approve(self.pid, session['id'], pending['pending_approval']['id'], True)
+            result = self.wait(session['id'])
+        self.assertEqual(result['status'], 'succeeded', result['turns'][-1]['error'])
+        self.assertEqual(self.workspace.projects.read(self.pid, 'approved.txt')['content'], 'native edit')
+
+    def test_native_driver_exit_releases_pending_bridge_approval_without_mutating(self):
+        session = self.session(backend='claude', mode='workspace-write')
+        finished = threading.Event()
+        def driver(*args, operation_bridge=None, **kwargs):
+            def request():
+                try:
+                    self.workspace.operations.invoke_agent_tool(operation_bridge['token'], 'invoke_operation',
+                        {'operation_id': 'file.write', 'parameters': {'path': 'late.txt', 'content': 'late'}})
+                except InterruptedError:
+                    pass
+                finally:
+                    finished.set()
+            threading.Thread(target=request, daemon=True).start()
+            self.wait(session['id'], ('waiting_approval',))
+            return {'reply': 'Native process ended'}
+        with patch('analog_factory.agents.shutil.which', return_value='/fake/claude'), \
+                patch('analog_factory.agents.run_cli_turn', driver):
+            self.agents.send(self.pid, session['id'], {'message': 'Save notes'})
+            self.assertEqual(self.wait(session['id'])['status'], 'succeeded')
+        self.assertTrue(finished.wait(.5), 'Completed native turn left an approval callback waiting')
+        self.assertFalse((self.workspace.projects.path(self.pid) / 'late.txt').exists())
 
     def test_fast_mode_validates_types_backend_and_supported_claude_models(self):
         for fast in (None, 'false', 0, 1, [], {}):
@@ -240,7 +344,7 @@ class AgentSessionTests(unittest.TestCase):
     def test_cli_native_id_is_retained_after_failed_turn_and_used_on_resume(self):
         sessions = []
         def driver(backend, executable, root, model, mode, session_id, prompt, emit, cancel,
-                   *, fast_mode=None):
+                   *, fast_mode=None, operation_bridge=None, effort=None):
             sessions.append(session_id)
             if session_id is None:
                 emit({'type': 'session', 'backend_session_id': 'native-session-1'})

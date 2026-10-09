@@ -1,0 +1,14 @@
+** sch_path: [VALIDATION_WORKSPACE]/projects/d98cbc6fb25f45f4a70b9b48c6d4de98/.af/runs/29616f840c16469a9ccb66b10373580c/input/schematics/ota5.sch
+.subckt ota5 inp inn bias vdd vss out
+*.PININFO inp:I inn:I bias:I vdd:B vss:B out:O
+XM1 nmirror inp tail vss sky130_fd_pr__nfet_01v8 L=2 W=4 nf=1 ad=1.16 as=1.16 pd=8.58 ps=8.58 nrd=0.0725 nrs=0.0725 sa=0 sb=0 sd=0
++ mult=1 m=1
+XM2 out inn tail vss sky130_fd_pr__nfet_01v8 L=2 W=4 nf=1 ad=1.16 as=1.16 pd=8.58 ps=8.58 nrd=0.0725 nrs=0.0725 sa=0 sb=0 sd=0
++ mult=1 m=1
+XM3 nmirror nmirror vdd vdd sky130_fd_pr__pfet_01v8 L=2 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625 sa=0
++ sb=0 sd=0 mult=1 m=1
+XM4 out nmirror vdd vdd sky130_fd_pr__pfet_01v8 L=2 W=8 nf=1 ad=2.32 as=2.32 pd=16.58 ps=16.58 nrd=0.03625 nrs=0.03625 sa=0 sb=0
++ sd=0 mult=1 m=1
+XM5 tail bias vss vss sky130_fd_pr__nfet_01v8 L=2 W=4 nf=1 ad=1.16 as=1.16 pd=8.58 ps=8.58 nrd=0.0725 nrs=0.0725 sa=0 sb=0 sd=0
++ mult=1 m=1
+.ends ota5

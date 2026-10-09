@@ -1,0 +1,11 @@
+.native-terminal-dialog { width: min(1120px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--border, #cdd4df); border-radius: 12px; padding: 24px; background: var(--bg, #fff); color: var(--text, #172033); }
+.native-terminal-dialog::backdrop { background: #15203380; }
+.native-terminal-dialog .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.native-terminal-dialog fieldset { border: 1px solid var(--border, #cdd4df); border-radius: 8px; min-width: 0; padding: 12px; }
+.native-terminal-dialog label { display: grid; gap: 5px; }
+.native-terminal-dialog .button-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.native-terminal-dialog .dialog-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+.native-terminal-screen { background: #101820; padding: 12px; border-radius: 8px; overflow: auto; min-height: 150px; }
+.native-terminal-screen .xterm { min-width: 300px; }
+.native-terminal-dialog [data-terminal-error]:not(:empty) { color: #b02b2b; border-left: 3px solid currentColor; padding-left: 8px; }
+@media(max-width:600px) { .native-terminal-dialog { padding: 12px; } }

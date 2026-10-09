@@ -121,7 +121,12 @@ def prepare(project: Path, kind: str, options: dict, config: dict) -> dict:
     All relative includes in SPICE decks resolve from the snapshot root.
     """
     project = Path(project).resolve()
-    options = options or {}
+    from .storage import read_json
+    design = read_json(project / 'project.json', {}).get('design', {})
+    if not isinstance(design, dict):
+        raise ValueError('Project design defaults must be an object')
+    options = {**{key: value for key, value in design.items() if key in
+                  ('netlist', 'schematic', 'layout', 'layout_netlist', 'schematic_netlist', 'cell')}, **(options or {})}
     gui = kind == 'magic' or (kind == 'xschem' and not options.get('netlist_only'))
     create_missing = gui and options.get('create_missing') is True
     sources = {}
@@ -198,13 +203,17 @@ def prepare(project: Path, kind: str, options: dict, config: dict) -> dict:
                 # "extract path" is unsupported and can silently leave .ext files
                 # beside the layout inside the input snapshot.
                 body += ('extract do local\ncd $af_out\nextract all\next2spice lvs\n'
+                         # Flatten extracted hierarchy while retaining the top
+                         # interface. Magic 8.3.684's legacy-tech hierarchical
+                         # conversion omits node-to-substrate capacitance.
+                         'ext2spice hierarchy off\next2spice subcircuit top on\n'
                          'ext2spice cthresh 0\next2spice rthresh 0\n'
                          'ext2spice -p . -o extracted.spice\n'
                          'if {![file exists [file join $af_out extracted.spice]]} {error "Extraction produced no SPICE file"}\n'
                          'set af_report [open [file join $af_out extraction.txt] w]\n'
-                         'puts $af_report "Capacitance-inclusive extraction. Distributed resistance extraction and signoff are not validated."\n'
+                         'puts $af_report "Flattened capacitance-inclusive extraction with top-level ports. Distributed resistance extraction and signoff are not validated."\n'
                          'close $af_report')
-                metadata['extraction_coverage'] = 'Capacitance-inclusive ext2spice; distributed resistance and signoff unvalidated'
+                metadata['extraction_coverage'] = 'Flattened capacitance-inclusive ext2spice with top-level ports; distributed resistance and signoff unvalidated'
             script_name = 'af_scripts/' + kind + '.tcl'
             metadata['generated_files'][script_name] = _script(body)
             command += ['-dnull', '-noconsole', script_name]

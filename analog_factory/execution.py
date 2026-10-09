@@ -348,8 +348,9 @@ class RunManager:
                 _results(directory, manifest)
                 _write(directory / 'manifest.json', manifest)
         current = {name: _hash(data) for name, data in _sources(project)}
-        manifest['stale'] = current != manifest.get('source_hashes', manifest.get('input_hashes', {}))
-        for name, original_hash in manifest.get('external_dependencies', {}).items():
+        manifest['stale'] = bool(manifest.get('imported_evidence')) or current != manifest.get('source_hashes', manifest.get('input_hashes', {}))
+        dependencies = {} if manifest.get('imported_evidence') else manifest.get('external_dependencies', {})
+        for name, original_hash in dependencies.items():
             try:
                 current_hash = _hash(Path(name).read_bytes())
             except OSError:
@@ -380,6 +381,8 @@ class RunManager:
 
     def retry(self, project: Path, run_id: str) -> dict:
         manifest = self.get(project, run_id)
+        if manifest.get('imported_evidence'):
+            raise ValueError('Imported run evidence cannot replay archived commands; start a fresh registered run')
         if manifest['status'] not in TERMINAL:
             raise ValueError('Only a completed run can be retried')
         return self.start(project, manifest['kind'], manifest['command_template'], timeout=manifest['timeout'],

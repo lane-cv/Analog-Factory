@@ -1,0 +1,4 @@
+AF_DRC_COUNT=2
+DRC_STYLE=drc(fast)
+{Metal1 minimum area < 0.083um^2 (met1.6)} {{-1000 -1200 -998 -1198}} {Metal1 width < 0.14um (met1.1)} {{-998 -1200 -972 -1198} {-1000 -1198 -998 -1172}}
+AF_DRC_COMPLETE=1

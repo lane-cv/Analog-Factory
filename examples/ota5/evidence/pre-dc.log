@@ -1,0 +1,29 @@
+
+Note: Compatibility modes selected: hs a
+
+
+Circuit: * analog-factory simulation control driver
+
+
+Note: Compatibility modes selected: hs a
+
+
+Circuit: * five-transistor ota pre-layout ac acceptance; supply and bias external.
+
+option SCALE: Scale is set to 1e-06 for instance and model parameters
+option SCALE: Scale is set to 1e-06 for instance and model parameters
+option SCALE: Scale is set to 1e-06 for instance and model parameters
+option SCALE: Scale is set to 1e-06 for instance and model parameters
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 3
+
+  Measurements for DC Analysis
+
+output_dc_v         =  7.06702e-01
+supply_current_a    =  -2.44021e-06
+
+ASCII raw file "../output/waveforms.raw"
+ngspice-46 done

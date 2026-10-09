@@ -1,0 +1,9 @@
+Two-pole declared negative-feedback loop gain L(s)
+VIN in 0 AC 1
+EGAIN drive 0 in 0 100
+R1 drive pole1 1k
+C1 pole1 0 159.154943091895n
+EBUFFER buffer 0 pole1 0 1
+R2 buffer out 1k
+C2 out 0 15.9154943091895n
+.end

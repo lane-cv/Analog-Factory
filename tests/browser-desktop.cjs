@@ -16,7 +16,7 @@ const path = require('node:path');
     const url = new URL(request.url, 'http://localhost');
     const json = data => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(data)); };
     const body = async () => { let text = ''; for await (const chunk of request) text += chunk; return text ? JSON.parse(text) : {}; };
-    if (url.pathname === '/api/status') return json({toolchain:{tools:Object.fromEntries(['ngspice','xschem','magic','netgen'].map(name => [name,{available:true}])),pdk:{available:true,variant:'sky130A'},desktop:{available:true,browser_url:'/desktop/vnc.html?autoconnect=true&resize=scale&path=desktop/websockify'}}});
+    if (url.pathname === '/api/status') return json({project_id:url.searchParams.get('project_id'),operation_availability:Object.fromEntries(['simulate','drc','lvs','extract','xschem','magic'].map(kind => [kind,{available:true,reasons:[]}])),toolchain:{tools:Object.fromEntries(['ngspice','xschem','magic','netgen'].map(name => [name,{available:true}])),pdk:{available:true,variant:'sky130A'},desktop:{available:true,browser_url:'/desktop/vnc.html?autoconnect=true&resize=scale&path=desktop/websockify'}}});
     if (url.pathname === '/api/settings') { if (request.method === 'PUT') Object.assign(settings, await body()); return json(settings); }
     if (url.pathname === '/api/projects') return json([project]);
     if (url.pathname === `/api/projects/${project.id}`) return json({project,files:Object.values(sources).map(source => ({path:Object.values(source)[0]})),runs});

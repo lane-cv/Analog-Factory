@@ -1,0 +1,2 @@
+# Preserve byte-exact, machine-generated EDA evidence (including padded reports).
+examples/ota5/evidence/** -whitespace

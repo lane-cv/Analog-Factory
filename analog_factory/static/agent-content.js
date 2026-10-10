@@ -189,8 +189,12 @@ window.AFAgentContent = (() => {
     events.forEach((event, index) => {
       if (['usage','session'].includes(event.type)) return;
       if (event.type === 'approval_review') {
-        const labels = {approve:'AI approved this action',reject:'AI rejected this action',manual:'Human decision required',cancelled:'AI review stopped'};
-        content.push(`<div class="agent-event-status agent-approval-review" data-status="${escape(event.decision || 'manual')}"><strong>${escape(t(labels[event.decision] || 'Human decision required'))}</strong>${event.model ? `<span>${escape(asText(event.model))}</span>` : ''}<div class="agent-plain-text">${escape(asText(event.reason ?? event.text))}</div></div>`);
+        const official = event.source === 'codex_official';
+        const labels = official
+          ? {reviewing:'Codex is reviewing this action…',approve:'Codex approved this action',reject:'Codex rejected this action',manual:'Codex requires your decision',cancelled:'Codex review stopped'}
+          : {reviewing:'AI is reviewing this action…',approve:'AI approved this action',reject:'AI rejected this action',manual:'Human decision required',cancelled:'AI review stopped'};
+        const metadata = official ? [t('Codex official Auto-review'), event.risk_level ? `${t('Risk level')}: ${asText(event.risk_level)}` : '', event.user_authorization ? `${t('User authorization')}: ${asText(event.user_authorization)}` : ''].filter(Boolean) : event.model ? [asText(event.model)] : [];
+        content.push(`<div class="agent-event-status agent-approval-review" data-status="${escape(event.decision || 'manual')}"><strong>${escape(t(labels[event.decision] || 'Human decision required'))}</strong>${metadata.map(value => `<span>${escape(value)}</span>`).join('')}<div class="agent-plain-text">${escape(asText(event.reason ?? event.text))}</div></div>`);
         return;
       }
       if (['tool_call','tool_result'].includes(event.type) || event.tool) {

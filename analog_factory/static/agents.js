@@ -79,8 +79,9 @@ window.AFAgents = {
       $('#assistant-backend').textContent = `${backend?.name || config.backend} · ${label(config.mode)}`;
       if ($('#agent-project-label')) $('#agent-project-label').textContent = state.project?.name || '';
       if ($('#agent-title')) $('#agent-title').textContent = session ? sessionTitle(session) : t('New conversation');
-      $('#agent-permission-note').textContent = t(config.mode === 'automatic'
-        ? 'The saved scope authorizes limited actions. Other changes still require your approval.'
+      $('#agent-permission-note').textContent = t(officialReview() && session?.auto_approval
+        ? 'Actions needing approval are reviewed by Codex. You can stop this conversation.'
+        : config.mode === 'automatic' ? 'The saved scope authorizes limited actions. Other changes still require your approval.'
         : ['confirm','workspace-write'].includes(config.mode) ? 'Each change or execution requires your approval.'
         : config.backend === 'api' ? 'Read files and run records. Changes and simulations are disabled.' : 'CLI runs in read-only mode.');
       $('#agent-context-note').textContent = t(config.backend === 'api' ? 'Selected saved files are attached. The agent can also read project files through tools.' : 'Selected saved files are attached. The CLI can read other files in this project.');
@@ -108,19 +109,25 @@ window.AFAgents = {
       renderApprovalReview(approval);
     }
     function reviewCapability() { return selectedBackend()?.approval_review || {}; }
-    function reviewUnavailable() { return reviewCapability().diagnostic || t('Configure a project Model API to review approvals.'); }
+    function officialReview() { return config.backend === 'codex' || reviewCapability().provider === 'codex_official'; }
+    function reviewUnavailable() { return reviewCapability().diagnostic || t(officialReview() ? 'Codex official Auto-review is unavailable. Check the installed Codex CLI and account.' : 'Configure a project Model API to review approvals.'); }
     function renderApprovalReview(approval) {
-      const capability = reviewCapability(), review = approval?.review;
+      const capability = reviewCapability(), review = approval?.review, official = officialReview();
       const enabled = session?.auto_approval === true, readOnly = session?.mode === 'read-only';
+      const locked = active(session) && (official || capability.runtime_toggle === false);
       const toggle = $('#agent-auto-approval'), pendingChange = autoApprovalChange?.project_id === projectId && autoApprovalChange?.session_id === session?.id;
       toggle.checked = pendingChange ? autoApprovalChange.enabled : enabled;
-      toggle.disabled = !session || loading || busy || (!enabled && (readOnly || !capability.available));
-      $('#agent-auto-approval-note').textContent = !session ? t('Start a conversation to enable automatic approval.') : readOnly ? t('Read-only conversations cannot enable automatic approval.') : !capability.available ? reviewUnavailable() : t('AI reviews each action; uncertain decisions stay with you. This conversation only; resets when the server restarts.');
+      toggle.disabled = !session || loading || busy || locked || (!enabled && (readOnly || !capability.available));
+      const label = $('#agent-auto-approval-label');
+      label.dataset.i18n = official ? 'Codex official automatic approval' : 'Project AI automatic approval';
+      label.textContent = t(label.dataset.i18n);
+      $('#agent-auto-approval-note').textContent = !session ? t('Start a conversation to enable automatic approval.') : readOnly ? t('Read-only conversations cannot enable automatic approval.') : locked ? t('Stop the current turn before changing Codex official Auto-review.') : !capability.available ? reviewUnavailable() : t(official ? 'Uses Codex official Auto-review through your Codex account. Turn it off for manual approvals. This conversation only; resets when the server restarts.' : 'The project Model API reviews each action; uncertain decisions stay with you. This conversation only; resets when the server restarts.');
       const status = $('#agent-review-status');
       const labels = {reviewing:'AI is reviewing this action…',manual:'Human decision required',approved:'AI approved this action',rejected:'AI rejected this action',cancelled:'AI review stopped'};
-      status.textContent = review ? [t(labels[review.status] || 'Human decision required'), review.model, review.reason].filter(Boolean).join('\n') : approval && !capability.available ? reviewUnavailable() : '';
+      status.textContent = official && approval ? t('Codex official Auto-review does not support single-action review here. Allow or deny this action, or stop the turn to change automatic approval.') : review ? [t(labels[review.status] || 'Human decision required'), review.model, review.reason].filter(Boolean).join('\n') : approval && !capability.available ? reviewUnavailable() : '';
       status.hidden = !status.textContent;
-      $('#agent-review').disabled = !approval || loading || busy || approval.id === resolvedApproval || review?.status === 'reviewing' || !capability.available || readOnly;
+      $('#agent-review').hidden = official || capability.single_action === false;
+      $('#agent-review').disabled = !approval || loading || busy || approval.id === resolvedApproval || review?.status === 'reviewing' || !capability.available || readOnly || official || capability.single_action === false;
     }
     function sessionTitle(item) { return item.title || item.turns?.[0]?.message?.slice(0, 80) || `${item.backend} · ${formatDate(item.updated_at || item.created_at)}`; }
     function historyRow(item, compact = false) {
@@ -676,6 +683,7 @@ window.AFAgents = {
         },
         review_approval:async ({approval_id}) => {
           const approval = pendingApproval(approval_id);
+          if (officialReview() || reviewCapability().single_action === false) throw new Error(t('Codex official Auto-review does not support single-action review here. Allow or deny this action, or stop the turn to change automatic approval.'));
           if (approval.review?.status === 'reviewing') throw new Error(t('An AI review is already in progress.'));
           if (session.mode === 'read-only') throw new Error(t('Read-only conversations cannot enable automatic approval.'));
           if (!reviewCapability().available) throw new Error(reviewUnavailable());
@@ -685,6 +693,7 @@ window.AFAgents = {
           ready();
           if (!session) throw new Error(t('Select an existing conversation first.'));
           if (typeof enabled !== 'boolean') throw new Error(t('Expected an automatic approval setting.'));
+          if (active(session) && (officialReview() || reviewCapability().runtime_toggle === false)) throw new Error(t('Stop the current turn before changing Codex official Auto-review.'));
           if (enabled && session.mode === 'read-only') throw new Error(t('Read-only conversations cannot enable automatic approval.'));
           if (enabled && !reviewCapability().available) throw new Error(reviewUnavailable());
           const change = {project_id:projectId,session_id:session.id,enabled};

@@ -16,11 +16,12 @@ and drafts; `agent-content.js` renders escaped Markdown and tool disclosures.
 
 | Capability | Model API | Codex CLI | Claude Code CLI |
 |---|---|---|---|
-| Protocol | Chat Completions or native Ollama tools | `exec --json` | `-p --output-format stream-json` |
+| Protocol | Chat Completions or native Ollama tools | `exec --json`; official review uses `app-server` | `-p --output-format stream-json` |
 | Continuation | Bounded conversation history | Native session ID | Native session ID |
 | Output | Response/tool events, polled | JSONL events, polled | JSONL events, polled |
 | File access | Shared operations and project confinement | Shared operations over scoped MCP | Shared operations over scoped MCP |
-| Writes | Per-action confirmation; legacy write tool includes diff | Per-action application approval | Per-action application approval |
+| Writes | Per-action confirmation; legacy write tool includes diff | Human application approval or official Codex Auto-review | Per-action application approval |
+| AI approval reviewer | Project Model API | Official Codex Auto-review through the CLI account | Project Model API |
 | Simulation | Approved shared run operation and evidence | Same run operation and evidence | Same run operation and evidence |
 | Stop | Cancel token; pending HTTP may drain to timeout | Terminate process group | Terminate process group |
 | Usage | Provider-reported; unknown if absent | CLI-reported; unknown if absent | CLI-reported; unknown if absent |
@@ -47,7 +48,9 @@ loaded; existing native login and inherited credentials still work without this 
 
 `agents.py` owns project sessions under `.af/agent-sessions/<id>.json`. `agent_api.py`
 owns the bounded model/tool loop; `agent_cli.py` owns CLI framing, normalization and
-process cleanup. `operation_mcp.py` is the stdio MCP adapter for native sessions.
+process cleanup. `agent_codex.py` handles the official Codex app-server transport,
+and `agent_codex_approval.py` binds approval receipts to the exact reviewed actions.
+`operation_mcp.py` is the stdio MCP adapter for native sessions.
 Each native turn receives an environment credential bound to its project and
 permission mode. The running HTTP server retains the approval callback; native
 tools cannot mark themselves approved. The credential is revoked and outstanding
@@ -79,19 +82,29 @@ bridge described above; credentials are never returned in metadata. At turn
 startup Claude receives the user connection settings described above; neither
 adapter modifies global configuration or native login files.
 
-Codex native terminal approvals remain disabled in the embedded, noninteractive
-process. Its MCP configuration allows exactly the six Analog Factory bridge tools
-and sets each tool's `approval_mode` to `approve`; unlisted tools retain `prompt`
-and are excluded by `enabled_tools`. This permits reaching the scoped workspace
-callback, which still checks permissions and requires application approval for
-mutations. The bridge labels query tools read-only and leaves invocation and
-cancellation marked as mutating. Native sandbox restrictions and managed policies
-are unchanged. See [Codex MCP approval configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+With Codex automatic approval off, the embedded `exec --json` driver retains
+`approval_policy="never"`. Its MCP configuration allows exactly the six Analog
+Factory bridge tools and sets their `approval_mode` to `approve`, so they reach the
+workspace callback. That callback still requires human application approval for
+mutations. Unlisted tools are excluded by `enabled_tools`.
 
-If an older embedded session reports `MCP tool call requires approval, but approval
-policy is never`, load the updated server and retry the turn. Changing the entire
-CLI to interactive `on-request` does not provide a terminal approval interface in
-the embedded JSONL driver. No global Codex configuration edit is required.
+With official approval on, Codex instead runs through its structured `app-server`
+protocol with a read-only native sandbox, `approvalsReviewer="auto_review"`, and
+`features.guardian_approval=true`. Its official granular approval policy enables
+only MCP approval (`mcp_elicitations=true`); sandbox, rules, permission-request,
+and skill approvals are disabled. Native tools therefore cannot use automatic
+review to escalate past the read-only boundary. Only the
+mutating bridge tools, `invoke_operation` and `cancel_operation`, use native
+`approval_mode="prompt"`; the read-only bridge tools use `approve`. Official review
+events must match the native thread, turn, item, and exact operation arguments.
+The application binds an approved event to the project version captured when its
+review started and grants one invocation only. Its existing operation permission,
+version, and project-confinement checks still run. Unknown, late, duplicate, or
+cancelled review events cannot authorize an unrelated action.
+
+These settings are process-local; no global Codex configuration edit is required.
+Native sandbox restrictions and managed policies remain in effect. See
+[Codex MCP approval configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
 
 The composer's **Effort** control is separate from Fast. **Default** is stored as
 `effort: null` and adds no CLI override; existing sessions without the field retain
@@ -139,24 +152,44 @@ Restarted servers mark abandoned active turns interrupted; they do not reconnect
 to orphaned processes after a hard crash. Normal server shutdown cancels workers.
 Conversations are local workspace data and are not included in project exports.
 
-The pending action card offers **Review for me** alongside the existing Allow and
-Deny controls. It asks the project's configured Model API to independently review
-that exact proposal, including when the executing agent is Codex or Claude CLI.
-The reviewer receives bounded request context and redacted action arguments, has
-no tools, and must return a validated approve, reject, or manual decision with a
-reason. Missing configuration, model errors, invalid responses, and insufficient
-context leave the action waiting for a human. Decisions and reasons remain in the
-conversation transcript. Review requests use the configured provider and may
-incur its normal inference charges.
+For Codex CLI conversations, **Codex official automatic approval** selects the
+CLI's official Auto-review through the existing Codex account. It does not call
+the project's Model API and does not use its configured model as the reviewer.
+The transcript identifies official Codex review events and displays their reported
+status, reason, and available risk and authorization assessments. The reviewer
+model is not inferred from the model selected for the executing agent.
 
-**Automatic approval** enables the same review for each subsequent pending action
-in the selected conversation. It is off by default, applies only to that session,
-survives page refreshes, and resets when the server restarts. The switch does not
-change the session's permission mode or the existing bounded `automatic` execution
-scope. Read-only sessions cannot acquire write permissions. Changing the review
-provider binding revokes the delegation. Humans can still Allow, Deny, Stop, or
-disable automatic approval while a review is running; results arriving after such
-changes cannot decide an obsolete proposal.
+The Codex switch can change only between turns: finish or Stop the current turn
+before enabling or disabling it. Disabling it returns subsequent operations to
+human application approval. This integration has no official single-action review
+endpoint, so Codex's pending action card offers Allow and Deny without a **Review
+for me** button. A pending action can be decided manually, or its turn can be
+stopped before changing automatic approval for the next turn. Official review
+requires a conversation whose history records authorized human requests; start a
+new conversation when an older or externally initiated native history cannot
+establish that provenance. CLI and account support determine availability; a
+failure never falls back to the project's custom model reviewer.
+
+For Model API and Claude CLI conversations, the pending action card retains
+**Review for me** alongside Allow and Deny. It asks the project's configured Model
+API to independently review that exact proposal. This is the project's custom
+reviewer, separate from official Codex Auto-review. It receives bounded request
+context and redacted action arguments, has no tools, and must return a validated
+approve, reject, or manual decision with a reason. Missing configuration, model
+errors, invalid responses, and insufficient context leave the action waiting for
+a human. Decisions and reasons remain in the conversation transcript. These
+requests use the configured provider and may incur its normal inference charges.
+
+**Project AI automatic approval** enables that custom reviewer for each subsequent
+pending action in a Model API or Claude conversation. Changing the review provider
+binding revokes its delegation. Humans can still Allow, Deny, Stop, or disable
+this custom automatic approval while a review is running; results arriving after
+such changes cannot decide an obsolete proposal.
+
+Both automatic approval switches are off by default, apply only to the selected
+session, survive page refreshes, and reset when the server restarts. Neither
+changes the session's permission mode or the existing bounded `automatic`
+execution scope. Read-only sessions cannot acquire write permissions.
 
 Only a local human with approval authority can use
 `agent.session.review_approval` or `agent.session.set_auto_approval`, or their
@@ -166,8 +199,9 @@ New turns record whether their message came from an authorized local human.
 Workflow and external messages remain untrusted when forwarded through a browser,
 cannot use an existing automatic approval grant, and cannot start AI approval of
 their own turn. Earlier untrusted or legacy messages are kept separate from human
-instructions in the reviewer context; the ordinary manual approval controls remain
-available.
+instructions in the custom reviewer context; official Codex review instead
+requires a new native conversation if that history contains unverified requests.
+The ordinary manual approval controls remain available.
 
 Selected files and optional run logs are explicit initial context. All agent
 backends inspect visible project files through shared operations. Codex receives

@@ -63,10 +63,17 @@ class AgentManager:
                            f'Install {backend} or configure its executable in Settings',
                            'modes': list(MODES[backend])})
         review = {'available': ready, 'model': provider.get('model', ''),
+                  'provider': 'project_model_api', 'single_action': True, 'runtime_toggle': True,
                   'diagnostic': 'Independent review uses the project Model API' if ready else
                   'Configure a project Model API to review approvals'}
         for backend in result:
-            backend['approval_review'] = copy.deepcopy(review)
+            if backend['id'] == 'codex':
+                backend['approval_review'] = {'available': backend['available'], 'model': '',
+                    'provider': 'codex_official', 'single_action': False, 'runtime_toggle': False,
+                    'diagnostic': 'Official Codex Auto-review; enable before starting a turn' if backend['available'] else
+                    'Install Codex to use official Auto-review'}
+            else:
+                backend['approval_review'] = copy.deepcopy(review)
         return {'backends': result}
 
     def _path(self, pid, sid):
@@ -263,6 +270,9 @@ class AgentManager:
                 raise RuntimeError('Agent service is shutting down')
             if not human_authorized and (pid, sid) in self.auto_approvals:
                 raise PermissionError('Only human requests can use a conversation with automatic approval enabled')
+            if (record['backend'] == 'codex' and (pid, sid) in self.auto_approvals
+                    and any(item.get('human_authorized') is not True for item in record['turns'])):
+                raise PermissionError('Official review requires human-only history; start a new Codex conversation')
             if any(key[0] == pid for key in self.active):
                 raise RuntimeError('An agent turn is still active for this project; wait for it to stop')
             if len(self.active) >= 4:
@@ -326,6 +336,7 @@ class AgentManager:
         cancel = control['cancel']
         bridge_token = None
         bridge_closed = control['bridge_closed']
+        official_approval = None
 
         class BridgeCancellation:
             def is_set(self):
@@ -420,14 +431,25 @@ class AgentManager:
                 if not url:
                     raise RuntimeError('Start the workspace server before using a native agent session')
                 mode = 'confirm' if record['mode'] == 'workspace-write' else record['mode']
+                if record['backend'] == 'codex' and (pid, sid) in self.auto_approvals:
+                    from .agent_codex_approval import OfficialApprovalLedger
+                    official_approval = OfficialApprovalLedger(self.workspace, pid, emit, BridgeCancellation())
+                    control['official_approval'] = official_approval
                 def bridge(name, arguments):
                     if name not in NAMES:
                         raise ValueError('Unknown shared operation tool')
                     arguments = _arguments(name, _json(_redact(arguments)))
-                    return _execute(name, arguments, self.workspace, pid, mode, emit, BridgeCancellation(), approve)
+                    # The official receipt is consumed before any saved automatic
+                    # scope can release this callback. Keep business validation and
+                    # the version/file identity checks in the shared executor.
+                    decision = (lambda proposed_name, proposal: official_approval.consume(
+                        name, arguments, proposed_name, proposal)) if official_approval else approve
+                    return _execute(name, arguments, self.workspace, pid, mode, emit, BridgeCancellation(), decision)
                 bridge_token = self.workspace.operations.issue_context_token(_context(pid, mode=mode), bridge)
                 policy = ('Only actions in the saved human scope execute automatically; all others wait for explicit approval. '
                           if mode == 'automatic' else 'Mutations wait for explicit approval in the workspace. ')
+                if official_approval:
+                    policy = 'Mutations require official Codex Auto-review and project permission/version checks. '
                 prompt += ('\n\nUse the analog_factory MCP tools to discover and invoke workspace operations. '
                            'All project reads, edits, EDA runs and browser actions are available through '
                            'list_operations, describe_operation and invoke_operation. '
@@ -438,7 +460,8 @@ class AgentManager:
                                       record['model'], record['mode'], record['backend_session_id'],
                                       prompt, emit, cancel, fast_mode=record.get('fast_mode'),
                                       effort=record.get('effort'),
-                                      operation_bridge={'url': url, 'token': bridge_token})
+                                      operation_bridge={'url': url, 'token': bridge_token},
+                                      **({'official_approval': official_approval} if official_approval else {}))
             with self.lock:
                 if cancel.is_set():
                     raise InterruptedError('Agent turn cancelled')
@@ -457,6 +480,8 @@ class AgentManager:
                 turn.update(status=status, error=str(error)[:2000])
                 record['status'] = status
         finally:
+            if official_approval:
+                official_approval.close()
             if bridge_token:
                 bridge_closed.set()
                 self.workspace.operations.revoke_context_token(bridge_token)
@@ -605,6 +630,8 @@ class AgentManager:
             raise PermissionError('Independent approval review requires human approval authority')
         with self.lock:
             record = self._load(pid, sid)
+            if record['backend'] == 'codex':
+                raise ValueError('Official Codex Auto-review must be enabled before the turn; stop and enable it, or decide manually')
             control = self.active.get((pid, sid))
             pending = record.get('pending_approval')
             if not control or not pending or pending['id'] != approval_id:
@@ -621,6 +648,23 @@ class AgentManager:
             record = self._load(pid, sid)
             key = (pid, sid)
             control = self.active.get(key)
+            if record['backend'] == 'codex':
+                if control:
+                    raise RuntimeError('Stop the active Codex turn before changing official Auto-review')
+                if enabled:
+                    if self.closed:
+                        raise RuntimeError('Agent service is shutting down')
+                    if record['mode'] == 'read-only':
+                        raise ValueError('Read-only conversations cannot enable automatic approval')
+                    if any(item.get('human_authorized') is not True for item in record['turns']):
+                        raise PermissionError('Official review requires human-only history; start a new Codex conversation')
+                    config = self.workspace.config(pid)
+                    if not shutil.which(config.get('tools', {}).get('codex') or 'codex'):
+                        raise ValueError('Install Codex to use official Auto-review')
+                    self.auto_approvals[key] = {'provider': 'codex_official'}
+                else:
+                    self.auto_approvals.pop(key, None)
+                return self._public(record, pid=pid)
             if enabled:
                 if self.closed:
                     raise RuntimeError('Agent service is shutting down')
@@ -661,6 +705,8 @@ class AgentManager:
             if control:
                 control['cancel'].set()
                 control['decision'].set()
+                if control.get('official_approval'):
+                    control['official_approval'].close()
             record = self._load(pid, sid)
             if control:
                 self._cancel_review(pid, record, control, 'The agent turn was cancelled.')

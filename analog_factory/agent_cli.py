@@ -1,8 +1,9 @@
 """Bounded JSONL drivers for authenticated, installed Codex and Claude CLIs.
 
 Codex supplies its own OS sandbox. Claude requires ``--restricted`` support and
-uses a confined file-tool allowlist; that is not an OS sandbox. Neither adapter
-offers interactive approval. POSIX process groups let cancellation include CLI
+uses a confined file-tool allowlist; that is not an OS sandbox. The optional
+Codex app-server adapter delegates approvals to Codex's official reviewer.
+POSIX process groups let cancellation include CLI
 children. Prompts go through stdin and credentials stay with the installed CLI.
 """
 
@@ -27,6 +28,9 @@ _MAX_OUTPUT = 8 * 1024 * 1024
 _MAX_EVENTS = 10000
 _MAX_STDERR = 16 * 1024
 _SESSION_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,511}\Z')
+_CODEX_OFFICIAL_POLICY = {'granular': {
+    'mcp_elicitations': True, 'rules': False, 'sandbox_approval': False,
+    'request_permissions': False, 'skill_approval': False}}
 _CLAUDE_FAST_MODELS = re.compile(r'(?:opus|claude-opus-(?:5-5|5|4-8))(?:\[1m\])?\Z')
 _CLAUDE_CONNECTION_ENV = frozenset({
     'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL',
@@ -88,7 +92,7 @@ def validate_fast_mode(backend, model, fast_mode):
 
 
 def _command(backend, executable, model, mode, session_id, fast_mode=None, *, default_model=None,
-             operation_bridge=None, effort=None, model_environment=None):
+             operation_bridge=None, effort=None, model_environment=None, official_approval=False):
     if backend not in {'codex', 'claude'}:
         raise ValueError('Unknown CLI backend')
     if mode not in {'read-only', 'workspace-write', 'automatic'} or mode == 'automatic' and not operation_bridge:
@@ -103,18 +107,26 @@ def _command(backend, executable, model, mode, session_id, fast_mode=None, *, de
         validate_fast_mode(backend, model, fast_mode)
     validate_effort(backend, model, effort, environment=model_environment)
     if backend == 'codex':
-        argv = [str(executable), 'exec']
-        if session_id:
+        argv = ([str(executable), 'app-server', '--listen', 'stdio://'] if official_approval
+                else [str(executable), 'exec'])
+        if session_id and not official_approval:
             argv.append('resume')
         native_mode = 'read-only' if operation_bridge else mode
-        argv += ['--json', '--skip-git-repo-check',
-                 '-c', f'sandbox_mode="{native_mode}"', '-c', 'approval_policy="never"']
+        if not official_approval:
+            argv += ['--json', '--skip-git-repo-check']
+        argv += ['-c', f'sandbox_mode="{native_mode}"', '-c',
+                 'approval_policy={granular={mcp_elicitations=true,rules=false,sandbox_approval=false,'
+                 'request_permissions=false,skill_approval=false}}' if official_approval else 'approval_policy="never"']
+        if official_approval:
+            argv += ['-c', 'approvals_reviewer="auto_review"', '-c', 'features.guardian_approval=true']
         if operation_bridge:
             from .operation_mcp import NAMES
             # Only these scoped server callbacks may enter without a native
             # terminal prompt. The workspace still checks permissions and waits
             # for its own human approval before executing business mutations.
-            tool_policy = ','.join(json.dumps(name) + '={approval_mode="approve"}'
+            tool_policy = ','.join(json.dumps(name) + '={approval_mode="' +
+                                   ('prompt' if official_approval and name in
+                                    {'invoke_operation', 'cancel_operation'} else 'approve') + '"}'
                                    for name in sorted(NAMES))
             config = ('mcp_servers={analog_factory={command=' + json.dumps(sys.executable) +
                       ',args=[' + json.dumps(str(Path(__file__).with_name('operation_mcp.py'))) +
@@ -130,9 +142,11 @@ def _command(backend, executable, model, mode, session_id, fast_mode=None, *, de
             # omitting the setting would inherit the CLI's global preference.
             argv += ['-c', 'service_tier="fast"' if fast_mode else 'service_tier="default"']
         if model:
-            argv += ['--model', model]
+            argv += ['-c', 'model=' + json.dumps(model)] if official_approval else ['--model', model]
         if effort is not None:
             argv += ['-c', 'model_reasoning_effort=' + json.dumps(effort)]
+        if official_approval:
+            return argv
         if session_id:
             argv.append(session_id)
         return argv + ['-']
@@ -343,13 +357,24 @@ def _terminate_group(process):
 
 def run_cli_turn(backend, executable, project_root, model, mode,
                  backend_session_id, prompt, emit, cancel, timeout=300, *, fast_mode=None,
-                 operation_bridge=None, effort=None):
+                 operation_bridge=None, effort=None, official_approval=None):
     """Run one turn, emitting normalized events; EOF alone never means success.
 
     ``cancel`` is a threading.Event. Cancellation raises InterruptedError and
     deadlines raise TimeoutError. Backend/protocol failures raise RuntimeError.
     Requires a POSIX host and, for Claude, a CLI with ``--restricted`` support.
     """
+    if official_approval is not None:
+        from .agent_codex import run_codex_turn
+        try:
+            if backend != 'codex':
+                raise ValueError('Official approval requires the Codex backend')
+            return run_codex_turn(executable, project_root, model, mode, backend_session_id,
+                                  prompt, emit, cancel, timeout, fast_mode=fast_mode,
+                                  operation_bridge=operation_bridge, effort=effort,
+                                  official_approval=official_approval)
+        finally:
+            official_approval.close()
     if os.name != 'posix':
         raise RuntimeError('CLI agents require POSIX process-group support')
     if not isinstance(prompt, str) or len(prompt.encode('utf-8')) > _MAX_LINE:

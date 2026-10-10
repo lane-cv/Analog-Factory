@@ -2490,7 +2490,7 @@
   {
     "operation_id": "agent.session.review_approval",
     "name": "Review pending agent approval",
-    "description": "Ask the project model API to review the exact pending action. Requires local human approval authority; uncertain results remain pending.",
+    "description": "Ask the project model API to review the exact pending API or Claude action. Codex uses official automatic review configured before a turn and does not support this single-action request. Requires local human approval authority; uncertain results remain pending.",
     "module": "agent",
     "input_schema": {
       "type": "object",
@@ -2597,10 +2597,10 @@
     "task_kind": null,
     "versioned": false,
     "version": "1.0.0",
-    "usage": "Ask the project model API to review the exact pending action. Requires local human approval authority; uncertain results remain pending.",
+    "usage": "Ask the project model API to review the exact pending API or Claude action. Codex uses official automatic review configured before a turn and does not support this single-action request. Requires local human approval authority; uncertain results remain pending.",
     "volatile_response": false,
     "source_revision": true,
-    "purpose": "Ask the project model API to review the exact pending action. Requires local human approval authority; uncertain results remain pending.",
+    "purpose": "Ask the project model API to review the exact pending API or Claude action. Codex uses official automatic review configured before a turn and does not support this single-action request. Requires local human approval authority; uncertain results remain pending.",
     "execution": "synchronous",
     "errors": [
       {
@@ -2925,7 +2925,7 @@
   {
     "operation_id": "agent.session.set_auto_approval",
     "name": "Set automatic AI approval",
-    "description": "Enable or disable independent AI review of subsequent pending actions in this conversation. Requires local human authority; resets on server restart.",
+    "description": "Enable or disable automatic approval review for this conversation. Codex uses official Auto-review and can be changed only while idle, with exclusively human-authored history. API and Claude use the project Model API. Requires local human authority; resets on server restart.",
     "module": "agent",
     "input_schema": {
       "type": "object",
@@ -3013,7 +3013,7 @@
     "undo": false,
     "preconditions": [],
     "side_effects": [
-      "Changes an in-memory conversation approval grant and may start review of a pending action"
+      "Changes an in-memory conversation approval grant; API and Claude may also start review of a pending action"
     ],
     "tags": [
       "agent"
@@ -3031,10 +3031,10 @@
     "task_kind": null,
     "versioned": false,
     "version": "1.0.0",
-    "usage": "Enable or disable independent AI review of subsequent pending actions in this conversation. Requires local human authority; resets on server restart.",
+    "usage": "Enable or disable automatic approval review for this conversation. Codex uses official Auto-review and can be changed only while idle, with exclusively human-authored history. API and Claude use the project Model API. Requires local human authority; resets on server restart.",
     "volatile_response": false,
     "source_revision": true,
-    "purpose": "Enable or disable independent AI review of subsequent pending actions in this conversation. Requires local human authority; resets on server restart.",
+    "purpose": "Enable or disable automatic approval review for this conversation. Codex uses official Auto-review and can be changed only while idle, with exclusively human-authored history. API and Claude use the project Model API. Requires local human authority; resets on server restart.",
     "execution": "synchronous",
     "errors": [
       {
@@ -61940,7 +61940,7 @@
   {
     "operation_id": "ui.agent.review_approval",
     "name": "agent / review approval",
-    "description": "Ask the project model API to review the exact pending action. Requires local human approval authority.",
+    "description": "Ask the project model API to review the exact pending API or Claude action. Codex does not support single-action review. Requires local human approval authority.",
     "module": "frontend",
     "input_schema": {
       "type": "object",
@@ -64293,7 +64293,7 @@
     "volatile_response": false,
     "source_revision": true,
     "frontend_adapter": "browser",
-    "purpose": "Ask the project model API to review the exact pending action. Requires local human approval authority.",
+    "purpose": "Ask the project model API to review the exact pending API or Claude action. Codex does not support single-action review. Requires local human approval authority.",
     "execution": "synchronous",
     "errors": [
       {
@@ -75444,7 +75444,7 @@
   {
     "operation_id": "ui.agent.set_auto_approval",
     "name": "agent / set auto approval",
-    "description": "Enable or disable automatic AI review for the selected conversation. Requires local human approval authority.",
+    "description": "Enable or disable review for the selected conversation: official Codex Auto-review while idle, or project Model API review for API and Claude. Requires local human approval authority.",
     "module": "frontend",
     "input_schema": {
       "type": "object",
@@ -77795,7 +77795,7 @@
     "volatile_response": false,
     "source_revision": true,
     "frontend_adapter": "browser",
-    "purpose": "Enable or disable automatic AI review for the selected conversation. Requires local human approval authority.",
+    "purpose": "Enable or disable review for the selected conversation: official Codex Auto-review while idle, or project Model API review for API and Claude. Requires local human approval authority.",
     "execution": "synchronous",
     "errors": [
       {

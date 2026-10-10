@@ -577,15 +577,15 @@ def register_operations(registry):
         _session({'approval_id': ID, 'approved': BOOLEAN}, ['approval_id', 'approved']), SESSION, approve,
         permissions=('approve',), confirmation='none', side_effects=('Releases a pending API-agent tool approval decision',))
     add('agent.session.review_approval', 'Review pending agent approval',
-        'Ask the project model API to review the exact pending action. Requires local human approval authority; uncertain results remain pending.',
+        'Ask the project model API to review the exact pending API or Claude action. Codex uses official automatic review configured before a turn and does not support this single-action request. Requires local human approval authority; uncertain results remain pending.',
         _session({'approval_id': ID}, ['approval_id']), SESSION, review_approval,
         permissions=('approve',), confirmation='none',
         side_effects=('Starts an independent model review which may approve or reject the pending action',))
     add('agent.session.set_auto_approval', 'Set automatic AI approval',
-        'Enable or disable independent AI review of subsequent pending actions in this conversation. Requires local human authority; resets on server restart.',
+        'Enable or disable automatic approval review for this conversation. Codex uses official Auto-review and can be changed only while idle, with exclusively human-authored history. API and Claude use the project Model API. Requires local human authority; resets on server restart.',
         _session({'enabled': BOOLEAN}, ['enabled']), SESSION, set_auto_approval,
         permissions=('approve',), confirmation='none',
-        side_effects=('Changes an in-memory conversation approval grant and may start review of a pending action',))
+        side_effects=('Changes an in-memory conversation approval grant; API and Claude may also start review of a pending action',))
     from .operation_graph import register_operations as register_graph_operations
     register_graph_operations(registry)
     from .operation_waveforms import register_operations as register_waveform_operations

@@ -45,8 +45,8 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     const errors = [], requests = [], sessions = new Map();
     page.on('pageerror', error => errors.push(error.message));
     const backends = [
-      {id:'api',name:'Model API',available:true,modes:['read-only','confirm'],approval_review:{available:true,model:'independent-reviewer',diagnostic:''}},
-      {id:'codex',name:'Codex CLI',available:true,modes:['read-only','workspace-write'],approval_review:{available:true,model:'independent-reviewer',diagnostic:''}},
+      {id:'api',name:'Model API',available:true,modes:['read-only','confirm'],approval_review:{provider:'project_model_api',available:true,model:'independent-reviewer',single_action:true,runtime_toggle:true,diagnostic:''}},
+      {id:'codex',name:'Codex CLI',available:true,modes:['read-only','workspace-write','automatic'],approval_review:{provider:'codex_official',available:true,model:'',single_action:false,runtime_toggle:false,diagnostic:''}},
       {id:'claude',name:'Claude CLI',available:false,diagnostic:'Claude executable not found',modes:['read-only','workspace-write']},
     ];
     let sequence = 0, delaySession = null, releaseDelayed = null, rejectMessage = false, delayMessage = false, releaseMessage = null, delayReview = false, releaseReview = null;
@@ -238,6 +238,8 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.locator('#chat-messages').getByText('Change approved', {exact:true}).waitFor();
     assert.equal(requests.filter(request => request.action === 'approval').at(-1).body.approved, true);
     await page.locator('#agent-backend').selectOption('codex');
+    assert.match(await page.locator('#agent-auto-approval-label').innerText(), /Codex official/i, 'Codex explicitly uses its official reviewer');
+    assert.doesNotMatch(await page.locator('#agent-auto-approval-note').innerText(), /project Model API/i);
     assert.equal(await page.locator('#agent-session').inputValue(), '', 'Changing backend starts a fresh conversation');
     assert.equal(await page.locator('#agent-mode').inputValue(), 'read-only');
     assert.equal(await page.locator('#agent-auto-approval').isChecked(), false, 'A new conversation never inherits automatic approval');
@@ -255,6 +257,16 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
     const third = [...sessions.values()][2];
     assert.equal(third.backend, 'codex'); assert.equal(third.model, 'cli-model-override'); assert.equal(third.mode, 'workspace-write');
+    assert.equal(await page.locator('#agent-auto-approval').isDisabled(), true, 'Official reviewer configuration cannot change during a native turn');
+    await assert.rejects(page.evaluate(() => AFOperations.dispatch('ui.agent.set_auto_approval', {enabled:true})), /stop.*turn|stop.*conversation/i);
+    third.status = 'waiting_approval';
+    third.pending_approval = {id:'codex-proposal',tool:'workspace.invoke',arguments:{operation_id:'file.write'}};
+    await page.locator('#agent-approval').waitFor();
+    assert.equal(await page.locator('#agent-review').isVisible(), false, 'Official Codex has no single-action review endpoint');
+    assert.equal(await page.locator('#agent-deny').isDisabled(), false, 'Human approval remains available for Codex');
+    await assert.rejects(page.evaluate(() => AFOperations.dispatch('ui.agent.review_approval', {approval_id:'codex-proposal'})), /Codex.*single.action/i);
+    assert.equal(requests.filter(request => request.id === third.id && request.detail === 'review').length, 0, 'Codex must never fall back to project-model review');
+    third.pending_approval = null; third.status = 'running';
     third.turns[0].events.push({type:'message',text:'LATE PROJECT A EVENT'});
     delaySession = third.id;
     await page.waitForTimeout(1200);
@@ -268,10 +280,19 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
     await page.locator('#agent-stop').click();
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('cancelled'));
+    third.mode = 'automatic';
+    third.scope = {operations:['file.write','run.start'],paths:['notes/','testbenches/'],max_actions:4,max_runs:2};
+    await page.locator('#agent-auto-approval').check();
+    await page.waitForFunction(() => AFOperations.snapshot().agent.auto_approval === true);
+    assert.match(await page.locator('#agent-permission-note').innerText(), /reviewed by Codex/i, 'Official review remains the approval authority even in a saved-scope session');
+    assert.match(await page.locator('#agent-auto-approval-note').innerText(), /Codex.*account/i);
+    assert.doesNotMatch(await page.locator('#agent-auto-approval-note').innerText(), /project Model API/i);
     // A poll already in flight must not restore the running state after Stop.
     await page.locator('#chat-input').fill('Second CLI turn');
     await page.locator('#chat-send').click();
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
+    assert.equal(await page.locator('#agent-auto-approval').isDisabled(), true, 'An enabled official reviewer can only be changed after stopping the turn');
+    await assert.rejects(page.evaluate(() => AFOperations.dispatch('ui.agent.set_auto_approval', {enabled:false})), /stop.*turn|stop.*conversation/i);
     releaseDelayed = null; delaySession = third.id;
     await page.waitForTimeout(1200);
     assert(releaseDelayed);
@@ -320,6 +341,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     assert.equal(await page.locator('#code-editor').inputValue(), dirtyCircuit);
     await page.locator('#agent-history-toggle').click();
     await page.locator(`#agent-history-list [data-agent-session="${second.id}"]`).click();
+    assert.match(await page.locator('#agent-auto-approval-label').innerText(), /Project AI/i, 'Model API sessions stay clearly distinct from official Codex review');
     await page.locator('#chat-messages').getByText('Change denied', {exact:true}).first().waitFor();
     assert.equal(await page.locator('#chat-messages').getByText('Change denied', {exact:true}).count(), 1, 'Final reply appears only once');
     await page.locator('.tabs [data-tab=settings]').click();

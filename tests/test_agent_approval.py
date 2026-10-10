@@ -249,7 +249,7 @@ class AgentApprovalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.agents.set_auto_approval(self.pid, session['id'], True, authorized=True)
 
-    def test_native_backends_use_the_same_independent_reviewer(self):
+    def test_claude_uses_the_project_independent_reviewer(self):
         def native(*args, operation_bridge=None, **kwargs):
             result = self.workspace.operations.invoke_agent_tool(operation_bridge['token'], 'invoke_operation',
                 {'operation_id': 'file.write', 'parameters': {'path': args[0] + '.txt', 'content': 'native text'}})
@@ -257,7 +257,7 @@ class AgentApprovalTests(unittest.TestCase):
 
         with patch('analog_factory.agents.shutil.which', return_value='/fake/cli'), \
                 patch('analog_factory.agents.run_cli_turn', native):
-            for backend in ('codex', 'claude'):
+            for backend in ('claude',):
                 with self.subTest(backend=backend):
                     session = self.agents.create(self.pid, {'backend': backend, 'mode': 'workspace-write'})
                     self.agents.send(self.pid, session['id'], {'message': 'Save a native note.'}, human_authorized=True)
@@ -302,7 +302,7 @@ class AgentApprovalTests(unittest.TestCase):
 
         with patch('analog_factory.agents.shutil.which', return_value='/fake/cli'), \
                 patch('analog_factory.agents.run_cli_turn', native):
-            session = self.agents.create(self.pid, {'backend': 'codex', 'mode': 'workspace-write'})
+            session = self.agents.create(self.pid, {'backend': 'claude', 'mode': 'workspace-write'})
             self.agents.send(self.pid, session['id'], {'message': 'Write a note.'}, human_authorized=True)
             record = self.wait(session['id'], lambda record: record.get('pending_approval'))
             self.review(session['id'], record['pending_approval']['id'])
@@ -423,7 +423,7 @@ class AgentApprovalTests(unittest.TestCase):
             result = self.workspace.operations.invoke_agent_tool(operation_bridge['token'], 'invoke_operation',
                 {'operation_id': 'file.write', 'parameters': {'path': 'new-endpoint.txt', 'content': 'text'}})
             return {'reply': json.dumps(result)}
-        session = self.agents.create(self.pid, {'backend': 'codex', 'mode': 'workspace-write'})
+        session = self.agents.create(self.pid, {'backend': 'claude', 'mode': 'workspace-write'})
         self.agents.set_auto_approval(self.pid, session['id'], True, authorized=True)
         self.workspace.save_settings({'provider': {'base_url': 'http://localhost:2/v1'}})
         with patch('analog_factory.agents.shutil.which', return_value='/fake/cli'), \
@@ -435,9 +435,10 @@ class AgentApprovalTests(unittest.TestCase):
             self.agents.cancel(self.pid, session['id'])
             self.wait(session['id'])
 
-    def test_model_api_unavailable_is_reported_for_every_executor(self):
+    def test_model_api_unavailable_only_affects_project_model_reviewers(self):
         self.workspace.save_settings({'provider': {'base_url': '', 'model': ''}})
-        self.assertTrue(all(not item['approval_review']['available'] for item in self.agents.backends(self.pid)['backends']))
+        self.assertTrue(all(not item['approval_review']['available'] for item in
+            self.agents.backends(self.pid)['backends'] if item['id'] != 'codex'))
         session = self.agents.create(self.pid, {'backend': 'claude', 'mode': 'workspace-write'})
         with self.assertRaises(ValueError):
             self.agents.set_auto_approval(self.pid, session['id'], True, authorized=True)

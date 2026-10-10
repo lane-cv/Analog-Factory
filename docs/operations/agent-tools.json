@@ -372,7 +372,7 @@
     "type": "function",
     "function": {
       "name": "agent__session__review_approval",
-      "description": "Ask the project model API to review the exact pending action. Requires local human approval authority; uncertain results remain pending.",
+      "description": "Ask the project model API to review the exact pending API or Claude action. Codex uses official automatic review configured before a turn and does not support this single-action request. Requires local human approval authority; uncertain results remain pending.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -509,7 +509,7 @@
     "type": "function",
     "function": {
       "name": "agent__session__set_auto_approval",
-      "description": "Enable or disable independent AI review of subsequent pending actions in this conversation. Requires local human authority; resets on server restart.",
+      "description": "Enable or disable automatic approval review for this conversation. Codex uses official Auto-review and can be changed only while idle, with exclusively human-authored history. API and Claude use the project Model API. Requires local human authority; resets on server restart.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -5441,7 +5441,7 @@
     "type": "function",
     "function": {
       "name": "ui__agent__review_approval",
-      "description": "Ask the project model API to review the exact pending action. Requires local human approval authority.",
+      "description": "Ask the project model API to review the exact pending API or Claude action. Codex does not support single-action review. Requires local human approval authority.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -5625,7 +5625,7 @@
     "type": "function",
     "function": {
       "name": "ui__agent__set_auto_approval",
-      "description": "Enable or disable automatic AI review for the selected conversation. Requires local human approval authority.",
+      "description": "Enable or disable review for the selected conversation: official Codex Auto-review while idle, or project Model API review for API and Claude. Requires local human approval authority.",
       "parameters": {
         "type": "object",
         "properties": {

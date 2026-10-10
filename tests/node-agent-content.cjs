@@ -112,6 +112,21 @@ test('completed approval reviews retain the decision, reviewer and escaped reaso
   }
 });
 
+test('official Codex reviews identify their source and distinguish in-progress review from a human decision', () => {
+  const labels = {reviewing:'Codex is reviewing this action…',approve:'Codex approved this action',reject:'Codex rejected this action',manual:'Codex requires your decision',cancelled:'Codex review stopped'};
+  for (const [decision, label] of Object.entries(labels)) {
+    const result = content.renderTurn({id:'official-review',message:'Update the testbench',status:'running',events:[
+      {type:'approval_review',source:'codex_official',decision,model:'',reason:'Official reason <script>bad</script>',risk_level:'low <img>',user_authorization:'high'},
+    ]}, {t:text => `translated:${text}`});
+    assert.ok(result.includes(`translated:${label}`), 'Official reviewer state must not be mistaken for a custom-model or manual result');
+    assert.match(result, /translated:Codex official Auto-review/);
+    assert.match(result, /Official reason &lt;script&gt;bad&lt;\/script&gt;/);
+    assert.match(result, /low &lt;img&gt;/);
+    assert.match(result, /high/);
+    assert.doesNotMatch(result, /<img|<script|gpt-6-astra/);
+  }
+});
+
 test('tool error results are labeled failed and all unsafe detail text is escaped', () => {
   const result = content.renderTurn({id:'bad" onclick="bad', message:'<svg/onload=bad>', error:'<script>bad</script>', status:'failed', events:[
     {type:'tool_call', tool:'read_file', tool_call_id:'bad"', arguments:{path:'<unsafe>'}},

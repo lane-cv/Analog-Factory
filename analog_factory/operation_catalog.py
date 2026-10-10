@@ -433,7 +433,12 @@ def register_operations(registry):
         side_effects=('Writes versioned derived netlists and a report linking their hashes to the actual tool run',))
     add('project.detail', 'Inspect project', 'Read project metadata, safe effective configuration, visible files, runs and orchestration jobs.',
         _project(), object_schema({'project': PROJECT, 'configuration': PROJECT_CONFIG, 'files': array_schema(FILE), 'runs': array_schema(RUN),
-                                   'jobs': array_schema(JOB)}, ['project', 'configuration', 'files', 'runs', 'jobs']),
+                                   'jobs': array_schema(JOB),
+                                   'design_progress': array_schema(object_schema({
+                                       'id': TEXT, 'title': TEXT, 'status': TEXT, 'target': TEXT,
+                                       'reason': TEXT, 'run_id': {'anyOf': [TEXT, {'type': 'null'}]}},
+                                       ['id', 'title', 'status', 'target', 'reason', 'run_id']))},
+                                   ['project', 'configuration', 'files', 'runs', 'jobs', 'design_progress']),
         lambda c, p: workspace.detail(p['project_id']), idempotent=True)
     add('project.configure', 'Configure project', 'Replace project configuration overrides through the validated settings service.',
         _project({'config': PROJECT_CONFIG}, ['config']), PROJECT,

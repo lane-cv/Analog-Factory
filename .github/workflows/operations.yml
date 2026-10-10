@@ -36,6 +36,10 @@ jobs:
           node tests/native-canvas-races.cjs
           node tests/training-controls-budget.cjs
           node tests/agent-cli-controls.cjs
+          node tests/project-readiness.test.cjs
+          node tests/design-navigation.test.cjs
+          node tests/result-comparison.test.cjs
+          node tests/characterization-controls.test.cjs
       - name: Browser acknowledgement, synchronization and extension parity
         run: |
           export NODE_PATH="$RUNNER_TEMP/af-browser/node_modules"

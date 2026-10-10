@@ -15,6 +15,29 @@ python3 -m analog_factory --workspace "$AF_WORKSPACE" serve --port 8765
 
 Open `http://127.0.0.1:8765`. Keep the server running and use another terminal for API examples. Select the created project in the browser. The educational template has an editable level-1 MOS netlist, a transient testbench, measurements, and specifications. It is an integration example, not a foundry device model.
 
+The **New project** dialog checks workspace requirements separately from the
+selected project's overrides. An educational project can be created before
+ngspice is installed; running it still requires the simulator. The OTA template
+checks the same prepared SKY130 assets used by project creation. The generic
+SKY130 starter still requires replacing its model-library placeholder after
+creation. Use **Refresh check**, **Configure requirements**, or **Use educational
+example** to resolve a missing prerequisite.
+
+**Overview → The design path** shows recorded progress and an actionable next step.
+File presence means ready to inspect; tool completion and passing DRC/LVS evidence
+have separate labels. Old inputs are marked stale. For the OTA reference, actual
+netlisting and extraction outputs must be published before they become project
+inputs. Publication checks their recorded artifact and current derived files;
+it does not establish electrical compliance or physical signoff.
+
+**Continue design** resolves the selected stage against current project files and
+requirements. It opens or prepares the relevant source, runs the saved pre/post
+testbench, inspects an existing execution, or selects the exact publication run.
+Publication still requires its explicit button. Missing tools lead to settings;
+missing files lead to the relevant editor. Pending editor drafts and changed
+prerequisites must be reviewed before a design action proceeds. The registered
+`ui.workspace.continue_design` command uses this same path.
+
 In **Settings → User interface**, choose **English** or **简体中文** and the **Light** or **Dark** theme. Changes apply immediately and are saved for the workspace, including after a reload or opening another browser. Existing workspaces default to English and dark. Interface translations leave project names, source files, tool output, and model responses in their original language. Tool and provider settings still use their separate **Save configuration** button.
 
 To connect a model, open **Settings → Model API**, choose the protocol, and enter
@@ -50,6 +73,24 @@ python3 -m analog_factory --workspace "$AF_WORKSPACE" run "$AF_PROJECT_ID" \
 ```
 
 The CLI waits and prints the run record. The browser's simulation view shows measured values, raw logs, waveform traces, zoom/cursor controls, and CSV export. Open each measurement's provenance to inspect its `.meas` definition and source log. A missing measurement is not zero. A completed process alone does not establish that the circuit meets its specification.
+
+**Compare recorded results** selects successful simulations with finite recorded
+measurements. Differences are calculated only when explicit units, definitions,
+analysis settings, PVT conditions and model/simulator identities agree. Missing
+metadata remains unknown, including on older manual runs. Values and recorded
+conditions remain inspectable when a difference cannot be calculated. dB values
+show an absolute difference, never a relative percentage.
+
+New ordinary ngspice runs collect measurement evidence from the executed input
+snapshot after generated overrides, then confirm temperature from the actual
+simulator log. The educational amplifier's six measurements have explicit units;
+repeated runs and resistor/device-size revisions can be compared when their
+measurement definitions and conditions agree. Supply, temperature, analysis or
+model changes prevent a same-condition delta. Automatic qualification currently
+covers bounded static inline level-1/passive decks. External libraries, scoped
+models, control programs and unresolved expressions remain unqualified; their
+numeric results are still available for inspection. A recorded design target or
+caller-supplied condition does not establish the simulator's actual settings.
 
 The analysis form generates `testbenches/configured.cir` by default for OP, DC, AC, transient, or noise analysis. It replaces existing analysis/measurement directives, so enter suitable `.meas` directives in the additional-directives field if measurements are needed. Review the generated file. Relative `.include` paths resolve from the project snapshot root, such as `netlists/amplifier.cir`, rather than from the `testbenches/` directory.
 
@@ -132,6 +173,13 @@ Save the schematic as `schematics/amplifier.sch`, with its required local symbol
 Save `layout/amplifier.mag` with the intended cell ports, well/substrate connections, and hierarchy. Alternatively, import existing valid design files and their dependencies into those project folders. The browser's **Add file** supports text files; a filesystem copy is suitable for a larger existing hierarchy. Symlink-based project inputs are rejected. Refresh/reselect the project after external changes.
 
 Once saved, **Open in xschem** and **Open magic** can reopen these files. They are coordinated external windows and edit the original sources. Save in the editor before starting verification. X11 or Xwayland and an actual graphical session are required; setting a fake `DISPLAY` does not supply one. API GUI jobs default to a long editor lifetime; the CLI defaults to a 60-second task timeout, so use the browser/API for editing sessions or set an appropriate explicit CLI timeout.
+
+In the separate **Managed native canvas**, a confirmed version/confirmation
+rejection before launch offers **Read latest project state**, followed by an
+explicit new launch. An unknown launch outcome stays locked for inspection;
+closing and reopening the dialog does not authorize another launch. A launch
+receipt that arrives after closing is retained so its actual session can be
+inspected.
 
 To netlist the schematic without a GUI, use the implemented API even if no dedicated browser control is present:
 

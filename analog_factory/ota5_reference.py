@@ -18,19 +18,32 @@ ASSETS = ('specifications.json', 'schematics/ota5.sch', 'layout/ota5.mag',
           'netlists/ota5.spice', 'testbenches/pre.cir', 'testbenches/post.cir')
 
 
-def materialize(config):
+def check_prepared(config):
+    """Qualify exactly the assets creation consumes, without executing EDA tools."""
     config = config or {}
     if not config.get('pdk_root') or config.get('pdk_variant', 'sky130A') != 'sky130A':
-        raise ValueError('The OTA reference requires a configured prepared sky130A PDK')
+        return {'available': False, 'paths': {},
+                'diagnostic': 'The OTA reference requires a configured prepared sky130A PDK'}
     pdk = Path(config['pdk_root']).expanduser().resolve()/'sky130A'
-    required = ('libs.tech/combined/sky130.lib.spice', 'libs.tech/xschem/xschemrc',
-                'libs.tech/magic/sky130A.magicrc', 'libs.tech/netgen/sky130A_setup.tcl')
-    missing = [name for name in required if not (pdk/name).is_file()]
+    required = {'models': 'libs.tech/combined/sky130.lib.spice', 'xschem': 'libs.tech/xschem/xschemrc',
+                'magic': 'libs.tech/magic/sky130A.magicrc', 'netgen': 'libs.tech/netgen/sky130A_setup.tcl'}
+    paths = {key: str(pdk / relative) for key, relative in required.items()}
+    missing = [name for name in required.values() if not (pdk/name).is_file()]
     if missing:
-        raise ValueError('The OTA reference requires prepared PDK assets: '+', '.join(missing))
-    model = str(pdk/required[0])
-    if any(character in model for character in '\r\n\0"'):
-        raise ValueError('PDK model path cannot contain quotes or control characters')
+        return {'available': False, 'paths': paths,
+                'diagnostic': 'The OTA reference requires prepared PDK assets: '+', '.join(missing)}
+    if any(character in paths['models'] for character in '\r\n\0"'):
+        return {'available': False, 'paths': paths,
+                'diagnostic': 'PDK model path cannot contain quotes or control characters'}
+    return {'available': True, 'paths': paths,
+            'diagnostic': 'Prepared OTA template assets detected; circuit verification still needs execution'}
+
+
+def materialize(config):
+    prepared = check_prepared(config)
+    if not prepared['available']:
+        raise ValueError(prepared['diagnostic'])
+    model = prepared['paths']['models']
     assets = files('analog_factory').joinpath('assets/ota5')
     result = {name: assets.joinpath(name).read_text().replace('@MODEL_LIBRARY@', model) for name in ASSETS}
     result['netlists/schematic.spice'] = ('* Initial hand-authored electrical source matching the supplied schematic.\n'

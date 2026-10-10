@@ -6221,7 +6221,7 @@
     "type": "function",
     "function": {
       "name": "ui__characterization__open",
-      "description": "Open the OTA PVT characterization dialog, optionally inspecting a recorded job.",
+      "description": "Open OTA characterization, restoring active or latest history. Select job_id for evidence or new_job for a draft without starting computation.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -6239,6 +6239,9 @@
             "type": "string",
             "maxLength": 32,
             "pattern": "^[a-f0-9]{32}$"
+          },
+          "new_job": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -10018,6 +10021,47 @@
         "required": [
           "client_id",
           "node_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ui__workspace__continue_design",
+      "description": "Enter a design stage using current project sources and evidence. May save a dirty source, start an EDA run or native editor, open a source-creation draft, inspect a recorded run, configure requirements, or export. Publication only selects its source execution and focuses the explicit publish control; it never publishes automatically. Changed prerequisites or project selection reject the action.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "ui_version": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional version returned by ui.sessions; rejects stale browser state."
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "specification",
+              "schematic",
+              "pre",
+              "layout",
+              "drc",
+              "extract",
+              "lvs",
+              "post",
+              "archive"
+            ]
+          }
+        },
+        "required": [
+          "client_id",
+          "stage"
         ],
         "additionalProperties": false
       }

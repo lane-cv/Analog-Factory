@@ -57,6 +57,8 @@ def detect(config: dict | None = None) -> dict:
     PDK availability requires xschem, Magic, Netgen, and model configuration
     files; an existing empty directory does not count as a prepared PDK.
     """
+    from .ota5_reference import check_prepared
+
     config = config or {}
     configured = config.get('tools', {})
     with ThreadPoolExecutor(max_workers=6) as pool:
@@ -92,6 +94,6 @@ def detect(config: dict | None = None) -> dict:
                'No X11 DISPLAY is configured; xschem and Magic GUI need X11 or XWayland'}
     return {'tools': tools, 'pdk': {'available': not missing, 'root': str(root) if root else None,
                                   'variant': variant, 'version': version, 'paths': paths,
-                                  'configuration_hashes': hashes,
+                                  'configuration_hashes': hashes, 'ota5': check_prepared(config),
                                   'diagnostic': 'Prepared PDK assets detected; rule execution still needs validation' if not missing else
                                   'Prepared SKY130 assets missing: ' + ', '.join(missing)}, 'desktop': desktop}

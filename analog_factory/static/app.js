@@ -13,13 +13,16 @@ const treeFolders = new Map();
 const draftVersions = new Map();
 let browserDraftRevision = 0, workflowDraftRevision = 0;
 let navigationRequest = 0;
+let designNavigationRequest = 0;
+let designNavigationPending = false;
+let newProjectStatus = null, newProjectCheck = 0, newProjectChecking = false, newProjectSubmitting = false;
 const state = {
   status: null, settings: {}, projects: [], project: null, projectConfiguration: {}, files: [], runs: [], tab: 'overview',
   file: null, content: '', savedContent: '', dirty: false, context: new Set(), run: null, log: '',
   waveform: null, waveformSource: null, waveformOptions: {}, traces: new Set(), zoom: [0, 1], cursor: null, workflow: null, workflowSelection: null,
   job: null, evaluation: null, jobs: [], chatting: false, chat: [], connected: false, polling: false,
   compare: ['', ''], assistantUsage: null, history: null, fileRequest: 0, runRequest: 0, loadingProject: false,
-  providerTest: null, providerModels: [], projectRequest: 0, fileVersion:null
+  providerTest: null, providerModels: [], projectRequest: 0, fileVersion:null, designProgress:[]
 };
 const traceColors = Array.from({length:6}, (_, index) => `var(--trace-${index + 1})`);
 const traceDashes = [[], [8,4], [2,3], [10,3,2,3], [5,3], [12,5]];
@@ -159,6 +162,155 @@ function download(content, filename, type = 'application/json') {
 function heading(eyebrow, title, description, actions = '') {
   return html`<div class="page-heading"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p>${description}</p></div>${actions ? html`<div class="heading-actions">${actions}</div>` : ''}</div>`;
 }
+const stageLabels = {ready:'Ready to inspect',missing:'Source missing',not_run:'Not run',running:'Running',
+  stale:'Results stale',unknown:'Evidence unknown',failed:'Failed',passed:'Verified pass',completed:'Tool completed',
+  publication_required:'Publish output',published:'Output published',blocked:'Prerequisite missing'};
+function designStages() {
+  const tools = {schematic:'xschem',pre:'simulate',layout:'magic',drc:'drc',extract:'extract',lvs:'lvs',post:'simulate'};
+  return state.designProgress.map(stage => {
+    const reason = tools[stage.id] ? reasonFor(tools[stage.id]) : '';
+    return reason && ['not_run','missing','ready'].includes(stage.status) ? {...stage,status:'blocked',reason} : stage;
+  });
+}
+function designNextStep(stages) {
+  const candidates = stages.filter(stage => !['specification','layout','archive'].includes(stage.id) &&
+    !['completed','passed','published'].includes(stage.status) && (state.project.template !== 'amplifier' || stage.id !== 'schematic'));
+  const next = candidates.find(stage => stage.status !== 'blocked') || candidates[0];
+  const latestCharacterization = state.jobs.find(job => job.kind === 'ota-characterization');
+  return html`<div class="card design-next"><div><strong>${t('Next step')}: ${next ? esc(t(next.title)) : t('Review results and export evidence')}</strong><p>${next ? esc(t(next.reason)) : t('Inspect the recorded conditions and target checks before exporting.')}</p></div><div class="button-row">${next ? html`<button type="button" class="secondary-button" data-continue-design="${esc(next.id)}" data-design-intent="${esc(designIntent(next.id))}">${designAction(next.id).type === 'settings' ? t('Configure requirements') : t('Continue design')}</button>` : html`<button class="secondary-button" data-action="export">Export project</button>`}${latestCharacterization ? html`<button type="button" class="secondary-button" data-characterization-job="${esc(latestCharacterization.id)}">Open characterization report</button>` : ''}</div></div>`;
+}
+const designAction = stage => window.AFDesignNavigation.resolve(state,stage);
+const designIntent = stage => window.AFDesignNavigation.fingerprint(designAction(stage));
+async function continueDesign({stage}) {
+  if (designNavigationPending) throw new Error(t('A design action is already in progress.'));
+  designNavigationPending = true;
+  try { return await enterDesignStage(stage); }
+  finally { designNavigationPending = false; }
+}
+async function enterDesignStage(stage) {
+  if (!state.project || state.loadingProject) throw new Error(t('Create or select a project first.'));
+  const action = designAction(stage), intent = window.AFDesignNavigation.fingerprint(action);
+  const projectId = state.project.id, projectRequest = state.projectRequest, request = ++designNavigationRequest;
+  const conflict = message => { const error = new Error(t(message)); error.code='VERSION_CONFLICT'; throw error; };
+  const checkProject = () => {
+    if (state.project?.id !== projectId || state.projectRequest !== projectRequest || state.loadingProject || request !== designNavigationRequest)
+      conflict('Selected project changed before the design action completed.');
+  };
+  if ($('#new-file-dialog').open || action.type==='create_file' && ($('#new-file-path').value || $('#new-file-content').value))
+    throw new Error(t('Finish the existing file draft before continuing design.'));
+  if (state.dirty) await saveFile();
+  checkProject();
+  if (state.dirty) throw new Error(t('Save or review the editor draft before continuing design.'));
+  const draft = browserDraftRevision, fileRequest = state.fileRequest, navigation = navigationRequest;
+  await Promise.all([refreshProject(false),refreshStatus()]);
+  checkProject();
+  const checkIntent = () => {
+    checkProject();
+    if (intent !== designIntent(stage) || draft !== browserDraftRevision || fileRequest !== state.fileRequest || navigation !== navigationRequest || state.dirty)
+      conflict('Design requirements changed. Review the next step and try again.');
+  };
+  checkIntent();
+  if (action.type === 'open_file') {
+    await openFile(action.path,true,() => {
+      checkProject();
+      if (draft !== browserDraftRevision || state.dirty || navigation !== navigationRequest || state.fileRequest !== fileRequest+1)
+        conflict('Design requirements changed. Review the next step and try again.');
+    });
+    if (state.file!==action.path || state.tab!=='editor') conflict('Design requirements changed. Review the next step and try again.');
+  }
+  else if (action.type === 'create_file') {
+    // Reuse the existing versioned new-file dialog; task entry does not write a blank source.
+    await window.AFOperations.dispatch('ui.workspace.dialog',{name:'new_file',open:true});
+    checkIntent();
+    $('#new-file-path').value=action.path;
+    $('#new-file-content').focus();
+  } else if (action.type === 'settings') await setTab('settings',() => {
+    checkProject();
+    if (draft !== browserDraftRevision || state.dirty || fileRequest !== state.fileRequest || navigationRequest !== navigation+1)
+      conflict('Design requirements changed. Review the next step and try again.');
+  });
+  else if (action.type === 'export') await handleAction('export');
+  else {
+    let runId=action.run_id;
+    if (action.type === 'run') {
+      const result=await window.AFOperations.invoke('run.start',{project_id:projectId,kind:action.kind,options:action.options,
+        timeout:action.tab==='desktop'?3600:state.project.template==='ota5'?180:60},
+        {expected_version:window.AFOperations.version(`/api/projects/${encoded(projectId)}`),idempotency_key:`design-${crypto.randomUUID()}`});
+      checkProject();runId=result.data.id;
+      // Do not redraw the editor while a user can still begin typing during launch.
+      if (draft !== browserDraftRevision || state.dirty) conflict('Design requirements changed. Review the next step and try again.');
+      await refreshProject(false);checkProject();
+    }
+    checkProject();
+    if (draft !== browserDraftRevision || state.dirty || navigation !== navigationRequest || fileRequest !== state.fileRequest)
+      conflict('Design requirements changed. Review the next step and try again.');
+    const selectedRequest = state.runRequest+1;
+    await selectRun(runId,false,() => {
+      checkProject();
+      if (draft !== browserDraftRevision || state.dirty || navigation !== navigationRequest || fileRequest !== state.fileRequest || state.runRequest !== selectedRequest)
+        conflict('Design requirements changed. Review the next step and try again.');
+    });checkProject();
+    if (draft !== browserDraftRevision || state.dirty || navigation !== navigationRequest || fileRequest !== state.fileRequest || state.runRequest !== selectedRequest || state.run?.id !== runId)
+      conflict('Design requirements changed. Review the next step and try again.');
+    await setTab(action.tab);checkProject();
+    if (action.type==='publish') $('[data-action="reference-publish"]')?.focus();
+  }
+  checkProject();
+  return {stage,action,state:window.AFOperations.snapshot()};
+}
+function renderProjectReadiness() {
+  const host = $('#project-readiness');
+  if (!host) return;
+  const assessment = window.AFProjectReadiness.assess($('#new-project-form [name=template]').value,newProjectStatus);
+  host.innerHTML = html`<h3>Environment check</h3><p role="status">${newProjectChecking ? t('Checking workspace requirements…') : esc(t(assessment.summary))}</p><ul class="readiness-list">${assessment.checks.map(check => html`<li data-readiness="${esc(check.id)}" data-readiness-status="${esc(check.status)}"><div><strong>${esc(t(check.label))}</strong> <span class="muted">${esc(t({ready:'Ready',missing:'Missing',unknown:'unknown',action_required:'Action required'}[check.status]))}</span>${check.required ? html` <small>Required to create</small>` : ''}</div>${check.status !== 'ready' ? html`<small>${esc(t(check.reason))}</small>` : ''}</li>`).join('')}</ul>`;
+  $('#new-project-form [type=submit]').disabled = newProjectSubmitting || newProjectChecking || !assessment.canCreate;
+  $('#project-check-refresh').disabled = newProjectSubmitting || newProjectChecking;
+  $('#project-use-amplifier').hidden = assessment.template === 'amplifier';
+  $('#new-project-form .callout').hidden = assessment.template !== 'amplifier';
+}
+async function refreshProjectReadiness() {
+  const ticket = ++newProjectCheck;
+  newProjectChecking = true; newProjectStatus = null; renderProjectReadiness();
+  try {
+    const status = await api('/api/status');
+    if (ticket === newProjectCheck) newProjectStatus = status;
+  } catch (error) {
+    if (ticket === newProjectCheck) newProjectStatus = {error:error.message};
+  } finally {
+    if (ticket === newProjectCheck) { newProjectChecking = false; renderProjectReadiness(); }
+  }
+}
+async function openProjectDialog() {
+  const dialog = $('#new-project-dialog');
+  if (!dialog.open) dialog.showModal();
+  await refreshProjectReadiness();
+}
+function closeProjectDialog() {
+  ++newProjectCheck; newProjectChecking = false; $('#new-project-dialog').close();
+}
+async function submitNewProject(form) {
+  if (newProjectSubmitting) return;
+  newProjectSubmitting = true; renderProjectReadiness();
+  const name = form.elements.name.value, template = form.elements.template.value;
+  const selectedId = state.project?.id;
+  try {
+    const readiness = refreshProjectReadiness(), ticket = newProjectCheck;
+    await readiness;
+    const ownsDialog = () => ticket === newProjectCheck && $('#new-project-dialog').open &&
+      form.elements.name.value === name && form.elements.template.value === template;
+    if (!ownsDialog())
+      throw new Error(t('Project details changed. Review them before creating.'));
+    const assessment = window.AFProjectReadiness.assess(template,newProjectStatus);
+    if (!assessment.canCreate) throw new Error(t(assessment.summary));
+    const project = await api('/api/projects',{method:'POST',body:{name,template}});
+    state.projects.push(project.project || project);
+    if (ownsDialog() && state.project?.id === selectedId) {
+      await selectProject((project.project || project).id);
+      if (ownsDialog()) closeProjectDialog();
+    } else updateChrome();
+    toast(t('Project created locally.'));
+  } finally { newProjectSubmitting = false; renderProjectReadiness(); }
+}
 function noProject() {
   return html`<div class="empty-state"><span class="empty-symbol">◈</span><p class="eyebrow">YOUR NEXT CIRCUIT STARTS HERE</p><h1>Make room for a new idea.</h1><p>Create a local project to edit circuit files, run real EDA tools, and keep every result connected to its inputs.</p><button class="primary-button" data-action="new-project">＋ Create a project</button><p class="footnote">The educational amplifier runs with ngspice and needs no PDK.</p></div>`;
 }
@@ -200,6 +352,7 @@ function updateChrome() {
   const reason = reasonFor('simulate'); $('#run-primary').disabled = Boolean(reason); $('#run-primary').title = reason || t('Run testbenches/pre.cir with ngspice');
   agentUI.render();
   updateContext();
+  if ($('#new-project-dialog').open) renderProjectReadiness();
 }
 function renderTree() {
   const tree = $('#file-tree'), active = document.activeElement;
@@ -227,12 +380,13 @@ async function selectProject(id) {
   const request = ++state.projectRequest;
   ++state.fileRequest; ++state.runRequest;
   agentUI.selectProject(null);
-  if (!id) { state.loadingProject = false; state.project = null; state.projectConfiguration = {}; state.files = []; state.runs = []; state.run = null; state.file = null; state.context.clear(); state.log = ''; state.chat = []; await refreshStatus(); if (request !== state.projectRequest) return; renderTree(); updateChrome(); renderChat(); updateLog(); render(); return; }
+  if (!id) { state.loadingProject = false; state.project = null; state.projectConfiguration = {}; state.files = []; state.runs = []; state.designProgress = []; state.run = null; state.file = null; state.context.clear(); state.log = ''; state.chat = []; await refreshStatus(); if (request !== state.projectRequest) return; renderTree(); updateChrome(); renderChat(); updateLog(); render(); return; }
   state.loadingProject = true;
   try {
     const data = await api(`/api/projects/${encoded(id)}`);
     if (request !== state.projectRequest) return;
     state.project = data.project; state.projectConfiguration = data.configuration || {}; state.files = data.files || []; state.runs = data.runs || [];
+    state.designProgress = data.design_progress || [];
     state.file = null; state.content = ''; state.savedContent = ''; state.dirty = false; state.context.clear(); state.run = null; state.waveform = null; state.waveformSource = null; state.waveformOptions = {}; state.job = null; state.evaluation = null; state.chat = []; state.log = ''; state.history = null;
     agentUI.selectProject(id);
     state.workflow = defaultWorkflow(); state.workflowSelection = null;
@@ -366,18 +520,20 @@ function renderDesktop(reload = false) {
   }
   updateDesktopStatus(frame);
 }
-async function setTab(tab) {
+async function setTab(tab, beforeApply = null) {
   const request = ++navigationRequest;
   if (state.tab === 'editor' && state.dirty && tab !== 'editor') await saveFile();
   if (request !== navigationRequest) return;
   if (tab === 'settings' && state.tab !== 'settings' && state.project) {
     const projectId = state.project.id;
     const detail = await api(projectURL());
+    beforeApply?.();
     if (request !== navigationRequest || state.project?.id !== projectId) return;
     state.project = detail.project; state.projectConfiguration = detail.configuration || {};
     draftVersions.delete(`project_provider:${projectId}`);
     draftVersions.delete(`project_environment:${projectId}`);
   }
+  beforeApply?.();
   if (tab !== state.tab && tab !== 'workflows') draftVersions.delete(tab);
   state.tab = tab; history.replaceState(null, '', `#${tab}`); render(); $('#main-content').scrollTop = 0;
   if (tab === 'editor' && !state.file && state.files.length) await openFile(state.files.find(file => /pre\.cir$/.test(file.path))?.path || state.files[0].path, false);
@@ -386,11 +542,11 @@ function overviewView() {
   const completed = state.runs.filter(run => ['succeeded','completed','success','passed'].includes(run.status));
   const tools = ['ngspice','xschem','magic','netgen'].filter(name => tool(name).available).length;
   const latest = state.runs[0];
-  const stages = [['01',t('Specification'),t('Edit the design brief'),'editor',true],['02',t('Schematic'),t('Open in xschem'),'xschem',!reasonFor('xschem')],['03',t('Pre-layout simulation'),t('Run real ngspice'),'simulation',!reasonFor('simulate')],['04',t('Layout'),t('Open in magic'),'magic',!reasonFor('magic')],['05','DRC / LVS',t('Inspect actual reports'),'verification',!reasonFor('drc') && !reasonFor('lvs')],['06',t('Extraction'),t('Generate parasitics'),'verification',!reasonFor('extract')],['07',t('Post-layout comparison'),t('Compare genuine runs'),'simulation',!reasonFor('simulate')],['08',t('Archive'),t('Download project + evidence'),'export',true]];
+  const stages = designStages();
   return heading(t('PROJECT WORKSPACE'), esc(state.project.name), t('From the first netlist to the evidence behind every result.'), html`<button data-action="export" class="secondary-button">↗ Export project</button>`) +
     html`<div class="hero-card card"><p class="eyebrow">DESIGN. SIMULATE. UNDERSTAND.</p><h2>Your circuit, with a clear trail.</h2><p>${state.project.template === 'ota5' ? t('A five-transistor differential OTA is ready in Xschem and Magic. Run each tool to obtain your own simulation and verification evidence.') : state.project.template === 'sky130' ? t('This SKY130 workspace connects design sources to your prepared PDK. Tool and process readiness is checked before execution.') : t('A common-source amplifier is ready to explore. Edit its parameters, run ngspice, and inspect the measurements and raw waveform.')}</p><div class="button-row">${actionButton('simulate',t('▶ Run pre-layout simulation'),'primary-button')}<button class="secondary-button" data-tab="editor">⌘ Open netlist</button></div>${reasonFor('simulate') ? html`<p class="reason">${esc(reasonFor('simulate'))}</p>` : ''}</div>` +
     html`<div class="grid-3"><div class="metric-card"><small>Design sources</small><div class="metric-value">${state.files.length}<span class="muted small"> files</span></div><p>Versioned when saved</p></div><div class="metric-card"><small>Recorded executions</small><div class="metric-value">${state.runs.length}<span class="muted small"> runs</span></div><p>${t('{completed} completed · {stale} stale', {completed:number(completed.length), stale:number(state.runs.filter(run => run.stale).length)})}</p></div><div class="metric-card"><small>Toolchain readiness</small><div class="metric-value">${tools}<span class="muted"> / 4</span></div><p>${pdk().available ? t('Prepared PDK detected') : t('PDK not configured')}</p></div></div>` +
-    html`<div class="section-heading"><h2>The design path</h2><span>Manual workflow · AI optional</span></div><div class="stage-list">${stages.map(([index,title,description,target,available]) => html`<button class="stage ${available ? 'available' : ''}" ${['xschem','magic'].includes(target) ? `data-run-kind="${target}" ${available ? '' : `disabled title="${esc(reasonFor(target))}"`}` : target === 'export' ? 'data-action="export"' : `data-tab="${target}"`}><span class="stage-number">${index} <span style="float:right">${available ? '↗' : '○'}</span></span><strong>${title}</strong><small>${description}</small></button>`).join('')}</div>` +
+    html`<div class="section-heading"><h2>The design path</h2><span>Manual workflow · AI optional</span></div>${designNextStep(stages)}<div class="stage-list">${stages.map((stage,index) => html`<button class="stage" data-design-stage="${esc(stage.id)}" data-continue-design="${esc(stage.id)}" data-design-intent="${esc(designIntent(stage.id))}" data-stage-status="${esc(stage.status)}"><span class="stage-number">${String(index+1).padStart(2,'0')} · ${esc(t(stageLabels[stage.status] || 'unknown'))}</span><strong>${esc(t(stage.title))}</strong><small>${esc(t(stage.reason))}</small></button>`).join('')}</div>` +
     html`<p class="footnote">Open Xschem or Magic to draw in the Drawing desktop tab. A blank design file is created on first open if needed.</p>` +
     html`<div class="section-heading"><h2>Recent executions</h2><span>${latest ? `${t('Latest')} ${esc(formatDate(runTime(latest)))}` : t('No tool executions yet')}</span></div><div class="card" style="padding:0">${runsTable(state.runs.slice(0, 5))}</div>` +
     html`<p class="footnote">${state.project.template !== 'amplifier' ? t('DRC and LVS success require report evidence. Extraction coverage is tool and PDK dependent; a completed process is not tapeout signoff.') : t('Educational model · This example uses a level-1 MOS model, not foundry-qualified SKY130 devices. Verification results appear only after actual tool execution.')}</p>`;
@@ -409,11 +565,12 @@ function historyHTML() {
   if (!state.history) return '';
   return html`<div class="card spaced"><div class="card-head"><h2>File revisions</h2><small>Restoring creates a recoverable edit</small></div>${state.history.length ? state.history.map(revision => { const id = revision.id || revision.revision || revision.sha256 || revision.name; return html`<div class="history-row"><span>${esc(shortId(id))} · ${esc(formatDate(revision.created_at || revision.timestamp || revision.time))}</span><button class="secondary-button" data-restore="${esc(id)}">Restore revision</button></div>`; }).join('') : html('<p>No previous saved revisions for this file.</p>')}</div>`;
 }
-async function openFile(path, switchTab = true) {
+async function openFile(path, switchTab = true, beforeApply = null) {
   if (state.dirty) await saveFile();
   const request = ++state.fileRequest;
   let version;
   const data = await api(projectURL(`/files?path=${encoded(path)}`), {onVersion:value => { version = value; }});
+  beforeApply?.();
   if (request !== state.fileRequest) return;
   state.file = path; state.content = data.content; state.savedContent = data.content; state.dirty = false; state.history = null; state.fileVersion = data.source_version ?? version;
   if (switchTab) { state.tab = 'editor'; history.replaceState(null, '', '#editor'); }
@@ -497,7 +654,7 @@ function runDetailsHTML(run) {
   return html`${run.provenance?.complete === false ? html`<div class="callout warning">Input provenance is incomplete. ${esc((run.provenance.limitations || []).join(" "))} Current project hashes do not establish complete external dependency reproducibility.</div>` : ''}<div class="run-details-grid spaced"><div><strong>Started</strong><span>${esc(formatDate(runTime(run)))}</span></div><div><strong>Finished</strong><span>${esc(formatDate(run.finished_at || run.ended_at))}</span></div><div><strong>Exit code</strong><span>${esc(run.exit_code ?? t('pending / unknown'))}</span></div><div><strong>Input validity</strong><span>${run.stale ? t('Stale — current sources differ') : t('Current project source hashes')}</span></div></div>${run.error || run.diagnostic ? html`<p class="callout error">${esc(run.error || run.diagnostic)}</p>` : ''}<pre class="evidence-details">${esc(pretty(run))}</pre>${artifacts.length ? html`<div class="artifact-links">${artifacts.map(artifact => { const path = typeof artifact === 'string' ? artifact : artifact.path || artifact.name; return path ? html`<a href="/api/artifacts/download?project_id=${encoded(state.project.id)}&amp;kind=run&amp;run_id=${encoded(run.id)}&amp;path=${encoded(path)}">↓ ${esc(path.split('/').pop())}</a>` : ''; }).join('')}</div>` : ''}`;
 }
 function comparisonHTML() {
-  const completed = state.runs.filter(run => run.kind === 'simulate' && terminalStatuses.has(run.status));
+  const completed = window.AFResultComparison.eligibleRuns(state.runs);
   if (completed.length < 2) return html('<p>Complete at least two real simulations to compare metrics. No post-layout results are fabricated; run an extracted testbench when available.</p>');
   const options = selected => html`<option value="">Choose an execution</option>${completed.map(run => html`<option value="${esc(run.id)}" ${selected === run.id ? 'selected' : ''}>${esc(runName(run))}${run.stale ? t(' · stale') : ''}</option>`).join('')}`;
   return html`<div class="comparison-controls"><select id="compare-a" aria-label="Baseline execution">${options(state.compare[0])}</select><span>→</span><select id="compare-b" aria-label="Comparison execution">${options(state.compare[1])}</select></div><div id="comparison-results">${comparisonResults()}</div>`;
@@ -505,8 +662,8 @@ function comparisonHTML() {
 function comparisonResults() {
   const a = state.runs.find(run => run.id === state.compare[0]), b = state.runs.find(run => run.id === state.compare[1]);
   if (!a || !b) return html('<p>Choose a baseline and comparison run. Each result retains its original inputs and conditions.</p>');
-  const am = new Map(metricEntries(a)), bm = new Map(metricEntries(b)), names = [...new Set([...am.keys(), ...bm.keys()])];
-  return html`${a.stale || b.stale ? html('<div class="callout warning">One or both runs use older source files. This is a historical comparison.</div>') : ''}${a.id === b.id ? html('<p class="callout warning">Both selectors refer to the same execution.</p>') : ''}<table class="data-table"><thead><tr><th>Metric</th><th>Baseline</th><th>Comparison</th><th>Δ</th><th>Δ %</th></tr></thead><tbody>${names.map(name => { const av = metricValue(am.get(name)), bv = metricValue(bm.get(name)); const numeric = typeof av === 'number' && typeof bv === 'number'; return html`<tr><td>${esc(name)}</td><td>${esc(number(av))}</td><td>${esc(number(bv))}</td><td>${numeric ? esc(number(bv - av)) : '—'}</td><td>${numeric && av !== 0 ? `${esc(number((bv - av) / Math.abs(av) * 100))}%` : '—'}</td></tr>`; }).join('')}</tbody></table>${names.length ? '' : html('<p>No common measurement evidence is available. Inspect each execution log.</p>')}<p class="footnote">Deltas compare recorded values. Verify the run conditions, measurement definitions, and units before drawing a design conclusion.</p>`;
+  const comparison = window.AFResultComparison.compare(a,b);
+  return html`${a.stale || b.stale ? html('<div class="callout warning">One or both runs use older source files. This is a historical comparison.</div>') : ''}${a.id === b.id ? html('<p class="callout warning">Both selectors refer to the same execution.</p>') : ''}${comparison.differences.length ? html`<div class="callout warning"><strong>Comparability needs review</strong><ul>${comparison.differences.map(reason=>html`<li>${esc(t(reason))}</li>`).join('')}</ul></div>` : html`<p class="callout">Recorded conditions and measurement definitions match.</p>`}<div class="table-wrap"><table class="data-table"><thead><tr><th>Metric</th><th>Unit</th><th>Baseline</th><th>Comparison</th><th>Δ</th><th>Δ %</th><th>Comparability</th></tr></thead><tbody>${comparison.rows.map(row=>html`<tr data-comparable="${row.comparable}"><td>${esc(row.name)}</td><td>${esc(row.unit || t('unknown'))}</td><td>${esc(number(row.a))}</td><td>${esc(number(row.b))}</td><td>${row.delta === null ? '—' : esc(number(row.delta))}</td><td>${row.percent === null ? '—' : `${esc(number(row.percent))}%`}</td><td>${row.comparable ? t('Comparable') : esc(row.reasons.map(reason=>t(reason)).join(' '))}</td></tr>`).join('')}</tbody></table></div><details><summary>Recorded comparison conditions</summary><div class="comparison-evidence"><pre>${esc(pretty({run_id:a.id,conditions:a.metadata?.measurement_evidence?.conditions || a.metadata?.conditions || {},declared_conditions:a.metadata?.conditions || {},limitations:a.metadata?.measurement_evidence?.limitations || [],definitions:a.metric_provenance || {}}))}</pre><pre>${esc(pretty({run_id:b.id,conditions:b.metadata?.measurement_evidence?.conditions || b.metadata?.conditions || {},declared_conditions:b.metadata?.conditions || {},limitations:b.metadata?.measurement_evidence?.limitations || [],definitions:b.metric_provenance || {}}))}</pre></div></details><p class="footnote">Differences are calculated only when recorded units, definitions and conditions agree. Percentage changes are omitted for dB values.</p>`;
 }
 function designDefaults() {
   return {schematic:'schematics/amplifier.sch',layout:'layout/amplifier.mag',netlist:'testbenches/pre.cir',post_netlist:'testbenches/post.cir',layout_netlist:'netlists/extracted.spice',schematic_netlist:'netlists/schematic.spice',cell:'amplifier',...(state.project?.design || {})};
@@ -840,9 +997,10 @@ async function refreshProject(redraw = true) {
   const [data, jobs] = await Promise.all([api(projectURL()), api(projectURL('/jobs'))]);
   if (state.project?.id !== id) return;
   state.project = data.project; state.projectConfiguration = data.configuration || {}; state.files = data.files || []; state.runs = data.runs || [];
+  state.designProgress = data.design_progress || [];
   state.jobs = asArray(jobs, 'jobs');
   if (state.run) state.run = state.runs.find(run => run.id === state.run.id) || state.run;
-  renderTree(); updateChrome(); updateLog(); if (redraw) render();
+  renderTree(); updateChrome(); updateLog(); if (redraw || state.tab === 'overview') render();
 }
 async function refreshAgentProject(id) {
   if (state.project?.id !== id || state.loadingProject) return;
@@ -915,13 +1073,15 @@ async function deriveReferenceNetlists({run_id} = {}) {
   toast(t('Actual tool output published with its source hash.'));
   return result.data;
 }
-async function selectRun(id, navigate = true) {
+async function selectRun(id, navigate = true, beforeApply = null) {
   const request = ++state.runRequest;
   const run = await api(projectURL(`/runs/${encoded(id)}`));
+  beforeApply?.();
   if (request !== state.runRequest) return;
   state.run = run; state.waveform = null; state.waveformSource = null; state.waveformOptions = {}; state.zoom = [0,1]; state.cursor = null;
   const existing = state.runs.findIndex(item => item.id === run.id); if (existing >= 0) state.runs[existing] = run; else state.runs.unshift(run);
   const results = await Promise.allSettled([api(projectURL(`/runs/${encoded(id)}/log`)), run.kind === 'simulate' && !isActive(run) ? api(projectURL(`/runs/${encoded(id)}/waveforms`)) : Promise.resolve(null)]);
+  beforeApply?.();
   if (request !== state.runRequest) return;
   state.log = results[0].status === 'fulfilled' ? results[0].value.content || '' : t('Log unavailable: {message}', {message:results[0].reason.message});
   if (results[1].status === 'fulfilled' && results[1].value?.points?.length) { state.waveformSource = results[1].value; selectWaveformPlot(0); }
@@ -1084,9 +1244,18 @@ function bindGlobal() {
   $('#close-file-dialog').addEventListener('click', () => $('#new-file-dialog').close());
   $('#new-file-import').addEventListener('change', event => safely(async () => { const file = event.target.files[0]; if (!file) return; if (file.size > 2*1024*1024) throw new Error(t('The editor supports text files up to 2 MiB.')); $('#new-file-content').value = await file.text(); if (!$('#new-file-path').value) $('#new-file-path').value = file.name; }));
   $('#new-file-form').addEventListener('submit', event => { event.preventDefault(); safely(async () => { const form = new FormData(event.target), path = String(form.get('path')).trim(); if (state.files.some(file => file.path === path)) throw new Error(t('This file already exists. Open it from the explorer to edit it.')); if (state.dirty) await saveFile(); await api(projectURL(`/files?path=${encoded(path)}`),{method:'PUT',body:{content:form.get('content')},expectedVersion:draftVersions.get('new_file')}); await refreshProject(false); $('#new-file-dialog').close(); event.target.reset(); await openFile(path); toast(t('Project file created.')); }); });
-  $('#new-project').addEventListener('click', () => $('#new-project-dialog').showModal());
-  $('#close-project-dialog').addEventListener('click', () => $('#new-project-dialog').close());
-  $('#new-project-form').addEventListener('submit', event => { event.preventDefault(); const button = $('button[type="submit"]',event.target); button.disabled = true; safely(async () => { const form = new FormData(event.target); const project = await api('/api/projects',{method:'POST',body:{name:form.get('name'),template:form.get('template')}}); state.projects.push(project.project || project); $('#new-project-dialog').close(); await selectProject((project.project || project).id); toast(t('Project created locally.')); }).finally(() => { button.disabled = false; }); });
+  const readiness = document.createElement('section'); readiness.id = 'project-readiness';
+  const readinessActions = document.createElement('div'); readinessActions.className = 'button-row';
+  readinessActions.innerHTML = html`<button type="button" class="secondary-button" id="project-check-refresh" data-i18n="Refresh check">Refresh check</button><button type="button" class="secondary-button" id="project-configure" data-i18n="Configure requirements">Configure requirements</button><button type="button" class="secondary-button" id="project-use-amplifier" data-i18n="Use educational example">Use educational example</button>`;
+  $('#new-project-form .dialog-actions').before(readiness,readinessActions);
+  $('#new-project').addEventListener('click', () => safely(openProjectDialog));
+  $('#close-project-dialog').addEventListener('click', closeProjectDialog);
+  $('#new-project-dialog').addEventListener('cancel', () => { ++newProjectCheck; newProjectChecking = false; });
+  $('#new-project-form [name=template]').addEventListener('change', renderProjectReadiness);
+  $('#project-check-refresh').addEventListener('click', () => safely(refreshProjectReadiness));
+  $('#project-configure').addEventListener('click', () => safely(async () => { closeProjectDialog(); await window.AFOperations.dispatch('ui.workspace.navigate',{tab:'settings'}); }));
+  $('#project-use-amplifier').addEventListener('click', () => setOperationForm('new_project',{template:'amplifier'}));
+  $('#new-project-form').addEventListener('submit', event => { event.preventDefault(); safely(() => submitNewProject(event.target)); });
   $('#project-select').addEventListener('change', event => safely(() => window.AFOperations.dispatch('ui.workspace.select_project', {project_id:event.target.value})));
   $('#refresh-project').addEventListener('click', () => safely(() => refreshProject()));
   $('#run-primary').addEventListener('click', () => safely(() => startRun('simulate')));
@@ -1094,15 +1263,21 @@ function bindGlobal() {
   $('#run-cancel').addEventListener('click', () => safely(async () => { state.run = await api(projectURL(`/runs/${encoded(state.run.id)}/cancel`),{method:'POST',body:{}}); updateLog(); toast(t('Cancellation requested.')); }));
   $('#run-retry').addEventListener('click', () => safely(async () => { const run = await api(projectURL(`/runs/${encoded(state.run.id)}/retry`),{method:'POST',body:{}}); state.runs.unshift(run); await selectRun(run.id); toast(t('Retry started as a new execution record.')); }));
   document.addEventListener('click', event => {
-    const button = event.target.closest('[data-tab],[data-action],[data-file],[data-run-kind],[data-run-id],[data-metric],[data-remove-context],[data-restore],[data-remove-edge],[data-workflow-load]');
+    const button = event.target.closest('[data-continue-design],[data-tab],[data-action],[data-file],[data-run-kind],[data-run-id],[data-metric],[data-remove-context],[data-restore],[data-remove-edge],[data-workflow-load],[data-characterization-job]');
     if (!button || button.disabled) return;
     safely(async () => {
-      if (button.dataset.tab) { event.preventDefault(); await window.AFOperations.dispatch('ui.workspace.navigate', {tab:button.dataset.tab}); }
+      if (button.dataset.continueDesign) {
+        event.preventDefault();
+        if (button.dataset.designIntent !== designIntent(button.dataset.continueDesign)) throw new Error(t('Design requirements changed. Review the next step and try again.'));
+        await window.AFOperations.dispatch('ui.workspace.continue_design',{stage:button.dataset.continueDesign});
+      }
+      else if (button.dataset.tab) { event.preventDefault(); await window.AFOperations.dispatch('ui.workspace.navigate', {tab:button.dataset.tab}); }
+      else if (button.dataset.characterizationJob) await window.AFOperations.dispatch('ui.characterization.open',{job_id:button.dataset.characterizationJob});
       else if (button.dataset.file) await window.AFOperations.dispatch('ui.editor.open', {path:button.dataset.file});
       else if (button.dataset.runKind) await startRun(button.dataset.runKind);
       else if (button.dataset.runId) await window.AFOperations.dispatch('ui.runs.select', {run_id:button.dataset.runId});
       else if (button.dataset.removeContext) await window.AFOperations.dispatch('ui.agent.set_context', {paths:[...state.context].filter(path => path !== button.dataset.removeContext)});
-      else if (button.dataset.metric) { const name = button.dataset.metric; const metric = metricEntries().find(([key]) => key === name)?.[1]; $('#metric-evidence').innerHTML = html`<pre class="evidence-details spaced">${esc(pretty({metric:name,...(typeof metric === 'object' ? metric : {value:metric}),...state.run.metric_provenance?.[name],run_id:state.run.id,definition:metric?.definition || state.run.metric_provenance?.[name]?.definition || 'See input snapshot and raw simulator log.',conditions:metric?.conditions || state.run.metric_provenance?.[name]?.conditions || state.run.metadata?.conditions || 'See execution record.'}))}</pre>`; $('.log-panel').classList.remove('collapsed'); }
+      else if (button.dataset.metric) { const name = button.dataset.metric; const metric = metricEntries().find(([key]) => key === name)?.[1]; $('#metric-evidence').innerHTML = html`<pre class="evidence-details spaced">${esc(pretty({metric:name,...(typeof metric === 'object' ? metric : {value:metric}),...state.run.metric_provenance?.[name],run_id:state.run.id,definition:metric?.definition || state.run.metric_provenance?.[name]?.definition || 'See input snapshot and raw simulator log.',conditions:state.run.metadata?.measurement_evidence?.conditions || metric?.conditions || state.run.metric_provenance?.[name]?.conditions || state.run.metadata?.conditions || 'See execution record.',declared_conditions:state.run.metadata?.conditions || {},limitations:state.run.metadata?.measurement_evidence?.limitations || []}))}</pre>`; $('.log-panel').classList.remove('collapsed'); }
       else if (button.dataset.restore) { await api(projectURL('/restore'),{method:'POST',body:{path:state.file,revision:button.dataset.restore}}); state.dirty = false; await openFile(state.file,false); await refreshProject(false); toast(t('Revision restored.')); }
       else if (button.dataset.removeEdge !== undefined) { const edge = state.workflow.edges[Number(button.dataset.removeEdge)]; if (edge) await window.AFOperations.dispatch('ui.workflow.disconnect', edge); }
       else if (button.dataset.workflowLoad !== undefined) { const workflows = state.savedWorkflows || []; const entry = workflows[Number(button.dataset.workflowLoad)]; let workflow = entry.workflow || entry; if (typeof entry === 'string' || (!workflow.nodes && entry.path)) { const file = await api(projectURL(`/files?path=${encoded(typeof entry === 'string' ? entry : entry.path)}`)); workflow = JSON.parse(file.content); } state.workflow = validateWorkflowShape(workflow); state.workflowSelection = null; render(); toast(t('Saved workflow loaded.')); }
@@ -1125,7 +1300,7 @@ async function handleAction(action) {
     case 'new-graph': return window.AFOperations.dispatch('ui.workflow.new_graph', {schema_version:2});
     case 'new-tuning': return window.AFOperations.dispatch('ui.workflow.new_graph', {schema_version:1});
     case 'reload-desktop': await refreshStatus(); renderDesktop(true); break;
-    case 'new-project': $('#new-project-dialog').showModal(); break;
+    case 'new-project': return openProjectDialog();
     case 'new-file': draftVersions.set('new_file', window.AFOperations?.version(projectURL())); $('#new-file-dialog').showModal(); break;
     case 'export': {
       const pid = state.project?.id;
@@ -1364,12 +1539,13 @@ function registerWorkspaceOperations() {
   const workflowNode = id => { const node = state.workflow?.nodes.find(item => item.id === id); if (!node) throw new Error('Unknown workflow node.'); return node; };
   const workflowViewRequired = (capture = true) => { if (state.tab !== 'workflows') throw new Error('Open Workflows first.'); if (capture) captureWorkflow(); };
   operations.register('workspace', {
+    continue_design:continueDesign,
     navigate:async ({tab}) => { if (!['overview','editor','desktop','simulation','verification','workflows','evaluation','settings'].includes(tab)) throw new Error('Unknown workspace view.'); await setTab(tab); requireApplied(state.tab === tab, 'Workspace view'); },
     select_project:async ({project_id}) => { if (project_id && !state.projects.some(item => item.id === project_id)) { state.projects = asArray(await api('/api/projects'), 'projects'); if (!state.projects.some(item => item.id === project_id)) throw new Error('Unknown project.'); } await selectProject(project_id || ''); requireApplied((state.project?.id || '') === (project_id || ''), 'Selected project'); },
     refresh:() => { requireProject(); return refreshProject(); },
     set_context:({paths}) => { requireProject(); if (!Array.isArray(paths) || paths.length > 20 || paths.some(path => !state.files.some(file => file.path === path))) throw new Error('Select at most 20 existing project files.'); state.context = new Set(paths); renderTree(); updateContext(); agentUI.render(); },
     set_folder:({path, open}) => { const folder = $$('[data-folder]', $('#file-tree')).find(item => item.dataset.folder === path); if (!folder) throw new Error('Unknown project folder.'); folder.open = Boolean(open); },
-    dialog:({name, open}) => { const dialogs = {new_project:'#new-project-dialog',new_file:'#new-file-dialog'}; const dialog = $(dialogs[name] || '#__unknown_dialog'); if (name === 'new_file' && open && state.project) draftVersions.set('new_file', window.AFOperations?.version(projectURL())); if (!dialog) throw new Error('Unknown dialog.'); if (open && !dialog.open) dialog.showModal(); else if (!open && dialog.open) dialog.close(); },
+    dialog:async ({name, open}) => { if (name === 'new_project') { if (open) await openProjectDialog(); else closeProjectDialog(); return; } const dialog = name === 'new_file' ? $('#new-file-dialog') : null; if (name === 'new_file' && open && state.project) draftVersions.set('new_file', window.AFOperations?.version(projectURL())); if (!dialog) throw new Error('Unknown dialog.'); if (open && !dialog.open) dialog.showModal(); else if (!open && dialog.open) dialog.close(); },
     set_preferences:async ({language,theme}) => { if (preferencesSaving) throw new Error('A preference save is already running.'); const before = preferences.current(); if (language !== undefined && !['en','zh-CN'].includes(language) || theme !== undefined && !['light','dark'].includes(theme)) throw new Error('Unsupported preference.'); $('#ui-language').value = language ?? before.language; $('#ui-theme').value = theme ?? before.theme; await savePreferences(); if (preferences.current().language !== (language ?? before.language) || preferences.current().theme !== (theme ?? before.theme)) throw new Error('Preference save failed.'); },
     reconnect_desktop:() => handleAction('reload-desktop'),
     disclosures:() => $$('[data-operation-disclosure]').map(element => ({id:element.dataset.operationDisclosure,open:element.open,label:element.querySelector('summary')?.textContent.trim() || '',hidden:element.hidden})),
@@ -1398,7 +1574,7 @@ function registerWorkspaceOperations() {
     derive_reference:deriveReferenceNetlists,
     simulate_reference_post:() => { requireProject(); if (state.project.template !== 'ota5') throw new Error('Select the OTA reference project.'); return startRun('simulate',{netlist:designDefaults().post_netlist}); },
     select:async ({run_id}) => { requireProject(); const projectId = state.project.id; await selectRun(run_id); requireApplied(state.project?.id === projectId && state.run?.id === run_id, 'Selected run'); },
-    compare:({baseline,comparison}) => { for (const id of [baseline,comparison]) if (!state.runs.some(run => run.id === id)) throw new Error('Unknown comparison run.'); state.compare = [baseline,comparison]; if ($('#comparison-results')) { $('#compare-a').value = baseline; $('#compare-b').value = comparison; $('#comparison-results').innerHTML = comparisonResults(); } return comparisonResults(); },
+    compare:({baseline,comparison}) => { const eligible = window.AFResultComparison.eligibleRuns(state.runs); for (const id of [baseline,comparison]) if (!eligible.some(run => run.id === id)) throw new Error('Choose successful simulations with recorded measurements.'); state.compare = [baseline,comparison]; if ($('#comparison-results')) { $('#compare-a').value = baseline; $('#compare-b').value = comparison; $('#comparison-results').innerHTML = comparisonResults(); } return comparisonResults(); },
     inspect_metric:({name}) => { if (!state.run) throw new Error('Select a run first.'); const metric = metricEntries().find(([key]) => key === name); if (!metric) throw new Error('Unknown metric.'); const evidence = {metric:name,value:metric[1],provenance:state.run.metric_provenance?.[name],run_id:state.run.id}; if ($('#metric-evidence')) $('#metric-evidence').textContent = pretty(evidence); $('.log-panel').classList.remove('collapsed'); return evidence; },
     copy_log:async () => { await navigator.clipboard.writeText(state.log || $('#execution-log').textContent); }
   }, () => ({selected:state.run?.id || null, comparison:[...state.compare], job_id:state.job?.id || null,evaluation_id:state.evaluation?.id || null}));

@@ -129,6 +129,11 @@ def _results(directory, manifest):
         path = output / name
         if path.is_file() and not path.is_symlink():
             logs[name] = path.read_text(errors='replace')
+    evidence = manifest['metadata'].get('measurement_evidence')
+    if evidence:
+        from .measurement_evidence import finalize
+        finalize(evidence, directory / 'input', logs.get('ngspice.log', ''),
+                 manifest['metadata'].get('conditions', {}))
     definitions = {}
     for name, data in _sources(directory / 'input'):
         if Path(name).suffix.lower() not in {'.cir', '.spice', '.sp', '.ckt'}:
@@ -137,6 +142,8 @@ def _results(directory, manifest):
             match = re.match(r'\s*\.meas(?:ure)?\s+\S+\s+(\w+)\b', text, re.I)
             if match:
                 definitions[match[1].lower()] = {'path': name, 'line': line, 'text': text}
+    if evidence:
+        definitions = evidence['definitions']
     for name, content in logs.items():
         for match in re.finditer(r'^\s*([A-Za-z_]\w*)\s*=\s*(' + _NUMBER + r')(?:\s|$)', content, re.M):
             metric, raw = match.groups()
@@ -253,6 +260,27 @@ class RunManager:
         if kind == 'simulate' and netlist:
             from .eda import input_dependencies
             dependencies = input_dependencies(directory / 'input', netlist, environment)
+            from .measurement_evidence import collect, simulator_identity
+            metadata.pop('measurement_evidence', None)
+            evidence = collect(directory / 'input', netlist, dependencies)
+            expected_driver = ('* Analog-factory simulation control driver\n.control\nset filetype=ascii\n'
+                'source af_scripts/circuit.cir\nrun\nwrite ../output/waveforms.raw all\nquit\n.endc\n.end\n')
+            ordinary_driver = (command[1:] == ['-n', '-b', '-o', '{output}/ngspice.log', 'af_scripts/simulate.cir']
+                and generated.get('af_scripts/simulate.cir') == expected_driver
+                and aliases.get('af_scripts/circuit.cir') == netlist)
+            if evidence['definitions'] or ordinary_driver:
+                if not ordinary_driver:
+                    evidence['limitations'].append('The simulation driver is not the supported ordinary ngspice driver.')
+                else:
+                    for source in ['af_scripts/simulate.cir', 'af_scripts/circuit.cir']:
+                        evidence['source_hashes'][source] = _hash((directory / 'input' / source).read_bytes())
+                try:
+                    evidence['simulator_path'] = resolved[0]
+                    evidence['conditions']['simulator_identity'] = simulator_identity(resolved[0])
+                except (OSError, ValueError, UnicodeError):
+                    evidence['limitations'].append('Simulator executable identity is missing.')
+                evidence['complete'] = not evidence['limitations']
+                metadata['measurement_evidence'] = evidence
         manifest = {
             'schema_version': 1, 'id': run_id, 'kind': kind, 'status': 'queued',
             'project': str(project), 'parent_id': parent_id, 'created_at': _now(),

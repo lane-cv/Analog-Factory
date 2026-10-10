@@ -9,6 +9,15 @@ from analog_factory.waveforms import parse_raw
 
 
 class EDATests(unittest.TestCase):
+    def test_shared_include_in_distinct_model_corners_is_not_a_dependency_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'deck.cir').write_text('Test\n.lib models.lib tt\n.end\n')
+            (root / 'models.lib').write_text('.lib tt\n.include common.inc\n.endl tt\n.lib ss\n.include common.inc\n.endl ss\n')
+            (root / 'common.inc').write_text('R1 out 0 1k\n')
+            evidence = eda.input_dependencies(root, 'deck.cir', {})['provenance']
+            self.assertTrue(evidence['complete'], evidence['limitations'])
+
     def test_missing_tool_and_pdk_are_explained(self):
         result = toolchain.detect({'tools': {'ngspice': '/missing/ngspice'}, 'pdk_root': '/missing/pdk'})
         self.assertFalse(result['tools']['ngspice']['available'])

@@ -1,7 +1,10 @@
 # Delivery status
 
-Updated 2026-10-09. The latest addition is portable Ubuntu installation, owned
-desktop/service supervision and publication checks. Codex/Claude configuration
+Updated 2026-10-10. The latest additions are actionable design-stage entry,
+native prelaunch rejection recovery and snapshot-derived ordinary measurement
+evidence, following first-user environment checks and characterization history.
+Portable Ubuntu installation, owned desktop/service supervision and
+publication checks remain available. Codex/Claude configuration
 and official release tracking retain their separate network limitation below. Earlier source-patch, recovery, native and training gates retain
 their historical scope. Documentation is reconciled after verification.
 Continued project development and the scope limits below remain open.
@@ -11,7 +14,7 @@ Provider fixtures, CPU training and local physical checks have distinct scopes.
 
 | Area | Implemented and actually exercised | Remaining acceptance or scope limits |
 |---|---|---|
-| Unified operations | 268 registered UI/HTTP/CLI/MCP/assistant/graph/training/native operations, 40 compatibility routes, schemas, permissions, confirmations, revisions, cancellation, bounded paginated discovery and acknowledged target commands. Browser and owned native targets share registry policy; generated metadata and adapter-boundary checks pass | Static checks cannot prove arbitrary dynamic or third-party behavior; critical integration and final regression remain separate gates |
+| Unified operations | 274 registered UI/HTTP/CLI/MCP/assistant/graph/training/native operations, 42 compatibility routes, schemas, permissions, confirmations, revisions, cancellation, bounded paginated discovery and acknowledged target commands. Browser and owned native targets share registry policy; generated metadata and adapter-boundary checks pass | Static checks cannot prove arbitrary dynamic or third-party behavior; critical integration and final regression remain separate gates |
 | Projects/artifacts | Create/open/edit/history, rename/move, trash/restore, bounded ZIP backup/import. Real browser and 68 MiB checkpoint round trips; chunked uploads/downloads; OTA design defaults preserved through all three archive formats; imported execution authority stays inert | Editor text remains bounded; archives/artifacts have explicit disk quotas and ownership/expiry limits |
 | Manual EDA | Packaged five-MOS SKY130 template and full browser path: Xschem→publish→Magic DRC/PEX→publish→Netgen LVS→pre/post ngspice. Gain 43.3676/43.3681 dB; 28 extracted capacitors; DRC/LVS positive and negative controls. Actual Magic error-location acknowledgement under private Xvfb | DRC browser and distinct indexed error boxes passed; local capacitive extraction is not distributed-RC, density/antenna or foundry signoff |
 | Simulation/measurements | Graphical parameter/temperature/supply/corner batches and actual gain/bandwidth/phase/power/swing. New OTA characterization has actual nominal/PVT evidence and corrected transitive validation of project and configured-model inputs. Explicit loop-gain phase margin tested against analytic two-pole result (~19.8266°). Actual SKY130 mismatch seed qualification and experimental cached-global-draw qualification | Original installed mc still fails global correlation. Experimental semantics have bounded correlation/reproducibility evidence, not calibrated distributions or yield |
@@ -24,6 +27,80 @@ Provider fixtures, CPU training and local physical checks have distinct scopes.
 | Durable execution | Private SQLite receipts/events, bounded replay, scoped retries and fsynced crash test producing OUTCOME_UNKNOWN without duplicate effects | One owner process per workspace. Browser leases/private live capabilities expire on restart; ambiguous claims need inspection, not blind retry |
 | Deployment | Pinned Ubuntu 24.04 base/apt closure/Magic/Xschem and offline replay passed for the corrected October 9 characterization/agent/statistics snapshot. Release validator builds sdist/wheel, checks assets/private paths and tests the installed CLI/HTTP service outside the checkout | Source-patch/editor/native additions passed the corrected full regression, browser, package and Ubuntu gates below. No remote CI run has been triggered; optional provider logins and ML environment have separate acceptance |
 
+
+## First-user usability and design efficiency, 2026-10-10
+
+New-project preflight now checks workspace tools and the exact prepared OTA
+assets, offers configuration or an educational starter, and preserves newer
+drafts when creation responds late. The dialog stays open until the new project
+has loaded. English and Chinese controls share the same operations.
+
+Overview milestones distinguish source presence, execution completion, verified
+pass, stale evidence and published outputs. OTA publication checks actual run
+artifacts, deterministically derived files, native sources and environment
+identity. External edits refresh the overview without navigation. This is
+workflow evidence, not electrical compliance or foundry signoff.
+
+Measurement comparison requires matching recorded units, definitions, analysis,
+PVT and model/simulator identities. Incomplete older records retain their values
+without speculative deltas. Characterization reopens history, retains edited
+draft versions, and reports target margins, worst measured conditions and
+coverage. Missing measurements remain unknown. See the [manual workflow](manual-workflow.md)
+and [characterization guide](ota5-characterization.md).
+
+The follow-up makes each overview stage resolve to its configured source or
+testbench, existing execution, explicit publication entry, or missing tool
+configuration. `ui.workspace.continue_design` shares the manual path and enforces
+read/write/execute permissions. In-flight actions, changed prerequisites and
+newer drafts reject stale navigation. Publication selects its recorded source
+and requires a separate explicit publish action.
+
+Managed native canvas version/confirmation rejections proven to occur before
+launch permit an explicit project reread and a separate new start. Unknown
+outcomes retain the inspection requirement, including after closing the dialog.
+Ordinary ngspice comparison now collects actual snapshot definitions, model and
+simulator identities, sources, analyses and logged TEMP/TNOM. The educational
+amplifier's six metrics compare across design-size changes under matching
+conditions. Unsupported expressions, scoped/external models and control decks
+remain unqualified. Derived measurement dependencies use bounded semantic
+signatures; shared model-library sections retain existing batch behavior.
+
+Follow-up validation passed 879 Python tests with 4 environment/opt-in skips
+(`.validation/usability2-python-final.log`), 14 Node suites, and the generated
+274-operation/42-route contract. Wheel/sdist and isolated installed CLI/HTTP
+checks passed (`.validation/usability2-package/`). The 29-scenario full browser
+attempt retained 27 passes and two failures in
+`.validation/usability2-browser-final/`. Those checks assumed missing DRC tools
+and relied on an async predicate that the installed browser test runtime treated
+as immediately truthy. The corrected tests now follow actual workspace readiness
+and explicitly poll terminal run records. The final five affected/related flows
+passed across `.validation/usability2-browser-accepted/` and
+`.validation/usability2-navigation-accepted/`; the latter also corrected the test
+helper's backend query parameters. `.validation/usability2-validation.json`
+records all 29 passing scenarios and proves all 121 product files are identical
+across those runs and the installed package. This is aggregated coverage, not a
+relabeling of the initial full attempt. Actual comparison screenshots are in
+`.validation/usability2-ui-accepted/`. These checks do not repeat the separate
+real native-window or full SKY130 physical-acceptance gates. The current project
+service was not restarted.
+
+The earlier first-user pass included 859 Python tests with 4 environment skips
+(`.validation/product-ux-python.log`), plus all 23 final progress-specific tests,
+12 Node contract suites (`.validation/product-ux-node.log`), and the generated
+273-operation/42-route contract. The final wheel and sdist were built and
+installed outside the checkout (`.validation/product-ux-package-final/`).
+Browser checks use disposable workspaces, actual ngspice for first use and
+characterization execution, and explicitly seeded records for history reports.
+The 26-suite browser run retained 23 passes and three failures in
+`.validation/product-ux-browser-final/`. The failures exposed the new-project
+loading window, an existing test reading before initialization, and a test
+expecting implicit characterization draft rebasing. After their corrections,
+all seven affected/related suites passed in
+`.validation/product-ux-browser-verified/`, including all three failed cases.
+The final first-user test also verifies delayed creation, external source edits,
+Chinese controls and actual simulation; screenshots are in
+`.validation/product-ux-ui-verified/`.
+No new SKY130 PVT or manufacturing qualification is implied by the UI tests.
 
 ## Portable Ubuntu deployment, 2026-10-09
 

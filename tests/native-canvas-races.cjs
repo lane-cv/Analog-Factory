@@ -9,7 +9,7 @@ const source=fs.readFileSync(path.join(__dirname,'../analog_factory/static/nativ
 const oldSession='a'.repeat(32),oldRun='b'.repeat(32),newSession='c'.repeat(32),newRun='d'.repeat(32);
 
 function deferred(){let resolve;const promise=new Promise(done=>resolve=done);return {promise,resolve};}
-function fixture(invoke){
+function fixture(invoke,options={}){
   const listeners={};
   const dialog={open:false,innerHTML:'',setAttribute(){},addEventListener(name,handler){listeners[name]=handler;},showModal(){this.open=true;},close(){this.open=false;}};
   const context={window:{AFOperations:{invoke}},crypto:require('node:crypto').webcrypto,
@@ -17,13 +17,192 @@ function fixture(invoke){
     document:{createElement(){return dialog;},body:{append(){}}}};
   vm.createContext(context);vm.runInContext(source,context);
   const state={project:{id:'p'},dirty:false};
-  const ui=context.window.AFNativeCanvas.create({state});
+  const ui=context.window.AFNativeCanvas.create({state,...options});
   ui.mount({innerHTML:'',addEventListener(){},querySelector(){return {disabled:false};}});
   return {ui,state,listeners,dialog};
 }
 function native(session_id,run_id){return {project_id:'p',session_id,run_id,tool:'xschem',
   source:`schematics/${session_id}.sch`,native_revision:7,modified:true,
   instances:[{id:'R1',pins:['P','M']}],selected:[],box:[],box_token:'',layers:[],connected:true,source_sha256:'e'.repeat(64)};}
+function launchFailure(code,extra={}){return Object.assign(new Error(`Launch rejected: ${code}`),{code,
+  envelope:{ok:false,operation_id:'native.canvas.start',data:null,task_id:null,status:'failed',version:null,...extra}});}
+
+test('a proven launch rejection requires a project re-read and a new explicit start',async()=>{
+  for(const code of ['VERSION_CONFLICT','CONFIRMATION_REQUIRED']){
+    let version='v1';const launches=[];
+    const {ui,dialog}=fixture(async(name,p,options)=>{
+      if(name==='project.detail')return {data:{},version};
+      if(name==='native.canvas.start'){
+        launches.push(options);
+        if(launches.length===1)throw launchFailure(code);
+        return {data:{id:newRun,native_session_id:newSession},version};
+      }
+      if(name==='native.canvas.get')return {data:{state:native(p.session_id,p.run_id)},version};
+      throw new Error(`Unexpected operation ${name}`);
+    });
+    await ui.commands.open();
+    await assert.rejects(ui.commands.start(),error=>error.code===code);
+    assert.equal(ui.snapshot().needs_inspection,true);
+    assert.equal(ui.snapshot().unknown_outcome,false);
+    assert.match(dialog.innerHTML,/Read latest project state/);
+    await assert.rejects(ui.commands.start(),/inspect/i);
+    assert.equal(launches.length,1,'A rejected launch is never automatically retried');
+    version='v2';ui.commands.close();
+    const reread=await ui.commands.open();
+    assert.equal(reread.source_version,'v2');
+    assert.equal(reread.needs_inspection,false,'Reopening after a proven rejection reads the current project version');
+    assert.equal(launches.length,1,'Reopening performs no launch');
+    const started=await ui.commands.start();
+    assert.equal(launches[1].expected_version,'v2');
+    assert.notEqual(launches[0].idempotency_key,launches[1].idempotency_key);
+    assert.equal(started.session_id,newSession);
+  }
+});
+
+test('the registered refresh and manual refresh both recover only by reading latest project state',async()=>{
+  for(const manual of [false,true]){
+    let reads=0,launches=0;
+    const {ui,listeners,dialog}=fixture(async name=>{
+      if(name==='project.detail')return {data:{},version:++reads===1?'v1':'v2'};
+      if(name==='native.canvas.start'){launches++;throw launchFailure('VERSION_CONFLICT');}
+      throw new Error(`Unexpected operation ${name}`);
+    });
+    await ui.commands.open();await assert.rejects(ui.commands.start(),/rejected/);
+    assert.match(dialog.innerHTML,/<button[^>]*data-native-action="refresh"\s*>/,
+      'Manual recovery must be available without an uninspectable run');
+    if(manual){
+      listeners.click({target:{closest(){return {disabled:false,dataset:{nativeAction:'refresh'}};}}});
+      for(let turn=0;turn<20;turn++)await Promise.resolve();
+    }else await ui.commands.refresh();
+    const view=ui.snapshot();
+    assert.equal(view.source_version,'v2');assert.equal(view.needs_inspection,false);
+    assert.equal(view.unknown_outcome,false);assert.equal(view.busy,false);
+    assert.equal(reads,2);assert.equal(launches,1,'A recovery action may not start the native process');
+  }
+});
+
+test('a failed project re-read keeps a rejected launch locked until a successful explicit read',async()=>{
+  let reads=0,failRead=false,launches=0;
+  const {ui}=fixture(async name=>{
+    if(name==='project.detail'){
+      reads++;
+      if(failRead)throw new Error('Project read failed');
+      return {data:{},version:reads===1?'v1':'v2'};
+    }
+    if(name==='native.canvas.start'){launches++;throw launchFailure('VERSION_CONFLICT');}
+  });
+  await ui.commands.open();await assert.rejects(ui.commands.start(),/rejected/);
+  failRead=true;
+  await assert.rejects(ui.commands.refresh(),/Project read failed/);
+  assert.equal(ui.snapshot().needs_inspection,true);assert.equal(ui.snapshot().source_version,'v1');
+  await assert.rejects(ui.commands.start(),/inspect/i);assert.equal(launches,1);
+  failRead=false;await ui.commands.refresh();
+  assert.equal(ui.snapshot().needs_inspection,false);assert.equal(ui.snapshot().source_version,'v2');
+});
+
+test('unproven launch failures cannot be cleared by reopening or a generic project read',async()=>{
+  for(const failure of [new Error('Lost connection'),launchFailure('OUTCOME_UNKNOWN'),
+    launchFailure('INVALID_ARGUMENT'),launchFailure('PERMISSION_DENIED'),launchFailure('UNAVAILABLE'),
+    Object.assign(new Error('Unproven version rejection'),{code:'VERSION_CONFLICT'}),
+    launchFailure('VERSION_CONFLICT',{operation_id:'native.canvas.get'}),
+    launchFailure('VERSION_CONFLICT',{data:{id:oldRun,native_session_id:oldSession}}),
+    launchFailure('VERSION_CONFLICT',{task_id:`run:p:${oldRun}`})]){
+    let launches=0;
+    const {ui,dialog}=fixture(async name=>{
+      if(name==='project.detail')return {data:{},version:'v2'};
+      if(name==='native.canvas.start'){launches++;throw failure;}
+    });
+    await ui.commands.open();await assert.rejects(ui.commands.start());
+    assert.equal(ui.snapshot().needs_inspection,true);assert.equal(ui.snapshot().unknown_outcome,true);
+    ui.commands.close();await ui.commands.open();
+    assert.equal(ui.snapshot().unknown_outcome,true,'A generic read cannot establish a launch outcome');
+    await assert.rejects(ui.commands.start(),/inspect/i);
+    await assert.rejects(ui.commands.refresh(),/actual recorded native run/i);
+    assert.equal(launches,1);assert.doesNotMatch(dialog.innerHTML,/Read latest project state/);
+  }
+});
+
+test('a failed generic project read cannot downgrade an unknown launch outcome',async()=>{
+  let failRead=false;
+  const {ui}=fixture(async name=>{
+    if(name==='project.detail'){
+      if(failRead)throw launchFailure('VERSION_CONFLICT');
+      return {data:{},version:'v2'};
+    }
+    if(name==='native.canvas.start')throw launchFailure('OUTCOME_UNKNOWN');
+  });
+  await ui.commands.open();await assert.rejects(ui.commands.start());ui.commands.close();
+  failRead=true;await assert.rejects(ui.commands.open());
+  assert.equal(ui.snapshot().unknown_outcome,true);
+  failRead=false;await ui.commands.open();
+  assert.equal(ui.snapshot().unknown_outcome,true);await assert.rejects(ui.commands.start(),/inspect/i);
+});
+
+test('closing during a rejected-launch project re-read cannot accept the delayed version',async()=>{
+  const read=deferred();let reads=0;
+  const {ui}=fixture(async name=>{
+    if(name==='project.detail')return ++reads===2?read.promise:{data:{},version:reads===1?'v1':'v3'};
+    if(name==='native.canvas.start')throw launchFailure('VERSION_CONFLICT');
+  });
+  await ui.commands.open();await assert.rejects(ui.commands.start());
+  const refreshing=ui.commands.refresh();ui.commands.close();
+  read.resolve({data:{},version:'v2'});await assert.rejects(refreshing,/changed/i);
+  assert.equal(ui.snapshot().open,false);assert.equal(ui.snapshot().source_version,'v1');
+  assert.equal(ui.snapshot().needs_inspection,true);
+  await ui.commands.open();assert.equal(ui.snapshot().source_version,'v3');
+  assert.equal(ui.snapshot().needs_inspection,false);
+});
+
+test('a delayed launch response after close remains bounded by its actual delivery outcome',async()=>{
+  for(const outcome of ['rejected','unknown','launched']){
+    const pending=deferred();let launches=0;
+    const {ui}=fixture(async(name,p)=>{
+      if(name==='project.detail')return {data:{},version:'v2'};
+      if(name==='native.canvas.start'){launches++;return pending.promise;}
+      if(name==='native.canvas.get')return {data:{state:native(p.session_id,p.run_id)},version:'v2'};
+    });
+    await ui.commands.open();
+    const starting=ui.commands.start();ui.commands.close();
+    if(outcome==='launched')pending.resolve({data:{id:newRun,native_session_id:newSession},version:'v2'});
+    else pending.resolve(Promise.reject(outcome==='rejected'?launchFailure('VERSION_CONFLICT'):launchFailure('OUTCOME_UNKNOWN')));
+    await assert.rejects(starting);
+    await ui.commands.open();
+    assert.equal(launches,1,'Close and reopen never automatically deliver a second launch');
+    if(outcome==='rejected')assert.equal(ui.snapshot().needs_inspection,false);
+    else{
+      assert.equal(ui.snapshot().needs_inspection,true);assert.equal(ui.snapshot().unknown_outcome,true);
+      await assert.rejects(ui.commands.start(),/inspect/i);
+      if(outcome==='launched'){
+        assert.equal(ui.snapshot().run_id,newRun,'A known launched target remains available for inspection');
+        await ui.commands.refresh();assert.equal(ui.snapshot().needs_inspection,false);
+      }
+    }
+  }
+});
+
+test('existing targets and errors after a launch receipt always require native inspection',async()=>{
+  for(const stage of ['existing','update','inspect'])for(const code of ['VERSION_CONFLICT','CONFIRMATION_REQUIRED','INVALID_ARGUMENT','PERMISSION_DENIED','UNAVAILABLE']){
+    let failInspection=false;
+    const {ui}=fixture(async(name,p)=>{
+      if(name==='project.detail')return {data:{},version:'v2'};
+      if(name==='native.canvas.start'){
+        if(stage==='existing')throw launchFailure(code);
+        failInspection=stage==='inspect';return {data:{id:newRun,native_session_id:newSession},version:'v2'};
+      }
+      if(name==='native.canvas.get'){
+        if(failInspection)throw launchFailure(code);
+        return {data:{state:native(p.session_id,p.run_id)},version:'v2'};
+      }
+    },{onUpdate(){if(stage==='update')throw launchFailure(code);}});
+    await ui.commands.open(stage==='existing'?{session_id:oldSession,run_id:oldRun}:{});
+    await assert.rejects(ui.commands.start());
+    ui.commands.close();await ui.commands.open();
+    assert.equal(ui.snapshot().needs_inspection,true);
+    assert.equal(ui.snapshot().run_id,stage==='existing'?oldRun:newRun);
+    await assert.rejects(ui.commands.start(),/inspect/i);
+    failInspection=false;await ui.commands.refresh();assert.equal(ui.snapshot().needs_inspection,false);
+  }
+});
 
 test('failed inspection of a new target cannot authorize edits using the old target state',async()=>{
   const calls=[];

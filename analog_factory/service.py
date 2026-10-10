@@ -265,9 +265,14 @@ class Workspace:
                 }}
 
     def detail(self, project_id):
+        from .design_progress import build
         root = self.projects.path(project_id)
-        return {'project': self.projects.get(project_id), 'configuration': public_config(self.config(project_id)),
-                'files': self.projects.files(project_id), 'runs': self.runs(project_id), 'jobs': self.jobs.list(root)}
+        project = self.projects.get(project_id)
+        files = self.projects.files(project_id)
+        runs = self.runs(project_id)
+        return {'project': project, 'configuration': public_config(self.config(project_id)),
+                'files': files, 'runs': runs, 'jobs': self.jobs.list(root),
+                'design_progress': build(root, project, files, runs, config=self.config(project_id))}
 
     def _episode_roots(self, project_id):
         root = self.projects.path(project_id)

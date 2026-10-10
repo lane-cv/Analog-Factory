@@ -5,6 +5,7 @@ window.AFNativeCanvas={create({state,toast,t=value=>value,onUpdate}){
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const label=value=>esc(t(value));
   let host,dialog,origin=null,sourceVersion=null,runID=null,sessionID=null,native=null,busy=false,error='',unknown=false,needsInspection=false,generation=0;
+  let launchRejected=false,launchPending=false;
   let draft={tool:'xschem',source:'schematics/amplifier.sch',instance_id:'',direction:'right',grid_steps:1,from_instance:'',from_pin:'',to_instance:'',to_pin:'',route:'horizontal_first',layer:''};
   function guard(mutation=false){
     if(!dialog?.open||origin!==state.project?.id)throw new Error(t('Project changed. Reopen the managed native canvas.'));
@@ -17,11 +18,18 @@ window.AFNativeCanvas={create({state,toast,t=value=>value,onUpdate}){
     native:same&&native?clone(native):null,unknown_outcome:same?unknown:false,needs_inspection:same?needsInspection:false,error:same?error:''};}
   const option=(value,current,translate=false)=>`<option value="${esc(value)}" ${value===current?'selected':''}>${translate?label(value):esc(value)}</option>`;
   const listedLayers=()=>native?.layers?.filter(layer=>/^[A-Za-z_][A-Za-z0-9_.:/+-]{0,127}$/.test(layer))||[];
+  const canReadRejectedLaunch=()=>launchRejected&&!runID&&!sessionID;
+  // These two codes originate before the start handler runs. Other codes can
+  // also describe failures after delivery and cannot establish a safe retry.
+  const rejectedBeforeLaunch=failure=>['VERSION_CONFLICT','CONFIRMATION_REQUIRED'].includes(failure.code)&&
+    failure.envelope?.operation_id==='native.canvas.start'&&failure.envelope.ok===false&&
+    failure.envelope.status==='failed'&&failure.envelope.data===null&&failure.envelope.task_id===null;
   function instanceSelect(key,name){return `<label>${label(name)}<select data-native-field="${key}">${option('',draft[key])}${(native?.instances||[]).map(item=>option(item.id,draft[key])).join('')}</select></label>`;}
   function pinSelect(key,instanceKey,name){const pins=native?.instances?.find(item=>item.id===draft[instanceKey])?.pins||[];return `<label>${label(name)}<select data-native-field="${key}">${option('',draft[key])}${pins.map(pin=>option(pin,draft[key])).join('')}</select></label>`;}
   function body(){if(!dialog)return;if(origin!==state.project?.id){dialog.innerHTML=`<div class="dialog-form"><p role="alert">${label('Project changed. Reopen the managed native canvas.')}</p><button type="button" data-native-action="close">${label('Close')}</button></div>`;return;}const locked=busy||unknown||needsInspection,connected=Boolean(native?.connected);
-    const buttons=['refresh','stop'].map(action=>`<button type="button" data-native-action="${action}" ${busy||!runID?'disabled':''}>${label(action==='refresh'?'Inspect native state':'Stop managed window')}</button>`).join('');
-    dialog.innerHTML=`<div class="dialog-form"><div class="card-head"><h2 id="native-canvas-title">${label('Managed native canvas')}</h2><button type="button" data-native-action="close" aria-label="${label('Close')}">×</button></div><p>${label('Open a new Xschem or Magic session and edit actual named objects. Existing native windows are not taken over. Edits stay in the native window until explicit save.')}</p><fieldset ${busy||connected?'disabled':''}><legend>${label('Native source')}</legend><div class="form-grid"><label>${label('Tool')}<select data-native-field="tool">${['xschem','magic'].map(tool=>option(tool,draft.tool)).join('')}</select></label><label>${label('Source file')}<input data-native-field="source" maxlength="2048" value="${esc(draft.source)}"></label></div><button type="button" data-native-action="start" ${locked?'disabled':''}>${label('Open managed window')}</button></fieldset><p role="status">${native?`${label('Native revision')}: ${native.native_revision} · ${label('Unsaved native work')}: ${label(native.modified?'Yes':'No')} · ${label('Run')}: ${esc(runID)}`:label('Native readiness requires an actual acknowledgment.')}</p>${connected&&native.tool==='xschem'?`<fieldset ${locked?'disabled':''}><legend>${label('Named schematic objects')}</legend><div class="form-grid">${instanceSelect('instance_id','Instance')}<label>${label('Direction')}<select data-native-field="direction">${['left','right','up','down'].map(direction=>option(direction,draft.direction,true)).join('')}</select></label><label>${label('Grid steps')}<input type="number" min="1" max="999" step="1" data-native-field="grid_steps" value="${Number(draft.grid_steps)}"></label></div><div class="button-row"><button type="button" data-native-action="select">${label('Select instance')}</button><button type="button" data-native-action="move">${label('Move instance')}</button></div><div class="form-grid">${instanceSelect('from_instance','From instance')}${pinSelect('from_pin','from_instance','From pin')}${instanceSelect('to_instance','To instance')}${pinSelect('to_pin','to_instance','To pin')}<label>${label('Route')}<select data-native-field="route">${['horizontal_first','vertical_first'].map(route=>option(route,draft.route,true)).join('')}</select></label></div><button type="button" data-native-action="connect_pins">${label('Connect named pins')}</button></fieldset>`:''}${connected&&native.tool==='magic'?`<fieldset ${locked?'disabled':''}><legend>${label('Acknowledged native box')}</legend><p>${esc(native.box.join(', '))}</p><label>${label('Layer')}<select data-native-field="layer">${option('',draft.layer)}${listedLayers().map(layer=>option(layer,draft.layer)).join('')}</select></label><button type="button" data-native-action="paint_box">${label('Paint current box')}</button></fieldset>`:''}<p role="alert">${esc(error)}</p>${unknown||needsInspection?`<p>${label('Inspect the native session before another mutation. The previous command must not be retried automatically.')}</p>`:''}<div class="dialog-actions">${buttons}<button type="button" data-native-action="save" ${locked||!connected||state.dirty?'disabled':''}>${label('Save native snapshot with history')}</button></div><p class="footnote">${label('Native save preserves project history and keeps the editor dirty flag explicit. An edit acknowledgment does not establish connectivity or DRC correctness.')}</p></div>`;
+    const reread=canReadRejectedLaunch();
+    const buttons=['refresh','stop'].map(action=>`<button type="button" data-native-action="${action}" ${busy||(!runID&&!(action==='refresh'&&reread))?'disabled':''}>${label(action==='refresh'?(reread?'Read latest project state':'Inspect native state'):'Stop managed window')}</button>`).join('');
+    dialog.innerHTML=`<div class="dialog-form"><div class="card-head"><h2 id="native-canvas-title">${label('Managed native canvas')}</h2><button type="button" data-native-action="close" aria-label="${label('Close')}">×</button></div><p>${label('Open a new Xschem or Magic session and edit actual named objects. Existing native windows are not taken over. Edits stay in the native window until explicit save.')}</p><fieldset ${busy||connected?'disabled':''}><legend>${label('Native source')}</legend><div class="form-grid"><label>${label('Tool')}<select data-native-field="tool">${['xschem','magic'].map(tool=>option(tool,draft.tool)).join('')}</select></label><label>${label('Source file')}<input data-native-field="source" maxlength="2048" value="${esc(draft.source)}"></label></div><button type="button" data-native-action="start" ${locked?'disabled':''}>${label('Open managed window')}</button></fieldset><p role="status">${native?`${label('Native revision')}: ${native.native_revision} · ${label('Unsaved native work')}: ${label(native.modified?'Yes':'No')} · ${label('Run')}: ${esc(runID)}`:label('Native readiness requires an actual acknowledgment.')}</p>${connected&&native.tool==='xschem'?`<fieldset ${locked?'disabled':''}><legend>${label('Named schematic objects')}</legend><div class="form-grid">${instanceSelect('instance_id','Instance')}<label>${label('Direction')}<select data-native-field="direction">${['left','right','up','down'].map(direction=>option(direction,draft.direction,true)).join('')}</select></label><label>${label('Grid steps')}<input type="number" min="1" max="999" step="1" data-native-field="grid_steps" value="${Number(draft.grid_steps)}"></label></div><div class="button-row"><button type="button" data-native-action="select">${label('Select instance')}</button><button type="button" data-native-action="move">${label('Move instance')}</button></div><div class="form-grid">${instanceSelect('from_instance','From instance')}${pinSelect('from_pin','from_instance','From pin')}${instanceSelect('to_instance','To instance')}${pinSelect('to_pin','to_instance','To pin')}<label>${label('Route')}<select data-native-field="route">${['horizontal_first','vertical_first'].map(route=>option(route,draft.route,true)).join('')}</select></label></div><button type="button" data-native-action="connect_pins">${label('Connect named pins')}</button></fieldset>`:''}${connected&&native.tool==='magic'?`<fieldset ${locked?'disabled':''}><legend>${label('Acknowledged native box')}</legend><p>${esc(native.box.join(', '))}</p><label>${label('Layer')}<select data-native-field="layer">${option('',draft.layer)}${listedLayers().map(layer=>option(layer,draft.layer)).join('')}</select></label><button type="button" data-native-action="paint_box">${label('Paint current box')}</button></fieldset>`:''}<p role="alert">${esc(error)}</p>${unknown||needsInspection?`<p>${label(reread?'The native window was not opened. Read the latest project state before opening it again.':'Inspect the native session before another mutation. The previous command must not be retried automatically.')}</p>`:''}<div class="dialog-actions">${buttons}<button type="button" data-native-action="save" ${locked||!connected||state.dirty?'disabled':''}>${label('Save native snapshot with history')}</button></div><p class="footnote">${label('Native save preserves project history and keeps the editor dirty flag explicit. An edit acknowledgment does not establish connectivity or DRC correctness.')}</p></div>`;
   }
   function pending(){return {project_id:origin,run_id:runID,session_id:sessionID};}
   function check(ticket,expected){
@@ -72,40 +80,50 @@ window.AFNativeCanvas={create({state,toast,t=value=>value,onUpdate}){
     if(Boolean(session_id)!==Boolean(run_id))throw new Error(t('Choose both the native session and run.'));
     const pid=state.project.id,ticket=++generation;
     if(origin!==pid||(session_id&&(session_id!==sessionID||run_id!==runID))){
-      native=null;unknown=false;needsInspection=Boolean(session_id);sessionID=session_id||null;runID=run_id||null;
+      native=null;unknown=false;launchRejected=false;needsInspection=Boolean(session_id);sessionID=session_id||null;runID=run_id||null;
     }
     origin=pid;error='';busy=true;
     const expected=pending();
     try{
       const read=await ops.invoke('project.detail',{project_id:pid});check(ticket,expected);
-      sourceVersion=read.version;if(!dialog.open)dialog.showModal();
+      sourceVersion=read.version;
+      if(canReadRejectedLaunch()){launchRejected=false;unknown=false;needsInspection=false;}
+      if(!dialog.open)dialog.showModal();
       if(session_id){
         const inspected=await ops.invoke('native.canvas.get',expected);check(ticket,expected);
         accept(inspected.data,expected);sourceVersion=inspected.version;unknown=false;needsInspection=false;
       }
-    }catch(failure){if(ticket===generation){error=failure.message;needsInspection=true;unknown=failure.code==='OUTCOME_UNKNOWN';}throw failure;
+    }catch(failure){if(ticket===generation){error=failure.message;needsInspection=true;if(!canReadRejectedLaunch()&&failure.code==='OUTCOME_UNKNOWN')unknown=true;}throw failure;
     }finally{busy=false;body();}
     return snapshot();
   }
-  function close(){generation++;if(runID){needsInspection=true;if(busy)unknown=true;}dialog?.close();return snapshot();}
+  function close(){generation++;if(runID||launchPending){needsInspection=true;if(busy)unknown=true;}dialog?.close();return snapshot();}
   function set_options(parameters){guard();
     if(native?.connected&&['tool','source'].some(key=>key in parameters))throw new Error(t('Native launch options cannot change while this session is connected.'));
     const changes={...parameters};
     if('tool' in parameters&&!('source' in parameters))changes.source=parameters.tool==='magic'?'layout/amplifier.mag':'schematics/amplifier.sch';
     updateDraft(changes);body();return snapshot();}
   async function start(){guard(true);if(state.dirty)throw new Error(t('Save or resolve the browser editor draft before opening a native source.'));
-    busy=true;error='';body();const ticket=generation,expected=pending();
+    busy=true;launchPending=true;launchRejected=false;error='';body();const ticket=generation,expected=pending();let receivedLaunch=false;
     try{
       const result=await ops.invoke('native.canvas.start',{project_id:expected.project_id,tool:draft.tool,source:draft.source},{expected_version:sourceVersion,idempotency_key:`native-start-${crypto.randomUUID()}`});
-      check(ticket,expected);
-      runID=result.data.id;sessionID=result.data.native_session_id;native=null;needsInspection=true;
-      const launched=pending();await onUpdate?.(result.data);check(ticket,launched);
+      receivedLaunch=true;launchPending=false;
+      // Closing the dialog invalidates further work, but a returned launch
+      // target still needs to be retained so the user can inspect it later.
+      if(origin===expected.project_id&&runID===expected.run_id&&sessionID===expected.session_id){
+        runID=result.data.id;sessionID=result.data.native_session_id;native=null;needsInspection=true;
+      }
+      const launched=pending();check(ticket,launched);await onUpdate?.(result.data);check(ticket,launched);
       const inspected=await ops.invoke('native.canvas.get',launched);check(ticket,launched);
       accept(inspected.data,launched);sourceVersion=inspected.version;unknown=false;needsInspection=false;
-    }catch(failure){if(ticket===generation){needsInspection=true;if(!['VERSION_CONFLICT','INVALID_ARGUMENT','PERMISSION_DENIED','CONFIRMATION_REQUIRED','UNAVAILABLE'].includes(failure.code))unknown=true;error=failure.message;}throw failure;
-    }finally{busy=false;body();}
+    }catch(failure){
+      const rejected=!receivedLaunch&&!expected.run_id&&!expected.session_id&&!runID&&!sessionID&&
+        origin===expected.project_id&&rejectedBeforeLaunch(failure);
+      if(rejected){launchRejected=true;needsInspection=true;unknown=false;}
+      if(ticket===generation){needsInspection=true;if(!rejected)unknown=true;error=failure.message;}throw failure;
+    }finally{launchPending=false;busy=false;body();}
     return snapshot();}
-  async function refresh(){guard();if(!runID||!sessionID)throw new Error(t('Choose an actual recorded native run and session to inspect.'));
+  async function refresh(){guard();if(canReadRejectedLaunch())return open();if(!runID||!sessionID)throw new Error(t('Choose an actual recorded native run and session to inspect.'));
     busy=true;body();const ticket=generation,expected=pending();
     try{
       const result=await ops.invoke('native.canvas.get',expected);check(ticket,expected);

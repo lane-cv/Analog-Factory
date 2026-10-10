@@ -27,11 +27,14 @@ def input_dependencies(snapshot: Path, netlist: str, environment: dict) -> dict:
     sandbox or a complete interpreter of arbitrary SPICE control programs.
     """
     snapshot = Path(snapshot).resolve()
-    external, visited, limitations = {}, set(), []
+    external, internal, visited, limitations, repeated = {}, {}, set(), [], set()
     pending = [snapshot / netlist]
     while pending:
         path = pending.pop().resolve()
         if path in visited:
+            # The closure scans every library section. Shared includes can be
+            # mutually exclusive, so repetition alone is not a global failure.
+            repeated.add(str(path))
             continue
         visited.add(path)
         if len(visited) > 10000:
@@ -46,6 +49,8 @@ def input_dependencies(snapshot: Path, netlist: str, environment: dict) -> dict:
             continue
         if not path.is_relative_to(snapshot):
             external[str(path)] = hashlib.sha256(data).hexdigest()
+        else:
+            internal[path.relative_to(snapshot).as_posix()] = hashlib.sha256(data).hexdigest()
         logical = []
         for line in data.decode(errors='replace').splitlines():
             if line.lstrip().startswith('+') and logical:
@@ -87,6 +92,8 @@ def input_dependencies(snapshot: Path, netlist: str, environment: dict) -> dict:
         limitations.append('External model files are hashed but are not included in the immutable input snapshot')
     return {'external_dependencies': external,
             'provenance': {'complete': not limitations, 'coverage': 'Static SPICE .include/.inc/.lib dependency closure',
+                           'input_files': internal,
+                           'repeated_dependencies': sorted(repeated),
                            'limitations': list(dict.fromkeys(limitations))}}
 
 

@@ -25,7 +25,8 @@ TESTS = ('operations','operation-extension','agent-models','lifecycle','waveform
     'graph-controls','workflow-editor','source-patch','editor-recovery','editor-ownership',
     'editor-version-race','simulation-batches','characterization','training',
     'provider-controls','agent-capabilities','workflow-io','phase-margin','project-settings',
-    'project-configuration','transfers','native-terminal','agents','agent-cli')
+    'project-configuration','transfers','native-terminal','agents','agent-cli',
+    'first-user','characterization-history','ordinary-comparison','design-navigation','native-recovery')
 
 
 def now():
@@ -108,7 +109,7 @@ def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source',type=Path,default=ROOT,help='Checkout to freeze from the explicit source allowlist')
     parser.add_argument('--output',type=Path,required=True,help='New evidence directory; existing directories are refused')
-    parser.add_argument('--test',action='append',choices=TESTS,help='Allowlisted subset; default runs all 24 tests')
+    parser.add_argument('--test',action='append',choices=TESTS,help='Allowlisted subset; default runs all registered browser tests')
     parser.add_argument('--node',default='node',help='Installed Node executable; dependencies are inherited')
     parser.add_argument('--timeout',type=float,default=240,help='Per-test runtime bound in seconds')
     parser.add_argument('--ready-timeout',type=float,default=45)

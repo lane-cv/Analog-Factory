@@ -1,3 +1,19 @@
+.readiness-list { padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 12px; }
+.readiness-list li { padding-left: 10px; border-left: 3px solid var(--border); }
+.readiness-list [data-readiness-status="ready"] { border-left-color: var(--teal); }
+.readiness-list [data-readiness-status="missing"], .readiness-list [data-readiness-status="action_required"] { border-left-color: var(--amber); }
+.readiness-list small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+.design-next { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.design-next p { margin-bottom: 0; }
+.stage[data-stage-status="passed"], .stage[data-stage-status="published"], .stage[data-stage-status="completed"] { border-color: var(--teal); }
+.stage[data-stage-status="stale"], .stage[data-stage-status="publication_required"] { border-color: var(--amber); }
+.stage[data-stage-status="failed"] { border-color: var(--red); }
+.comparison-evidence { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 12px; }
+.comparison-evidence pre { max-height: 260px; overflow: auto; }
+#project-readiness { margin: 16px 0; }
+#new-project-dialog { width: 680px; max-height: 90vh; overflow-y: auto; }
+#new-project-dialog .dialog-actions { position: sticky; bottom: -26px; padding: 12px 0; background: var(--surface); }
+
 /* The Chinese UI subset is bundled under the SIL OFL; see fonts/OFL.txt. */
 @font-face {
   font-family: "Analog Factory Chinese";

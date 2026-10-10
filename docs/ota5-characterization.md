@@ -86,6 +86,24 @@ Inspect the job with `job.get`; each iteration links `run.get`, `run.log`, and
 waveforms. Closing the dialog preserves the job; cancellation stops its active
 simulator before later cases can run.
 
+Opening **OTA characterization** restores an active job, otherwise the most recent
+recorded job. **Characterization history** reopens older reports without starting
+any computation. **New characterization** prepares a draft against the current
+project version; **Run characterization** remains a separate explicit action.
+Edited drafts retain their source-version guard when closed and reopened.
+Remote callers use `ui.characterization.open` with `job_id` for history, or
+`new_job: true` for a new draft.
+
+Reports show measured values, units, recorded targets, signed margins and PVT
+conditions. Positive margin meets the recorded bound; absent measurements remain
+unknown. The worst-condition summary identifies each target's smallest measured
+margin and shows measured coverage against every requested view and PVT case;
+missing conditions prevent a complete passing summary.
+Historical reports always use their recorded targets even while the next
+job's draft is edited. Project-source freshness is labelled at the last refresh;
+it is not a new qualification of external PDK files. Per-run logs, waveforms and
+raw provenance remain available beneath the summary.
+
 Reproduce actual qualification in an isolated workspace:
 
 ```sh

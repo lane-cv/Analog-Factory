@@ -10406,6 +10406,48 @@
             ],
             "additionalProperties": true
           }
+        },
+        "design_progress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "run_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "status",
+              "target",
+              "reason",
+              "run_id"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [
@@ -10413,7 +10455,8 @@
         "configuration",
         "files",
         "runs",
-        "jobs"
+        "jobs",
+        "design_progress"
       ],
       "additionalProperties": false
     },
@@ -116452,7 +116495,7 @@
   {
     "operation_id": "ui.characterization.open",
     "name": "characterization / open",
-    "description": "Open the OTA PVT characterization dialog, optionally inspecting a recorded job.",
+    "description": "Open OTA characterization, restoring active or latest history. Select job_id for evidence or new_job for a draft without starting computation.",
     "module": "frontend",
     "input_schema": {
       "type": "object",
@@ -116471,6 +116514,9 @@
           "type": "string",
           "maxLength": 32,
           "pattern": "^[a-f0-9]{32}$"
+        },
+        "new_job": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -118664,7 +118710,7 @@
     "volatile_response": false,
     "source_revision": true,
     "frontend_adapter": "browser",
-    "purpose": "Open the OTA PVT characterization dialog, optionally inspecting a recorded job.",
+    "purpose": "Open OTA characterization, restoring active or latest history. Select job_id for evidence or new_job for a draft without starting computation.",
     "execution": "synchronous",
     "errors": [
       {
@@ -369259,6 +369305,2186 @@
     "source_revision": true,
     "frontend_adapter": "browser",
     "purpose": "Update node configuration, typed mappings, retry/timeout policy or position; coordinates clamp to the board.",
+    "execution": "synchronous",
+    "errors": [
+      {
+        "code": "INVALID_ARGUMENT",
+        "description": "invalid argument"
+      },
+      {
+        "code": "NOT_FOUND",
+        "description": "not found"
+      },
+      {
+        "code": "PERMISSION_DENIED",
+        "description": "permission denied"
+      },
+      {
+        "code": "CONFIRMATION_REQUIRED",
+        "description": "confirmation required"
+      },
+      {
+        "code": "VERSION_REQUIRED",
+        "description": "version required"
+      },
+      {
+        "code": "VERSION_CONFLICT",
+        "description": "version conflict"
+      },
+      {
+        "code": "IDEMPOTENCY_CONFLICT",
+        "description": "idempotency conflict"
+      },
+      {
+        "code": "UNAVAILABLE",
+        "description": "unavailable"
+      },
+      {
+        "code": "FRONTEND_DISCONNECTED",
+        "description": "frontend disconnected"
+      },
+      {
+        "code": "TIMEOUT",
+        "description": "timeout"
+      },
+      {
+        "code": "EXECUTION_FAILED",
+        "description": "execution failed"
+      },
+      {
+        "code": "OUTCOME_UNKNOWN",
+        "description": "outcome unknown"
+      },
+      {
+        "code": "INVALID_RESULT",
+        "description": "invalid result"
+      },
+      {
+        "code": "INTERNAL_ERROR",
+        "description": "internal error"
+      }
+    ],
+    "idempotency": "Optional durable request key: completed responses retained for 30 days / 1,000 entries; interrupted requests never reexecute. Sensitive or >1 MiB responses cannot be replayed.",
+    "revision_policy": "Project/workspace source revision in response"
+  },
+  {
+    "operation_id": "ui.workspace.continue_design",
+    "name": "workspace / continue design",
+    "description": "Enter a design stage using current project sources and evidence. May save a dirty source, start an EDA run or native editor, open a source-creation draft, inspect a recorded run, configure requirements, or export. Publication only selects its source execution and focuses the explicit publish control; it never publishes automatically. Changed prerequisites or project selection reject the action.",
+    "module": "frontend",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "client_id": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "ui_version": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional version returned by ui.sessions; rejects stale browser state."
+        },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "specification",
+            "schematic",
+            "pre",
+            "layout",
+            "drc",
+            "extract",
+            "lvs",
+            "post",
+            "archive"
+          ]
+        }
+      },
+      "required": [
+        "client_id",
+        "stage"
+      ],
+      "additionalProperties": false
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "client_id": {
+          "type": "string"
+        },
+        "data": {
+          "description": "Controller result; commands with no specific payload return an object containing state."
+        },
+        "state": {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "workspace": {
+              "type": "object",
+              "properties": {
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tab": {
+                  "type": "string"
+                },
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "context": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "run_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "connected": {
+                  "type": "boolean"
+                },
+                "preferences": {
+                  "type": "object",
+                  "properties": {
+                    "language": {
+                      "type": "string"
+                    },
+                    "theme": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": true
+                },
+                "draft_revision": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "disclosures": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "open": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "folders": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "open": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "dialogs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "editor": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dirty": {
+                  "type": "boolean"
+                },
+                "readonly": {
+                  "type": "boolean"
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "editor_recovery": {
+              "type": "object",
+              "properties": {
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "recovery_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "draft_revision": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "inspection_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                },
+                "storage_error": {
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "runs": {
+              "type": "object",
+              "properties": {
+                "selected": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "comparison": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "job_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "evaluation_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "waveform": {
+              "type": "object",
+              "properties": {
+                "loaded": {
+                  "type": "boolean"
+                },
+                "plot": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "component": {
+                  "type": "string"
+                },
+                "x_scale": {
+                  "type": "string"
+                },
+                "reference": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "unwrap": {
+                  "type": "boolean"
+                },
+                "traces": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "zoom": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "cursor": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "x": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sample": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "workflow": {
+              "type": "object",
+              "properties": {
+                "selected_node": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "schema_version": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "nodes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "draft_revision": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "agent": {
+              "type": "object",
+              "properties": {
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "session_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string"
+                },
+                "config": {
+                  "type": "object",
+                  "properties": {
+                    "backend": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
+                    "fast_mode": {
+                      "type": "boolean"
+                    },
+                    "effort": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "minimal",
+                            "low",
+                            "medium",
+                            "high",
+                            "xhigh",
+                            "max",
+                            "ultra"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Reasoning effort override. Null inherits native defaults. Use agent.models effort_levels for the selected model; unsupported explicit levels are rejected."
+                    },
+                    "scope": {
+                      "type": "object",
+                      "properties": {
+                        "operations": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "file.write",
+                              "run.start"
+                            ]
+                          },
+                          "minItems": 1,
+                          "maxItems": 2
+                        },
+                        "paths": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "minItems": 1,
+                          "maxItems": 20
+                        },
+                        "max_actions": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100
+                        },
+                        "max_runs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 20
+                        }
+                      },
+                      "required": [
+                        "operations",
+                        "paths",
+                        "max_actions",
+                        "max_runs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": true
+                },
+                "history_open": {
+                  "type": "boolean"
+                },
+                "context": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "attachments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "run_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "has_draft": {
+                  "type": "boolean"
+                },
+                "draft_revision": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "quick_dialog_open": {
+                  "type": "boolean"
+                },
+                "disclosures": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "open": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "popovers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "backend": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "accepted_turn_id": {
+                  "type": "string"
+                },
+                "auto_approval": {
+                  "type": "boolean"
+                },
+                "pending_approval": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "tool": {
+                          "type": "string"
+                        },
+                        "review": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "type": "string"
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "model": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [],
+                              "additionalProperties": true
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "agent_cli": {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "type": "boolean"
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "paths": {
+                  "type": "object",
+                  "properties": {
+                    "codex": {
+                      "type": "string"
+                    },
+                    "claude": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "codex",
+                    "claude"
+                  ],
+                  "additionalProperties": false
+                },
+                "project_version": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "workspace_version": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tracking": {
+                  "type": "object",
+                  "properties": {
+                    "automatic": {
+                      "type": "boolean"
+                    },
+                    "interval_hours": {
+                      "type": "integer",
+                      "minimum": 6,
+                      "maximum": 168
+                    }
+                  },
+                  "required": [
+                    "automatic",
+                    "interval_hours"
+                  ],
+                  "additionalProperties": false
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "project_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{32}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "tools": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "backend": {
+                                "type": "string",
+                                "enum": [
+                                  "codex",
+                                  "claude"
+                                ]
+                              },
+                              "available": {
+                                "type": "boolean"
+                              },
+                              "path": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "maxLength": 8000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "configured_path": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "maxLength": 8000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "config_source": {
+                                "type": "string",
+                                "enum": [
+                                  "project",
+                                  "workspace",
+                                  "PATH"
+                                ]
+                              },
+                              "version": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "maxLength": 8000
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "login": {
+                                "type": "string",
+                                "const": "not_checked"
+                              },
+                              "diagnostic": {
+                                "type": "string",
+                                "maxLength": 8000
+                              },
+                              "update_status": {
+                                "type": "string",
+                                "enum": [
+                                  "unknown",
+                                  "current",
+                                  "update_available",
+                                  "ahead"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "backend",
+                              "available",
+                              "path",
+                              "configured_path",
+                              "config_source",
+                              "version",
+                              "login",
+                              "diagnostic",
+                              "update_status"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "minItems": 2,
+                          "maxItems": 2
+                        },
+                        "releases": {
+                          "type": "object",
+                          "properties": {
+                            "backends": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "backend": {
+                                    "type": "string",
+                                    "enum": [
+                                      "codex",
+                                      "claude"
+                                    ]
+                                  },
+                                  "source_url": {
+                                    "type": "string",
+                                    "maxLength": 8000
+                                  },
+                                  "documentation_url": {
+                                    "type": "string",
+                                    "maxLength": 8000
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "const": "latest published release"
+                                  },
+                                  "latest_success": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "version": {
+                                            "type": "string",
+                                            "maxLength": 8000
+                                          },
+                                          "tag": {
+                                            "type": "string",
+                                            "maxLength": 8000
+                                          },
+                                          "url": {
+                                            "type": "string",
+                                            "maxLength": 8000
+                                          },
+                                          "published_at": {
+                                            "type": "string",
+                                            "maxLength": 8000
+                                          },
+                                          "checked_at": {
+                                            "type": "string",
+                                            "maxLength": 8000
+                                          },
+                                          "notes": {
+                                            "type": "string",
+                                            "maxLength": 8000
+                                          },
+                                          "notes_truncated": {
+                                            "type": "boolean"
+                                          }
+                                        },
+                                        "required": [
+                                          "version",
+                                          "tag",
+                                          "url",
+                                          "published_at",
+                                          "checked_at",
+                                          "notes",
+                                          "notes_truncated"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "latest_attempt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "checked_at": {
+                                            "type": "string",
+                                            "maxLength": 8000
+                                          },
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "succeeded",
+                                              "failed"
+                                            ]
+                                          },
+                                          "error": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "maxLength": 8000
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "checked_at",
+                                          "status",
+                                          "error"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "stale": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "backend",
+                                  "source_url",
+                                  "documentation_url",
+                                  "label",
+                                  "latest_success",
+                                  "latest_attempt",
+                                  "stale"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "minItems": 2,
+                              "maxItems": 2
+                            },
+                            "automatic": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "interval_hours": {
+                                  "type": "integer",
+                                  "minimum": 6,
+                                  "maximum": 168
+                                },
+                                "server_running_only": {
+                                  "type": "boolean",
+                                  "const": true
+                                }
+                              },
+                              "required": [
+                                "enabled",
+                                "interval_hours",
+                                "server_running_only"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "backends",
+                            "automatic"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "project_id",
+                        "tools",
+                        "releases"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "type": "string"
+                },
+                "uncertain": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "open",
+                "busy",
+                "project_id",
+                "paths",
+                "project_version",
+                "workspace_version",
+                "tracking",
+                "status",
+                "error",
+                "uncertain"
+              ],
+              "additionalProperties": false
+            },
+            "lifecycle": {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "type": "boolean"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "source_path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "destination": {
+                  "type": "string"
+                },
+                "trash_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "archive_loaded": {
+                  "type": "boolean"
+                },
+                "archive_name": {
+                  "type": "string"
+                },
+                "draft_revision": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "project_trash": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "file_trash": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "simulation_batch": {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "type": "boolean"
+                },
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "draft_revision": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "spec": {
+                  "anyOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "scenario_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "preview_current": {
+                  "type": "boolean"
+                },
+                "job_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "completed_runs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "active_run": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "qualification_jobs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "section": {
+                        "type": "string"
+                      },
+                      "model_semantics": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "evidence_run_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "characterization": {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "type": "boolean"
+                },
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "draft_revision": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "spec": {
+                  "anyOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "scenario_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "preview_current": {
+                  "type": "boolean"
+                },
+                "job_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "completed_runs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "active_run": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "qualification_jobs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "section": {
+                        "type": "string"
+                      },
+                      "model_semantics": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "evidence_run_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "training": {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "type": "boolean"
+                },
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "framework": {
+                          "type": "string",
+                          "enum": [
+                            "trl_cpu"
+                          ]
+                        },
+                        "taskset_id": {
+                          "type": "string",
+                          "pattern": "^(educational-amplifier-v1|taskset-[a-f0-9]{24})$"
+                        },
+                        "steps": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 128
+                        },
+                        "train_tasks": {
+                          "type": "integer",
+                          "minimum": 2,
+                          "maximum": 64
+                        },
+                        "eval_tasks": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 32
+                        },
+                        "seed": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2147483647
+                        },
+                        "wall_seconds": {
+                          "type": "integer",
+                          "minimum": 60,
+                          "maximum": 14400
+                        },
+                        "max_completion_length": {
+                          "type": "integer",
+                          "minimum": 96,
+                          "maximum": 2048,
+                          "description": "Total completion token budget including policy output, tool observations and framing. New jobs default to 96; partial patches and resume requests preserve an omitted value."
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "job_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "phase": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "completed_episodes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "model_weights_updated": {
+                  "type": "boolean"
+                },
+                "taskset": {
+                  "anyOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "resources": {
+                  "anyOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "checkpoint": {
+                  "anyOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "type": "string"
+                },
+                "taskset_draft": {
+                  "type": "string"
+                },
+                "taskset_preview_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "native_terminal": {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "type": "boolean"
+                },
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "terminal_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "options": {
+                  "type": "object",
+                  "properties": {
+                    "backend": {
+                      "type": "string",
+                      "enum": [
+                        "codex",
+                        "claude"
+                      ]
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "read-only",
+                        "workspace-write"
+                      ]
+                    },
+                    "model": {
+                      "type": "string",
+                      "maxLength": 256
+                    },
+                    "cols": {
+                      "type": "integer",
+                      "minimum": 20,
+                      "maximum": 240
+                    },
+                    "rows": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 100
+                    },
+                    "runtime_seconds": {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 14400
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                },
+                "output_offset": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "backend": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "mode": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "additionalProperties": true
+                  }
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "native_canvas": {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "type": "boolean"
+                },
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "tool": {
+                          "type": "string",
+                          "enum": [
+                            "xschem",
+                            "magic"
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "maxLength": 2048
+                        },
+                        "instance_id": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "direction": {
+                          "type": "string",
+                          "enum": [
+                            "left",
+                            "right",
+                            "up",
+                            "down"
+                          ]
+                        },
+                        "grid_steps": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 999
+                        },
+                        "from_instance": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "from_pin": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "to_instance": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "to_pin": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "route": {
+                          "type": "string",
+                          "enum": [
+                            "horizontal_first",
+                            "vertical_first"
+                          ]
+                        },
+                        "layer": {
+                          "type": "string",
+                          "maxLength": 128
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "source_version": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "run_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "session_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "native": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{32}$"
+                        },
+                        "run_id": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{32}$"
+                        },
+                        "session_id": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{32}$"
+                        },
+                        "tool": {
+                          "type": "string",
+                          "enum": [
+                            "xschem",
+                            "magic"
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "description": "Visible project-relative path; hidden paths, traversal and symbolic links are rejected."
+                        },
+                        "native_revision": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 999999999999
+                        },
+                        "modified": {
+                          "type": "boolean"
+                        },
+                        "instances": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z_][A-Za-z0-9_.:/+-]{0,127}$",
+                                "maxLength": 128
+                              },
+                              "symbol": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "type": {
+                                "type": "string",
+                                "maxLength": 128
+                              },
+                              "x": {
+                                "type": "number",
+                                "minimum": -1000000000,
+                                "maximum": 1000000000
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": -1000000000,
+                                "maximum": 1000000000
+                              },
+                              "rotation": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 3
+                              },
+                              "flip": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "pins": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "pattern": "^[A-Za-z_][A-Za-z0-9_.:/+-]{0,127}$",
+                                  "maxLength": 128
+                                },
+                                "maxItems": 128
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "symbol",
+                              "type",
+                              "x",
+                              "y",
+                              "rotation",
+                              "flip",
+                              "pins"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 512
+                        },
+                        "selected": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "maxItems": 4096
+                        },
+                        "box": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": -1000000000,
+                            "maximum": 1000000000
+                          },
+                          "maxItems": 4
+                        },
+                        "layers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 128
+                          },
+                          "maxItems": 512
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "source_sha256": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        }
+                      },
+                      "required": [
+                        "project_id",
+                        "run_id",
+                        "session_id",
+                        "tool",
+                        "source",
+                        "native_revision",
+                        "modified",
+                        "instances",
+                        "selected",
+                        "box",
+                        "layers",
+                        "connected",
+                        "source_sha256"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "unknown_outcome": {
+                  "type": "boolean"
+                },
+                "needs_inspection": {
+                  "type": "boolean"
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "open",
+                "project_id",
+                "busy",
+                "options",
+                "source_version",
+                "run_id",
+                "session_id",
+                "native",
+                "unknown_outcome",
+                "needs_inspection",
+                "error"
+              ],
+              "additionalProperties": false
+            },
+            "drc_navigation": {
+              "type": "object",
+              "properties": {
+                "project_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "run_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "source_run_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error_index": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "busy": {
+                  "type": "boolean"
+                },
+                "focused": {
+                  "type": "boolean"
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "box": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      },
+                      "minItems": 4,
+                      "maxItems": 4
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            },
+            "layout": {
+              "type": "object",
+              "properties": {
+                "sizes": {
+                  "type": "object",
+                  "properties": {
+                    "tree": {
+                      "type": "number"
+                    },
+                    "ai": {
+                      "type": "number"
+                    },
+                    "log": {
+                      "type": "number"
+                    },
+                    "composer": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": true
+                },
+                "visible": {
+                  "type": "object",
+                  "properties": {
+                    "tree": {
+                      "type": "boolean"
+                    },
+                    "ai": {
+                      "type": "boolean"
+                    },
+                    "log": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": true
+                },
+                "agent_expanded": {
+                  "type": "boolean"
+                },
+                "overlay": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            }
+          },
+          "required": [],
+          "additionalProperties": true,
+          "description": "Redacted controller state. Modules can be absent during startup; source and composer text require explicit read operations."
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "client_id",
+        "data",
+        "state",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "kind": "frontend",
+    "permissions": [
+      "ui",
+      "read",
+      "write",
+      "execute"
+    ],
+    "confirmation": "agent",
+    "asynchronous": false,
+    "cancellable": false,
+    "retryable": false,
+    "idempotent": false,
+    "undo": false,
+    "preconditions": [
+      "A live connected browser from ui.sessions is required."
+    ],
+    "side_effects": [
+      "Browser state changes only after the target browser executes the semantic handler."
+    ],
+    "tags": [
+      "frontend",
+      "workspace"
+    ],
+    "examples": [],
+    "task_kind": null,
+    "versioned": false,
+    "version": "1.0.0",
+    "usage": "Find client_id and version with ui.sessions. Invoke this operation with client_id and its declared parameters. Supply ui_version to reject stale browser state. The result contains the actual acknowledged browser state; timeouts have unknown outcome.",
+    "volatile_response": false,
+    "source_revision": true,
+    "frontend_adapter": "browser",
+    "purpose": "Enter a design stage using current project sources and evidence. May save a dirty source, start an EDA run or native editor, open a source-creation draft, inspect a recorded run, configure requirements, or export. Publication only selects its source execution and focuses the explicit publish control; it never publishes automatically. Changed prerequisites or project selection reject the action.",
     "execution": "synchronous",
     "errors": [
       {

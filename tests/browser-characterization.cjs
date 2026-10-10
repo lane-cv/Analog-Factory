@@ -61,6 +61,9 @@ with tempfile.TemporaryDirectory(prefix='af-characterization-browser-') as tempo
     const stale=await page.evaluate(async()=>{try{await AFOperations.dispatch('ui.characterization.start');return null;}catch(error){return error.code;}});
     assert.equal(stale,'VERSION_CONFLICT','An opened characterization draft must retain its original source revision');
     await dispatch('ui.characterization.close');await dispatch('ui.characterization.open');
+    const reopenedStale=await page.evaluate(async()=>{try{await AFOperations.dispatch('ui.characterization.start');return null;}catch(error){return error.code;}});
+    assert.equal(reopenedStale,'VERSION_CONFLICT','Reopening an edited draft must not silently accept changed source files');
+    await dispatch('ui.characterization.open',{new_job:true});
     await dispatch('ui.characterization.set_draft',{spec});
     const gain=dialog.locator('[data-characterize-target="gain_db_min"]');
     await gain.fill('31');await gain.press('Tab');
@@ -103,7 +106,7 @@ with tempfile.TemporaryDirectory(prefix='af-characterization-browser-') as tempo
     // A separate delayed process fixture proves cancellation even after a human draft edit.
     await mutate('project.configure',{project_id:local.project,config:{tools:{ngspice:local.slow}}});
     await dispatch('ui.editor.open',{path:'testbenches/pre.cir'});
-    await dispatch('ui.characterization.open');await dispatch('ui.characterization.set_draft',{spec});
+    await dispatch('ui.characterization.open',{new_job:true});await dispatch('ui.characterization.set_draft',{spec});
     await dispatch('ui.characterization.start');
     await page.waitForFunction(()=>Boolean(AFOperations.snapshot().characterization.active_run),null,{timeout:10000});
     await dispatch('ui.editor.set_content',{content:'unsaved human draft'});

@@ -318,6 +318,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-models-') as root:
     await page.locator('#agent-effort').selectOption('high');
     await page.locator('#chat-input').fill('Persist the effort draft');
     await page.reload();
+    await page.locator('body:not([inert])').waitFor();
     await page.waitForFunction(() => !document.querySelector('#agent-effort').disabled);
     assert.equal(await page.locator('#agent-effort').inputValue(),'high','The project draft restores effort after reload');
     assert.equal(await page.locator('#chat-input').inputValue(),'Persist the effort draft');

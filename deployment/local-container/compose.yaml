@@ -1,0 +1,40 @@
+name: analog-factory
+services:
+  app:
+    image: analog-factory:local
+    container_name: analog-factory
+    build:
+      context: .
+      network: host
+    network_mode: host
+    init: true
+    restart: unless-stopped
+    user: "${AF_UID:-1000}:${AF_GID:-1000}"
+    working_dir: ${AF_REPO:?Run deployment/local-container/manage.sh}
+    volumes:
+      - ${AF_REPO:?Run deployment/local-container/manage.sh}:${AF_REPO:?Run deployment/local-container/manage.sh}
+    environment:
+      PYTHONUNBUFFERED: "1"
+      CODEX_HOME: ${AF_REPO:?Run deployment/local-container/manage.sh}/.tools/deployment/codex-home
+      CLAUDE_CONFIG_DIR: ${AF_REPO:?Run deployment/local-container/manage.sh}/.tools/deployment/claude-home
+      HTTP_PROXY: "${AF_HTTP_PROXY:-}"
+      HTTPS_PROXY: "${AF_HTTPS_PROXY:-}"
+      NO_PROXY: localhost,127.0.0.1,::1
+    shm_size: 512m
+    pids_limit: 1024
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "/usr/bin/python3", "-c", "import urllib.request; r=urllib.request.build_opener(urllib.request.ProxyHandler({})).open('http://127.0.0.1:8765/api/operations', timeout=5); assert r.status == 200"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

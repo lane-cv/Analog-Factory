@@ -9,6 +9,11 @@ The private repository is `lane-cv/Analog-Factory`. Your GitHub account needs
 access. Clone the published source commit, then install on the target device;
 see the [validation status and limits](#validation-status-and-checklist).
 
+For the Linux Docker setup used on the current device, see the separate
+[local container deployment template](../deployment/local-container/README.txt).
+It uses the IIC OSIC tools image and private project-local CLI configuration;
+its existing-device evidence is distinct from a fresh template installation.
+
 ## Clone, install and start
 
 Choose a new destination. Authenticate through your normal Git workflow without

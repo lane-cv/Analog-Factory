@@ -4,6 +4,14 @@ The application keeps its existing vanilla-JavaScript controllers and HTTP APIs.
 
 `ui.sessions` lists live browser clients and redacted state. All other `ui.*` operations require a `client_id`; optional `ui_version` rejects a stale acknowledged browser state. The browser executes the handler, then acknowledges its real result and current state. A disconnected browser fails. A timeout means the outcome is unknown, not success. Different browser tabs have independent IDs, drafts and geometry.
 
+`ui.agent.approve` and `ui.agent.review_approval` target the selected conversation's
+exact pending approval ID. `ui.agent.set_auto_approval` toggles server-owned,
+in-memory AI review for that conversation. All three require local human approval
+authority and reject agent, workflow, evaluation, and external callers. Browser
+state exposes the auto-approval flag and pending review status/reason/model, without
+copying the proposed action arguments into routine state snapshots. Switching
+project or conversation invalidates delayed approval responses.
+
 ## Semantic operation coverage
 
 | Existing UI area and operations | Registry command(s) | Existing owner / domain operation |

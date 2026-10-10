@@ -41,42 +41,57 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     });
     browser = await chromium.launch({headless:true, args:['--no-sandbox']});
     const page = await browser.newPage({viewport:{width:1500,height:1150}});
+    page.setDefaultTimeout(15000);
     const errors = [], requests = [], sessions = new Map();
     page.on('pageerror', error => errors.push(error.message));
     const backends = [
-      {id:'api',name:'Model API',available:true,modes:['read-only','confirm']},
-      {id:'codex',name:'Codex CLI',available:true,modes:['read-only','workspace-write']},
+      {id:'api',name:'Model API',available:true,modes:['read-only','confirm'],approval_review:{available:true,model:'independent-reviewer',diagnostic:''}},
+      {id:'codex',name:'Codex CLI',available:true,modes:['read-only','workspace-write'],approval_review:{available:true,model:'independent-reviewer',diagnostic:''}},
       {id:'claude',name:'Claude CLI',available:false,diagnostic:'Claude executable not found',modes:['read-only','workspace-write']},
     ];
-    let sequence = 0, delaySession = null, releaseDelayed = null, rejectMessage = false, delayMessage = false, releaseMessage = null;
+    let sequence = 0, delaySession = null, releaseDelayed = null, rejectMessage = false, delayMessage = false, releaseMessage = null, delayReview = false, releaseReview = null;
+    const publicSession = ({project_id,...value}) => value;
     await page.route('**/api/agents*', route => route.fulfill({json:{backends}}));
     await page.route('**/api/projects/*/agent/sessions**', async route => {
       const request = route.request(), parts = new URL(request.url()).pathname.split('/');
-      const project = parts[3], id = parts[6], action = parts[7];
+      const project = parts[3], id = parts[6], action = parts[7], detail = parts[8];
       const body = request.method() === 'POST' ? request.postDataJSON() : null;
-      requests.push({project,id,action,body,method:request.method()});
-      if (!id && request.method() === 'GET') return route.fulfill({json:[...sessions.values()].filter(session => session.project_id === project)});
+      requests.push({project,id,action,detail,body,method:request.method()});
+      if (!id && request.method() === 'GET') return route.fulfill({json:[...sessions.values()].filter(session => session.project_id === project).map(publicSession)});
       if (!id) {
         const session = {id:`session-${++sequence}`,project_id:project,backend:body.backend,model:body.model || '',mode:body.mode,status:'idle',created_at:new Date().toISOString(),turns:[],pending_approval:null,usage:null};
         sessions.set(session.id, session);
-        return route.fulfill({status:201,json:session});
+        return route.fulfill({status:201,json:publicSession(session)});
       }
       const session = sessions.get(id);
       if (request.method() === 'GET') {
         if (id === delaySession) {
           delaySession = null;
-          const snapshot = JSON.parse(JSON.stringify(session));
+          const snapshot = JSON.parse(JSON.stringify(publicSession(session)));
           await new Promise(resolve => { releaseDelayed = resolve; });
           return route.fulfill({json:snapshot});
         }
-        return route.fulfill({json:session});
+        return route.fulfill({json:publicSession(session)});
       }
       if (action === 'messages') {
         if (rejectMessage) { rejectMessage = false; return route.fulfill({status:409,json:{error:'Previous turn is still shutting down'}}); }
         session.status = 'running';
         session.turns.push({id:`turn-${session.turns.length+1}`,message:body.message,status:'running',events:[{type:'status',text:'Inspecting project files'}],reply:'',usage:null,error:null});
         if (delayMessage) { delayMessage = false; await new Promise(resolve => { releaseMessage = resolve; }); }
-        return route.fulfill({status:202,json:session});
+        return route.fulfill({status:202,json:publicSession(session)});
+      }
+      if (action === 'auto-approval') {
+        assert.equal(typeof body.enabled, 'boolean');
+        session.auto_approval = body.enabled;
+        if (!body.enabled && session.pending_approval?.review?.status === 'reviewing') session.pending_approval.review = {status:'cancelled',reason:'Automatic review stopped.',model:'independent-reviewer'};
+        return route.fulfill({json:publicSession(session)});
+      }
+      if (action === 'approval' && detail === 'review') {
+        assert.equal(body.approval_id, session.pending_approval.id);
+        session.pending_approval.review = {status:'reviewing',reason:'',model:'independent-reviewer'};
+        const snapshot = JSON.parse(JSON.stringify(publicSession(session)));
+        if (delayReview) { delayReview = false; await new Promise(resolve => { releaseReview = resolve; }); }
+        return route.fulfill({json:snapshot});
       }
       if (action === 'approval') {
         assert.equal(body.approval_id, session.pending_approval.id);
@@ -89,7 +104,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
         session.status = 'cancelled'; session.pending_approval = null;
         session.turns.at(-1).status = 'cancelled';
       }
-      return route.fulfill({json:session});
+      return route.fulfill({json:publicSession(session)});
     });
     await page.goto(local.url);
     await page.waitForFunction(() => !document.body.inert);
@@ -97,20 +112,26 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.locator('#project-select').selectOption(local.projects[0].id);
     await page.waitForFunction(() => !document.querySelector('#chat-send').disabled);
     assert.equal(await page.locator('#agent-mode').inputValue(), 'read-only');
+    assert.equal(await page.locator('#agent-auto-approval').count(), 1, 'An explicit session-level automatic approval control is available');
+    assert.equal(await page.locator('#agent-auto-approval').isDisabled(), true, 'A draft cannot authorize automatic approval');
+    assert.equal(await page.locator('#agent-auto-approval').isChecked(), false);
     assert.notEqual(await page.locator('#agent-backend option[value=claude]').getAttribute('disabled'), null, 'Unavailable backends cannot be selected');
     await page.locator('[data-context="testbenches/pre.cir"]').check();
     await page.locator('#agent-add-context').click();
     await page.locator('#agent-attach-run').check();
     await page.keyboard.press('Escape');
     await page.locator('#chat-input').fill('Inspect <img src=x onerror="window.agentXss=1">');
-    const accepted = await page.evaluate(() => AFOperations.dispatch('ui.agent.send'));
+    const accepted = await page.evaluate(() => AFOperations.dispatch('ui.agent.send', {untrusted_request:true}));
     assert.equal(accepted.accepted_turn_id, 'turn-1', 'Semantic send confirms an accepted message turn');
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
     const first = [...sessions.values()][0];
     assert.equal(first.backend, 'api');
     assert.equal(first.mode, 'read-only');
+    assert.equal(await page.locator('#agent-auto-approval').isDisabled(), true, 'Automatic approval never upgrades a read-only session');
+    await assert.rejects(page.evaluate(() => AFOperations.dispatch('ui.agent.set_auto_approval', {enabled:true})), /read.only/i);
     assert.deepEqual(requests.find(request => request.action === 'messages').body.files, ['testbenches/pre.cir']);
     assert.equal(requests.find(request => request.action === 'messages').body.run_id, local.run_id);
+    assert.equal(requests.find(request => request.action === 'messages').body.untrusted_request, true, 'Remote semantic sends preserve their untrusted source at the message boundary');
     assert.equal(await page.locator('#agent-backend').isDisabled(), true);
     assert.equal(await page.locator('#agent-new').isDisabled(), true);
     assert.equal(await page.locator('#chat-messages img').count(), 0, 'User text remains escaped');
@@ -132,9 +153,35 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.locator('#chat-send').click();
     await page.waitForFunction(() => document.querySelector('#agent-status').textContent.includes('running'));
     const second = [...sessions.values()][1];
+    assert.equal(Object.hasOwn(requests.filter(request => request.action === 'messages').at(-1).body, 'untrusted_request'), false, 'The next human send does not inherit remote request provenance through drafts or reloads');
     second.status = 'waiting_approval';
     second.pending_approval = {id:'proposal-1',tool:'write_file',arguments:{path:'testbenches/pre.cir',content:'Complete replacement <script>window.agentXss=1</script>\nLast replacement line',diff:'--- old\n+++ new\n-previous\n+<script>window.agentXss=1</script>'}};
     await page.locator('#agent-approval').waitFor();
+    assert.equal(await page.locator('#agent-auto-approval').isChecked(), false, 'Legacy sessions default to manual approval');
+    const manualMode = await page.evaluate(() => AFOperations.dispatch('ui.agent.set_auto_approval', {enabled:false}));
+    assert.equal(manualMode.auto_approval, false, 'Semantic approval controls acknowledge real session records without a project_id field');
+    await page.locator('#agent-review').click();
+    await page.waitForFunction(() => AFOperations.snapshot().agent.pending_approval?.review?.status === 'reviewing');
+    assert.equal(await page.locator('#agent-review').isDisabled(), true, 'An in-progress review cannot be requested twice');
+    assert.equal(await page.locator('#agent-stop').isDisabled(), false, 'Reviewing keeps cancellation available');
+    assert.equal(await page.locator('#agent-deny').isDisabled(), false, 'A human can take over an in-progress review');
+    assert.equal(requests.filter(request => request.detail === 'review').length, 1);
+    await assert.rejects(page.evaluate(() => AFOperations.dispatch('ui.agent.review_approval', {approval_id:'proposal-1'})), /review.*progress|already.*review/i);
+    second.pending_approval.review = {status:'manual',reason:'Check <script>window.agentXss=1</script> before proceeding.',model:'independent-reviewer'};
+    second.turns.at(-1).events.push({type:'approval_review',decision:'manual',reason:'Review reason retained after manual takeover.',model:'independent-reviewer',text:'Review reason retained after manual takeover.'});
+    await page.locator('#agent-review-status').getByText('Check <script>window.agentXss=1</script> before proceeding.', {exact:false}).waitFor();
+    assert.equal(await page.locator('#agent-review-status script').count(), 0, 'Reviewer reasons remain plain text');
+    assert.equal(await page.locator('#agent-review').isDisabled(), false, 'An uncertain review returns control to the human');
+    await page.locator('#agent-auto-approval').check();
+    await page.waitForFunction(() => AFOperations.snapshot().agent.auto_approval === true);
+    assert.equal(requests.filter(request => request.action === 'auto-approval').at(-1).body.enabled, true);
+    second.pending_approval.review = {status:'reviewing',reason:'',model:'independent-reviewer'};
+    await page.waitForFunction(() => AFOperations.snapshot().agent.pending_approval?.review?.status === 'reviewing');
+    assert.equal(await page.locator('#agent-auto-approval').isDisabled(), false, 'Automatic approval can be stopped while its reviewer is running');
+    await page.locator('#agent-auto-approval').uncheck();
+    await page.waitForFunction(() => AFOperations.snapshot().agent.auto_approval === false);
+    assert.equal(requests.filter(request => request.action === 'auto-approval').at(-1).body.enabled, false);
+    await page.locator('#agent-review-status').getByText('Automatic review stopped.', {exact:false}).waitFor();
     assert.match(await page.locator('#agent-approval').innerText(), /testbenches\/pre.cir/);
     await page.locator('#agent-proposed-file summary').click();
     assert.match(await page.locator('#agent-proposed-content').innerText(), /Complete replacement/);
@@ -155,8 +202,13 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.setViewportSize({width:1500,height:1150});
     await page.locator('#agent-deny').click();
     await page.locator('#chat-messages').getByText('Change denied', {exact:true}).first().waitFor();
+    await page.locator('#chat-messages').getByText('Human decision required', {exact:true}).waitFor();
+    await page.locator('#chat-messages').getByText('independent-reviewer', {exact:true}).waitFor();
+    await page.locator('#chat-messages').getByText('Review reason retained after manual takeover.', {exact:true}).waitFor();
     assert.equal(await page.locator('#chat-messages').getByText('Change denied', {exact:true}).count(), 1, 'Final reply appears only once');
-    assert.equal(requests.find(request => request.action === 'approval').body.approved, false);
+    assert.equal(requests.find(request => request.action === 'approval' && !request.detail).body.approved, false);
+    assert.equal(await page.locator('#agent-auto-approval').isVisible(), true, 'Automatic approval can be stopped after a proposal disappears');
+    await assert.rejects(page.evaluate(() => AFOperations.dispatch('ui.agent.approve', {approval_id:'proposal-1',approved:true})), /approval|proposal/i);
     second.usage = {total_tokens:999};
     rejectMessage = true;
     await page.locator('#chat-input').fill('Keep this draft on failure');
@@ -169,12 +221,27 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     second.status = 'waiting_approval';
     second.pending_approval = {id:'proposal-2',tool:'simulate',arguments:{netlist:'testbenches/pre.cir'}};
     await page.locator('#agent-approval').waitFor();
+    await assert.rejects(page.evaluate(() => AFOperations.dispatch('ui.agent.review_approval', {approval_id:'proposal-1'})), /approval|proposal/i);
+    delayReview = true;
+    await page.evaluate(() => { window.semanticReviewResult = null; AFOperations.dispatch('ui.agent.review_approval', {approval_id:'proposal-2'}).then(data => { window.semanticReviewResult = {ok:true,data}; }, error => { window.semanticReviewResult = {ok:false,code:error.code}; }); });
+    for (let attempt = 0; !releaseReview && attempt < 100; attempt++) await page.waitForTimeout(20);
+    assert(releaseReview, 'The exact proposal reached the independent reviewer');
+    await page.locator('#project-select').selectOption(local.projects[1].id);
+    await page.waitForFunction(() => document.querySelector('#footer-project').textContent.includes('Agent project B'));
+    releaseReview();
+    await page.waitForFunction(() => window.semanticReviewResult);
+    assert.deepEqual(await page.evaluate(() => window.semanticReviewResult), {ok:false,code:'VERSION_CONFLICT'});
+    assert.equal(await page.locator('#agent-approval').isVisible(), false, 'A late review cannot appear in another project');
+    await page.locator('#project-select').selectOption(local.projects[0].id);
+    await page.locator('#agent-approval').waitFor();
     await page.locator('#agent-allow').click();
     await page.locator('#chat-messages').getByText('Change approved', {exact:true}).waitFor();
     assert.equal(requests.filter(request => request.action === 'approval').at(-1).body.approved, true);
     await page.locator('#agent-backend').selectOption('codex');
     assert.equal(await page.locator('#agent-session').inputValue(), '', 'Changing backend starts a fresh conversation');
     assert.equal(await page.locator('#agent-mode').inputValue(), 'read-only');
+    assert.equal(await page.locator('#agent-auto-approval').isChecked(), false, 'A new conversation never inherits automatic approval');
+    assert.equal(await page.locator('#agent-auto-approval').isDisabled(), true);
     await page.locator('#agent-mode').selectOption('workspace-write');
     await page.locator('#agent-model-toggle').click();
     assert.match(await page.locator('#agent-permission-note').innerText(), /requires your approval/i);
@@ -280,6 +347,7 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     assert.equal(preserved.tools.claude, '/tmp/example-claude');
     await page.locator('#ui-language').selectOption('zh-CN');
     await page.waitForFunction(() => !document.querySelector('#ui-language').disabled);
+    assert.match(await page.locator('#agent-auto-approval-label').innerText(), /自动审批/);
     assert.match(await page.locator('#agent-new').getAttribute('aria-label'), /[\u4e00-\u9fff]/, 'Icon-only new conversation control has a translated accessible label');
     assert.match(await page.locator('#chat-messages').innerText(), /Change denied/, 'Authored output is never translated');
     await page.locator('#ui-theme').selectOption('light');
@@ -287,6 +355,13 @@ with tempfile.TemporaryDirectory(prefix='af-browser-agents-') as root:
     await page.setViewportSize({width:390,height:844});
     await page.locator('#toggle-ai').click();
     assert(await page.locator('.ai-sidebar').isVisible());
+    await page.setViewportSize({width:1500,height:1150});
+    backends[0].approval_review = {available:false,model:'',diagnostic:'Reviewer fixture is unavailable'};
+    await page.reload();
+    await page.waitForFunction(() => !document.body.inert && AFOperations.snapshot().agent.session_id);
+    await page.locator('#agent-auto-approval-note').getByText('Reviewer fixture is unavailable', {exact:false}).waitFor();
+    assert.equal(await page.locator('#agent-auto-approval').isDisabled(), true, 'Unavailable reviewers do not enable automatic approval');
+    await assert.rejects(page.evaluate(() => AFOperations.dispatch('ui.agent.set_auto_approval', {enabled:true})), /Reviewer fixture is unavailable/);
     assert.equal(await page.evaluate(() => window.agentXss), undefined);
     assert.deepEqual(errors, []);
     console.log('Agent browser checks passed: sessions, polling, permissions, cancellation, escaping, project isolation, settings, localization.');

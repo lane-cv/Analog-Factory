@@ -694,7 +694,10 @@ class OperationRegistry:
             if signature != previous:
                 trace = self.tasks.get(task_id, {})
                 try:
-                    self._event(trace.get('operation_id'), task_id.split(':')[1], trace.get('trace_id'), result['status'], task_id=task_id, progress=result.get('progress'))
+                    with self.event_condition:
+                        if self.closed.is_set():
+                            return
+                        self._event(trace.get('operation_id'), task_id.split(':')[1], trace.get('trace_id'), result['status'], task_id=task_id, progress=result.get('progress'))
                 except OSError:
                     if not self.workspace.root.exists():
                         return
@@ -730,7 +733,10 @@ class OperationRegistry:
         threading.Thread(target=monitor, name='af-source-events', daemon=True).start()
 
     def close(self):
-        self.closed.set()
+        # Drain any journal write already in progress before closing. A task
+        # observer may have passed its wait before shutdown began.
+        with self.event_condition:
+            self.closed.set()
         cli_updates = getattr(self.workspace, 'cli_updates', None)
         if cli_updates:
             cli_updates.close()

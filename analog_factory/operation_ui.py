@@ -58,6 +58,9 @@ AGENT_STATE = record({
     'quick_dialog_open': BOOL, 'disclosures': items(DISCLOSURE), 'popovers': items(TEXT_RESULT),
     'sessions': items(record({'id': TEXT_RESULT, 'title': TEXT_RESULT, 'status': TEXT_RESULT, 'backend': TEXT_RESULT})),
     'accepted_turn_id': TEXT_RESULT,
+    'auto_approval': BOOL,
+    'pending_approval': {'anyOf': [record({'id': TEXT_RESULT, 'tool': TEXT_RESULT,
+        'review': {'anyOf': [record({'status': TEXT_RESULT, 'reason': TEXT_RESULT, 'model': TEXT_RESULT}), {'type': 'null'}]}}), {'type': 'null'}]},
 })
 LIFECYCLE_STATE = record({
     'open': BOOL, 'action': TEXT_RESULT, 'busy': BOOL, 'project_id': NULLABLE_TEXT,
@@ -196,6 +199,7 @@ DATA_SCHEMAS = {
     'editor.read': obj({'path': NULLABLE_TEXT, 'content': TEXT_RESULT, 'dirty': BOOL, 'readonly': BOOL},
                        ('path', 'content', 'dirty', 'readonly')),
     'agent.read': AGENT_STATE, 'agent.send': AGENT_STATE, 'agent.stop': AGENT_STATE,
+    'agent.approve': AGENT_STATE, 'agent.review_approval': AGENT_STATE, 'agent.set_auto_approval': AGENT_STATE,
     'agent.read_draft': obj({'message': TEXT_RESULT, 'files': items(TEXT_RESULT),
                            'attachments': items(ATTACHMENT), 'run_id': NULLABLE_TEXT},
                           ('message', 'files', 'attachments', 'run_id')),
@@ -356,6 +360,9 @@ COMMANDS = [
     ('agent.remove_attachment', 'Remove an attachment from the assistant draft by its browser ID.', {'attachment_id':INTEGER}, ('attachment_id',), ()),
     ('agent.send', 'Send the current composer using the chosen backend and permissions. May cause an external model request and project actions.', {}, (), ('execute','write')),
     ('agent.stop', 'Request cancellation of the selected running agent session.', {}, (), ('execute',)),
+    ('agent.approve', 'Allow or deny the exact pending action in the selected conversation. Requires local human approval authority.', {'approval_id':string(32,minLength=32),'approved':BOOL}, ('approval_id','approved'), ('approve',)),
+    ('agent.review_approval', 'Ask the project model API to review the exact pending action. Requires local human approval authority.', {'approval_id':string(32,minLength=32)}, ('approval_id',), ('approve',)),
+    ('agent.set_auto_approval', 'Enable or disable automatic AI review for the selected conversation. Requires local human approval authority.', {'enabled':BOOL}, ('enabled',), ('approve',)),
     ('agent.history', 'Open or close conversation history and optionally search titles/messages.', {'open':BOOL,'query':string(200)}, ('open',), ('read',)),
     ('agent.search_models', 'Filter the model picker by text.', {'query':string(200)}, ('query',), ()),
     ('agent.refresh_models', 'Refresh models reported by the selected installed CLI.', {}, (), ('read',)),
@@ -400,6 +407,8 @@ def register_operations(registry):
                     if lifecycle.get('action') == 'import':
                         raise PermissionError('Frontend archive import requires configure permission because it can restore project tool overrides')
             human = context.principal == 'local-owner' and 'approve' in context.permissions and context.source in ('ui', 'legacy', 'cli')
+            if operation_id in ('ui.agent.approve', 'ui.agent.review_approval', 'ui.agent.set_auto_approval') and not human:
+                raise PermissionError('Approval decisions and delegation require local human approval authority')
             if operation_id in ('ui.agent.set_config', 'ui.agent.send') and not human:
                 with registry.sessions.lock:
                     state = registry.sessions._get(values['client_id'])['state'].get('agent', {})
@@ -410,6 +419,17 @@ def register_operations(registry):
                     if creates_grant:
                         raise PermissionError('Automatic scope grants require a local human; remote frontend commands cannot grant or renew them')
             parameters = {key:value for key,value in values.items() if key not in ('client_id','ui_version')}
+            if operation_id == 'ui.agent.send' and not human:
+                with registry.sessions.lock:
+                    state = registry.sessions._get(values['client_id'])['state'].get('agent', {})
+                    if type(state.get('auto_approval')) is not bool:
+                        # Pre-upgrade controllers ignore forwarded provenance.
+                        raise PermissionError('Refresh the target browser before forwarding automated agent messages')
+                    if state.get('auto_approval'):
+                        raise PermissionError('Automated callers cannot send into a conversation with human AI approval delegation')
+                # Preserve provenance through the browser's local HTTP request.
+                # This flag can only reduce authority; it never grants it.
+                parameters['untrusted_request'] = True
             return registry.sessions.command(values['client_id'], operation_id, parameters,
                                              expected_version=values.get('ui_version'))
 

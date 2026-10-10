@@ -19,6 +19,8 @@ MAX_TURNS = 40
 MAX_RECORD = 4 * 1024 * 1024
 MAX_ATTACHMENTS = 20
 MAX_ATTACHMENT_BYTES = 64 * 1024
+APPROVAL_TIMEOUT = 600
+MAX_REVIEW_WORKERS = 4
 
 
 def now():
@@ -40,6 +42,8 @@ class AgentManager:
         self.workspace = workspace
         self.lock = threading.RLock()
         self.active = {}
+        self.auto_approvals = {}
+        self.review_workers = set()
         self.closed = False
 
     def backends(self, project_id=None):
@@ -58,6 +62,11 @@ class AgentManager:
                            'diagnostic': 'Executable found; existing CLI login required' if path else
                            f'Install {backend} or configure its executable in Settings',
                            'modes': list(MODES[backend])})
+        review = {'available': ready, 'model': provider.get('model', ''),
+                  'diagnostic': 'Independent review uses the project Model API' if ready else
+                  'Configure a project Model API to review approvals'}
+        for backend in result:
+            backend['approval_review'] = copy.deepcopy(review)
         return {'backends': result}
 
     def _path(self, pid, sid):
@@ -70,7 +79,11 @@ class AgentManager:
         atomic_json(self._path(pid, record['id']), record)
 
     def _load(self, pid, sid):
-        record = read_json(self._path(pid, sid))
+        path = self._path(pid, sid)
+        control = self.active.get((pid, sid))
+        if control and 'record' in control:
+            return control['record']
+        record = read_json(path)
         if record is None:
             raise FileNotFoundError('Agent session does not exist in this project')
         if record['status'] in ACTIVE and (pid, sid) not in self.active:
@@ -81,20 +94,20 @@ class AgentManager:
             self._save(pid, record)
         return record
 
-    @staticmethod
-    def _public(record, summary=False):
+    def _public(self, record, summary=False, *, pid=None):
         record = copy.deepcopy(record)
         record.pop('history', None)
         record.pop('provider_binding', None)
         record.pop('scope_grant', None)
         record.setdefault('effort', None)
+        record['auto_approval'] = (pid, record['id']) in self.auto_approvals
         if summary:
             record['turn_count'] = len(record.pop('turns'))
         return record
 
     def get(self, pid, sid):
         with self.lock:
-            return self._public(self._load(pid, sid))
+            return self._public(self._load(pid, sid), pid=pid)
 
     def list(self, pid, query=''):
         if (not isinstance(query, str) or len(query) > 200
@@ -112,7 +125,7 @@ class AgentManager:
                 searchable.extend(turn.get(field, '') for turn in record['turns']
                                   for field in ('message', 'reply'))
                 if not query or any(query in value.casefold() for value in searchable if isinstance(value, str)):
-                    records.append(self._public(record, summary=True))
+                    records.append(self._public(record, summary=True, pid=pid))
             return sorted(records, key=lambda record: record['updated_at'], reverse=True)
 
     def update(self, pid, sid, options):
@@ -130,7 +143,7 @@ class AgentManager:
                 raise RuntimeError('Wait for the agent turn to stop before renaming this conversation')
             record.update(title=title.strip(), title_custom=True)
             self._save(pid, record)
-            return self._public(record)
+            return self._public(record, pid=pid)
 
     def delete(self, pid, sid):
         with self.lock:
@@ -138,6 +151,7 @@ class AgentManager:
             if (pid, sid) in self.active:
                 raise RuntimeError('Wait for the agent turn to stop before deleting this conversation')
             self._path(pid, sid).unlink()
+            self.auto_approvals.pop((pid, sid), None)
             return {'deleted': True, 'id': sid}
 
     def create(self, pid, options, *, scope_authorized=False):
@@ -184,7 +198,7 @@ class AgentManager:
                 record['scope'] = validate_scope(options.get('scope'))
                 record['scope_grant'] = grant(self.workspace, pid, record['id'], record['scope'])
             self._save(pid, record)
-        return self._public(record)
+        return self._public(record, pid=pid)
 
     def _context(self, pid, body):
         message = body.get('message')
@@ -239,13 +253,16 @@ class AgentManager:
             raise ValueError('Message and selected context exceed 256000 UTF-8 bytes; attach less context')
         return message.strip(), prompt
 
-    def send(self, pid, sid, body):
+    def send(self, pid, sid, body, *, human_authorized=False):
         if not isinstance(body, dict):
             raise ValueError('Agent message must be an object')
+        human_authorized = human_authorized is True and body.get('untrusted_request') is not True
         with self.lock:
             record = self._load(pid, sid)
             if self.closed:
                 raise RuntimeError('Agent service is shutting down')
+            if not human_authorized and (pid, sid) in self.auto_approvals:
+                raise PermissionError('Only human requests can use a conversation with automatic approval enabled')
             if any(key[0] == pid for key in self.active):
                 raise RuntimeError('An agent turn is still active for this project; wait for it to stop')
             if len(self.active) >= 4:
@@ -273,10 +290,20 @@ class AgentManager:
                 executable = shutil.which(config.get('tools', {}).get(record['backend']) or record['backend'])
                 if not executable:
                     raise ValueError(f'{record["backend"]} executable is not available; configure it in Settings')
-            control = {'cancel': threading.Event(), 'decision': threading.Event(), 'approved': False, 'images': images}
+            control = {'cancel': threading.Event(), 'decision': threading.Event(), 'approved': False,
+                       'images': images, 'record': record, 'review': None, 'human_authorized': human_authorized,
+                       'review_request': {'user_requests': [item['message'] for item in record['turns']
+                                                            if item.get('human_authorized') is True]
+                                                            + ([message] if human_authorized else []),
+                                          'untrusted_requests': [item['message'] for item in record['turns']
+                                                                 if item.get('human_authorized') is not True]
+                                                                 + ([] if human_authorized else [message]),
+                                          'untrusted_project_context': prompt},
+                       'bridge_closed': threading.Event(), 'event_bytes': 0}
             turn = {'id': uuid.uuid4().hex, 'message': message, 'files': copy.deepcopy(body.get('files', [])),
                     'attachments': copy.deepcopy(body.get('attachments', [])),
                     'run_id': body.get('run_id'), 'created_at': now(), 'status': 'running',
+                    'human_authorized': human_authorized,
                     'events': [], 'reply': '', 'usage': None, 'error': None}
             record['turns'].append(turn)
             record.update(status='running', pending_approval=None)
@@ -291,22 +318,20 @@ class AgentManager:
             except Exception:
                 self.active.pop((pid, sid), None)
                 raise
-            return self._public(record)
+            return self._public(record, pid=pid)
 
     def _run(self, pid, record, prompt, provider, executable, control):
         sid = record['id']
         turn = record['turns'][-1]
         cancel = control['cancel']
-        event_bytes = 0
         bridge_token = None
-        bridge_closed = threading.Event()
+        bridge_closed = control['bridge_closed']
 
         class BridgeCancellation:
             def is_set(self):
                 return cancel.is_set() or bridge_closed.is_set()
 
         def emit(event):
-            nonlocal event_bytes
             with self.lock:
                 if cancel.is_set():
                     raise InterruptedError('Agent turn cancelled')
@@ -322,12 +347,13 @@ class AgentManager:
                                  'truncated': True, 'original_bytes': len(encoded)}
                 previous = turn['events'][-1] if turn['events'] else None
                 replace_stream = bool(previous and previous.get('streaming') and event.get('type') == 'message')
-                if replace_stream:
-                    event_bytes -= len(json.dumps(previous, allow_nan=False).encode())
                 size = len(json.dumps(event, allow_nan=False).encode())
-                if len(turn['events']) >= 1000 or event_bytes + size > 1024 * 1024:
+                total = control['event_bytes'] + size
+                if replace_stream:
+                    total -= len(json.dumps(previous, allow_nan=False).encode())
+                if len(turn['events']) >= 1000 or total > 1024 * 1024:
                     raise RuntimeError('Agent output limit exceeded')
-                event_bytes += size
+                control['event_bytes'] = total
                 if replace_stream:
                     turn['events'][-1] = copy.deepcopy(event)
                 else:
@@ -338,7 +364,20 @@ class AgentManager:
                     turn['usage'] = event.get('usage')
                 self._save(pid, record)
 
+        approval_lock = threading.Lock()
+
         def approve(name, arguments):
+            # Native MCP callers may propose multiple actions concurrently. Each
+            # callback owns the single pending slot until its exact decision ends.
+            while not approval_lock.acquire(timeout=.05):
+                if cancel.is_set() or bridge_closed.is_set():
+                    raise InterruptedError('Agent turn cancelled')
+            try:
+                return decide(name, arguments)
+            finally:
+                approval_lock.release()
+
+        def decide(name, arguments):
             if record['mode'] not in ('confirm', 'workspace-write', 'automatic'):
                 return False
             with self.lock:
@@ -356,11 +395,14 @@ class AgentManager:
                     'id': uuid.uuid4().hex, 'tool': name, 'arguments': arguments})
                 turn['status'] = 'waiting_approval'
                 self._save(pid, record)
+                if (pid, sid) in self.auto_approvals:
+                    self._start_review(pid, record, control, automatic=True)
             # A decision is also woken by cancellation or shutdown.
-            control['decision'].wait(600)
+            control['decision'].wait(APPROVAL_TIMEOUT)
             with self.lock:
                 if cancel.is_set() or bridge_closed.is_set():
                     raise InterruptedError('Agent turn cancelled')
+                self._cancel_review(pid, record, control, 'The pending approval has ended.')
                 record.update(status='running', pending_approval=None)
                 turn['status'] = 'running'
                 self._save(pid, record)
@@ -420,12 +462,184 @@ class AgentManager:
                 self.workspace.operations.revoke_context_token(bridge_token)
                 control['decision'].set()
             with self.lock:
+                self._cancel_review(pid, record, control, 'The agent turn has ended.')
                 record['pending_approval'] = None
                 turn['finished_at'] = now()
                 try:
                     self._save(pid, record)
                 finally:
                     self.active.pop((pid, sid), None)
+
+    def _approval_provider(self, pid):
+        provider = self.workspace.provider(pid)
+        if not provider.base_url or not provider.model:
+            raise ValueError('Configure a project Model API to review approvals')
+        return provider
+
+    def _review_result(self, pid, record, pending, decision, reason, model):
+        pending['review'] = {'status': {'approve': 'approved', 'reject': 'rejected'}.get(decision, decision),
+                             'reason': reason, 'model': model}
+        event = {'type': 'approval_review', 'approval_id': pending['id'], 'decision': decision,
+                 'reason': reason, 'model': model, 'text': reason}
+        events = record['turns'][-1]['events']
+        control = self.active[(pid, record['id'])]
+        size = len(json.dumps(event, allow_nan=False).encode())
+        if len(events) >= 1000 or control['event_bytes'] + size > 1024 * 1024:
+            if decision in ('approve', 'reject'):
+                pending['review'].update(status='manual', reason='Review output limit reached. Decide this request manually.')
+            self._save(pid, record)
+            return False
+        events.append(event)
+        control['event_bytes'] += size
+        self._save(pid, record)
+        return True
+
+    def _cancel_review(self, pid, record, control, reason):
+        review = control.get('review')
+        if not review:
+            return
+        review['cancel'].set()
+        control['review'] = None
+        pending = record.get('pending_approval')
+        if pending and pending['id'] == review['approval_id']:
+            try:
+                self._review_result(pid, record, pending, 'cancelled', reason, review['model'])
+            except Exception:
+                # Cancellation and final cleanup cannot depend on audit storage.
+                pass
+
+    def _start_review(self, pid, record, control, *, automatic=False):
+        """Called under the manager lock; only the worker may call the model."""
+        pending = record.get('pending_approval')
+        if (not pending or control['decision'].is_set() or control['cancel'].is_set()
+                or control['bridge_closed'].is_set() or self.closed):
+            raise ValueError('This approval is no longer pending')
+        if control.get('review'):
+            return
+        if (control.get('human_authorized') is not True
+                or record['turns'][-1].get('human_authorized') is not True):
+            self._review_result(pid, record, pending, 'manual',
+                'This request was not submitted with human authority. Decide it manually.', '')
+            return
+        key = (pid, record['id'])
+        try:
+            provider = self._approval_provider(pid)
+            binding = provider_binding(provider.config)
+            grant = self.auto_approvals.get(key) if automatic else None
+            if automatic and (not grant or grant['binding'] != binding):
+                raise ValueError('Approval provider changed')
+            if grant:
+                provider = provider.with_model(grant['model'])
+        except Exception:
+            if automatic:
+                self.auto_approvals.pop(key, None)
+            self._review_result(pid, record, pending, 'manual',
+                'The project Model API is unavailable or changed. Review this request manually.', '')
+            return
+        if len(self.review_workers) >= MAX_REVIEW_WORKERS:
+            self._review_result(pid, record, pending, 'manual',
+                'Other approval reviews are still stopping. Retry after they finish or review manually.', provider.model)
+            return
+        review = {'approval_id': pending['id'], 'cancel': threading.Event(),
+                  'binding': binding, 'model': provider.model, 'automatic': automatic}
+        control['review'] = review
+        pending['review'] = {'status': 'reviewing', 'reason': '', 'model': provider.model}
+        self._save(pid, record)
+        proposal = copy.deepcopy({key: pending[key] for key in ('id', 'tool', 'arguments')})
+        worker = threading.Thread(target=self._run_review,
+            args=(pid, record, control, review, provider, proposal), daemon=True)
+        self.review_workers.add(worker)
+        try:
+            worker.start()
+        except Exception:
+            self.review_workers.discard(worker)
+            control['review'] = None
+            self._review_result(pid, record, pending, 'manual',
+                'Independent review could not start. Review this request manually.', provider.model)
+
+    def _run_review(self, pid, record, control, review, provider, proposal):
+        from .agent_approval import review_proposal
+        key = (pid, record['id'])
+
+        class ReviewCancellation:
+            def is_set(self):
+                return (review['cancel'].is_set() or control['cancel'].is_set()
+                        or control['bridge_closed'].is_set())
+
+        cancel = ReviewCancellation()
+        changed = False
+        try:
+            try:
+                changed = provider_binding(self._approval_provider(pid).config) != review['binding']
+                if changed:
+                    result = {'decision': 'manual', 'reason': 'The project Model API changed. Review this request manually.'}
+                else:
+                    result = review_proposal(provider, control['review_request'], proposal, cancel)
+                changed = changed or provider_binding(self._approval_provider(pid).config) != review['binding']
+                if changed:
+                    result = {'decision': 'manual', 'reason': 'The project Model API changed. Review this request manually.'}
+            except InterruptedError:
+                return
+            except Exception:
+                changed = True
+                result = {'decision': 'manual', 'reason': 'Independent review is unavailable. Review this request manually.'}
+            with self.lock:
+                pending = record.get('pending_approval')
+                if (self.active.get(key) is not control or control.get('review') is not review
+                        or cancel.is_set() or not pending or pending['id'] != review['approval_id']
+                        or control['decision'].is_set() or self.closed):
+                    return
+                if changed:
+                    self.auto_approvals.pop(key, None)
+                published = self._review_result(pid, record, pending, result['decision'], result['reason'], review['model'])
+                control['review'] = None
+                if published and result['decision'] in ('approve', 'reject'):
+                    control['approved'] = result['decision'] == 'approve'
+                    control['decision'].set()
+        finally:
+            with self.lock:
+                self.review_workers.discard(threading.current_thread())
+
+    def review_approval(self, pid, sid, approval_id, *, authorized=False):
+        if authorized is not True:
+            raise PermissionError('Independent approval review requires human approval authority')
+        with self.lock:
+            record = self._load(pid, sid)
+            control = self.active.get((pid, sid))
+            pending = record.get('pending_approval')
+            if not control or not pending or pending['id'] != approval_id:
+                raise ValueError('This approval is no longer pending')
+            self._start_review(pid, record, control)
+            return self._public(record, pid=pid)
+
+    def set_auto_approval(self, pid, sid, enabled, *, authorized=False):
+        if authorized is not True:
+            raise PermissionError('Automatic approval review requires human approval authority')
+        if type(enabled) is not bool:
+            raise ValueError('Automatic approval must be a boolean')
+        with self.lock:
+            record = self._load(pid, sid)
+            key = (pid, sid)
+            control = self.active.get(key)
+            if enabled:
+                if self.closed:
+                    raise RuntimeError('Agent service is shutting down')
+                if record['mode'] == 'read-only':
+                    raise ValueError('Read-only conversations cannot enable automatic approval')
+                if control and control.get('human_authorized') is not True:
+                    raise PermissionError('Automatic approval cannot be enabled for a nonhuman request')
+                try:
+                    provider = self._approval_provider(pid)
+                except Exception:
+                    raise ValueError('Configure a project Model API to review approvals') from None
+                self.auto_approvals[key] = {'binding': provider_binding(provider.config), 'model': provider.model}
+                if control and record.get('pending_approval') and not control['decision'].is_set():
+                    self._start_review(pid, record, control, automatic=True)
+            else:
+                self.auto_approvals.pop(key, None)
+                if control:
+                    self._cancel_review(pid, record, control, 'Automatic review was disabled. Review this request manually.')
+            return self._public(record, pid=pid)
 
     def approve(self, pid, sid, approval_id, approved):
         if not isinstance(approved, bool):
@@ -436,9 +650,10 @@ class AgentManager:
             pending = record.get('pending_approval')
             if not control or not pending or pending['id'] != approval_id or control['decision'].is_set():
                 raise ValueError('This approval is no longer pending')
+            self._cancel_review(pid, record, control, 'A human decided this request.')
             control['approved'] = approved
             control['decision'].set()
-            return self._public(record)
+            return self._public(record, pid=pid)
 
     def cancel(self, pid, sid):
         with self.lock:
@@ -448,15 +663,17 @@ class AgentManager:
                 control['decision'].set()
             record = self._load(pid, sid)
             if control:
+                self._cancel_review(pid, record, control, 'The agent turn was cancelled.')
                 record.update(status='cancelled', pending_approval=None)
                 if record['turns']:
                     record['turns'][-1]['status'] = 'cancelled'
                 self._save(pid, record)
-            return self._public(record)
+            return self._public(record, pid=pid)
 
     def close(self):
         with self.lock:
             self.closed = True
+            self.auto_approvals.clear()
             workers = [control['thread'] for control in self.active.values()]
             # Process cleanup must not depend on readable/writable session files.
             for control in self.active.values():
@@ -467,6 +684,7 @@ class AgentManager:
                     self.cancel(pid, sid)
                 except (OSError, ValueError, KeyError):
                     pass
+            workers.extend(self.review_workers)
         deadline = time.monotonic() + 5
         for worker in workers:
             if worker.is_alive():

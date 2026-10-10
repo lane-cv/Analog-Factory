@@ -185,6 +185,14 @@
 .agent-workbench .agent-approval pre{font-size:11px;max-height:120px}
 .agent-workbench .agent-approval button{font-size:11px;min-height:28px;padding:4px 10px}
 .agent-workbench .agent-approval>span{font-size:11px}
+.agent-workbench .agent-approval .button-row{flex-wrap:wrap}
+#agent-review-status{white-space:pre-wrap;overflow-wrap:anywhere}
+.agent-approval-review>strong,.agent-approval-review>span{display:block}
+.agent-approval-review>span{font-size:11px;color:var(--muted)}
+.agent-auto-approval-control{border-top:1px solid var(--border);padding:7px 2px 2px}
+.agent-auto-approval-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer}
+.agent-auto-approval-toggle input{width:14px;height:14px;min-height:0;margin:0;accent-color:var(--amber)}
+.agent-auto-approval-control .agent-note{font-size:10px;line-height:1.5;margin:4px 0 0}
 .agent-workbench .agent-composer.is-dragging{outline:2px dashed var(--teal);outline-offset:4px}
 .agent-quick-dialog{max-height:85dvh;overflow:auto}
 .agent-quick-dialog label{font-size:12px}

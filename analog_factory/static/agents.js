@@ -11,6 +11,7 @@ window.AFAgents = {
     const defaultScope = () => ({operations:['file.write','run.start'],paths:['notes/','testbenches/'],max_actions:4,max_runs:2});
     let backends = [], capabilitiesError = '', projectId = null, generation = 0, capabilityRequest = 0;
     let sessions = [], session = null, loading = false, busy = false, timer = null, error = '', resolvedApproval = null;
+    let autoApprovalChange = null;
     let config = {backend:'api', model:'', mode:'read-only', fast_mode:false, effort:null}, attachments = [], attachedRunId = null, drafts = {}, historyOpen = false;
     const modelCatalogs = new Map(), effortMetadata = new Map();
     let catalogRequest = 0, effortRequest = 0;
@@ -104,6 +105,22 @@ window.AFAgents = {
       $('#agent-proposed-content').textContent = typeof args.content === 'string' ? args.content : '';
       $('#agent-allow').disabled = busy || approval?.id === resolvedApproval;
       $('#agent-deny').disabled = busy || approval?.id === resolvedApproval;
+      renderApprovalReview(approval);
+    }
+    function reviewCapability() { return selectedBackend()?.approval_review || {}; }
+    function reviewUnavailable() { return reviewCapability().diagnostic || t('Configure a project Model API to review approvals.'); }
+    function renderApprovalReview(approval) {
+      const capability = reviewCapability(), review = approval?.review;
+      const enabled = session?.auto_approval === true, readOnly = session?.mode === 'read-only';
+      const toggle = $('#agent-auto-approval'), pendingChange = autoApprovalChange?.project_id === projectId && autoApprovalChange?.session_id === session?.id;
+      toggle.checked = pendingChange ? autoApprovalChange.enabled : enabled;
+      toggle.disabled = !session || loading || busy || (!enabled && (readOnly || !capability.available));
+      $('#agent-auto-approval-note').textContent = !session ? t('Start a conversation to enable automatic approval.') : readOnly ? t('Read-only conversations cannot enable automatic approval.') : !capability.available ? reviewUnavailable() : t('AI reviews each action; uncertain decisions stay with you. This conversation only; resets when the server restarts.');
+      const status = $('#agent-review-status');
+      const labels = {reviewing:'AI is reviewing this action…',manual:'Human decision required',approved:'AI approved this action',rejected:'AI rejected this action',cancelled:'AI review stopped'};
+      status.textContent = review ? [t(labels[review.status] || 'Human decision required'), review.model, review.reason].filter(Boolean).join('\n') : approval && !capability.available ? reviewUnavailable() : '';
+      status.hidden = !status.textContent;
+      $('#agent-review').disabled = !approval || loading || busy || approval.id === resolvedApproval || review?.status === 'reviewing' || !capability.available || readOnly;
     }
     function sessionTitle(item) { return item.title || item.turns?.[0]?.message?.slice(0, 80) || `${item.backend} · ${formatDate(item.updated_at || item.created_at)}`; }
     function historyRow(item, compact = false) {
@@ -363,12 +380,13 @@ window.AFAgents = {
         if (selected) await selectSession(selected.id, false); else { restoreDraft(); render(); }
       } catch (cause) { if (current(ticket)) { loading = false; error = cause.message; render(); } }
     }
-    async function send() {
+    async function send(untrustedRequest = false) {
       const rawMessage = $('#chat-input').value, message = rawMessage.trim();
       if (!message || $('#chat-send').disabled || composing) return;
       if (executeSlash(message)) return;
       const ticket = ++generation, sentAttachments = [...attachments], oldSlot = slot();
       const contents = {message, files:[...state.context], attachments:sentAttachments.map(({id,...item}) => item)};
+      if (untrustedRequest === true) contents.untrusted_request = true;
       if (contents.files.length + contents.attachments.length > 20) { error = t('Attach at most 20 files.'); render(); return; }
       if ($('#agent-attach-run').checked && (attachedRunId || state.run?.id)) contents.run_id = attachedRunId || state.run.id;
       busy = true; error = ''; saveDraft(); render();
@@ -386,7 +404,7 @@ window.AFAgents = {
       if (!session || busy) return;
       const ticket = ++generation;
       busy = true; error = ''; clearTimeout(timer); render();
-      try { const value = await api(`${url()}/${action}`, {method:'POST', body}); if (current(ticket)) { if (action === 'approval') resolvedApproval = body.approval_id; storeSession(value); } }
+      try { const value = await api(`${url()}/${action}`, {method:'POST', body}); if (current(ticket)) { if (action === 'approval') resolvedApproval = body.approval_id; storeSession(value); return value; } }
       catch (cause) { if (current(ticket)) error = cause.message; }
       finally { if (current(ticket)) { busy = false; render(); schedule(); } }
     }
@@ -523,7 +541,10 @@ window.AFAgents = {
     }
     function bind() {
       const on = (id, event, fn) => $(`#${id}`)?.addEventListener(event, fn);
-      const dispatch = (name, parameters) => window.AFOperations.dispatch(`ui.agent.${name}`, parameters).catch(cause => { error = cause.message; render(); });
+      const dispatch = (name, parameters) => {
+        const selectedProject = projectId, selectedSession = session?.id;
+        return window.AFOperations.dispatch(`ui.agent.${name}`, parameters).catch(cause => { if (projectId === selectedProject && session?.id === selectedSession) { error = cause.message; render(); } });
+      };
       on('agent-new', 'click', () => newSession(true));
       on('agent-session', 'change', event => event.target.value ? selectSession(event.target.value) : newSession());
       on('agent-backend', 'change', event => dispatch('set_config', {backend:event.target.value, model:'', mode:'read-only', fast_mode:false}));
@@ -537,7 +558,9 @@ window.AFAgents = {
       on('agent-model', 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); $('#agent-model-apply')?.click(); } });
       on('agent-model-apply', 'click', () => { const model = $('#agent-model').value.trim(); changeConfig({...config, model}); rememberModel(model); closePopovers(); $('#chat-input').focus(); });
       on('agent-stop', 'click', () => mutate('cancel', {}));
-      for (const [id, approved] of [['agent-allow', true], ['agent-deny', false]]) on(id, 'click', () => { if (session?.pending_approval) mutate('approval', {approval_id:session.pending_approval.id, approved}); });
+      for (const [id, approved] of [['agent-allow', true], ['agent-deny', false]]) on(id, 'click', () => { if (session?.pending_approval) dispatch('approve', {approval_id:session.pending_approval.id, approved}); });
+      on('agent-review', 'click', () => { if (session?.pending_approval) dispatch('review_approval', {approval_id:session.pending_approval.id}); });
+      on('agent-auto-approval', 'change', event => dispatch('set_auto_approval', {enabled:event.target.checked}));
       on('agent-history-toggle', 'click', () => showHistory(!historyOpen));
       on('agent-history-close', 'click', () => showHistory(false));
       if ($('#agent-history-search')) $('#agent-history-search').maxLength = 200;
@@ -589,7 +612,21 @@ window.AFAgents = {
         if (idle && (active(session) || projectActive())) throw new Error('Stop or wait for the running conversation first.');
       };
       const checked = async action => { error = ''; const result = await action(); if (error) throw new Error(error); return result; };
-      const summary = () => ({project_id:projectId,session_id:session?.id || null,status:session?.status || 'new',config:{...config},history_open:historyOpen,context:[...state.context],attachments:attachments.map(({id,name}) => ({id,name})),run_id:attachedRunId,has_draft:Boolean($('#chat-input').value),draft_revision:draftRevision,quick_dialog_open:Boolean($('#agent-quick-message-dialog')?.open),disclosures:[...$('#chat-messages').querySelectorAll('details[data-disclosure]')].map(item => ({id:item.dataset.disclosure,open:item.open})),sessions:sessions.map(item => ({id:item.id,title:sessionTitle(item),status:item.status,backend:item.backend})),popovers:popovers.filter(([,panel]) => !$(`#${panel}`).hidden).map(([,panel]) => panel)});
+      const summary = () => ({project_id:projectId,session_id:session?.id || null,status:session?.status || 'new',config:{...config},auto_approval:session?.auto_approval === true,pending_approval:session?.pending_approval ? {id:session.pending_approval.id,tool:session.pending_approval.tool,review:session.pending_approval.review ? {...session.pending_approval.review} : null} : null,history_open:historyOpen,context:[...state.context],attachments:attachments.map(({id,name}) => ({id,name})),run_id:attachedRunId,has_draft:Boolean($('#chat-input').value),draft_revision:draftRevision,quick_dialog_open:Boolean($('#agent-quick-message-dialog')?.open),disclosures:[...$('#chat-messages').querySelectorAll('details[data-disclosure]')].map(item => ({id:item.dataset.disclosure,open:item.open})),sessions:sessions.map(item => ({id:item.id,title:sessionTitle(item),status:item.status,backend:item.backend})),popovers:popovers.filter(([,panel]) => !$(`#${panel}`).hidden).map(([,panel]) => panel)});
+      const pendingApproval = approvalId => {
+        ready();
+        if (!session?.pending_approval || session.pending_approval.id !== approvalId || approvalId === resolvedApproval) throw new Error(t('This approval is no longer pending.'));
+        return session.pending_approval;
+      };
+      const sessionMutation = async (action, parameters) => {
+        const selectedProject = projectId, selectedSession = session?.id;
+        const value = await checked(() => mutate(action, parameters));
+        if (!value || projectId !== selectedProject || session?.id !== selectedSession || value.id !== selectedSession) {
+          const cause = new Error('Frontend state version conflict: approval changes could not be confirmed in the selected conversation; inspect it before retrying.');
+          cause.code = 'VERSION_CONFLICT'; throw cause;
+        }
+        return summary();
+      };
       window.AFOperations.register('agent', {
         read:summary,
         new:() => { ready(true); newSession(true); },
@@ -617,13 +654,13 @@ window.AFAgents = {
         attach_run:({run_id}) => { ready(); if (run_id !== null && !state.runs.some(run => run.id === run_id)) throw new Error('Unknown run.'); attachedRunId = run_id; $('#agent-attach-run').checked = Boolean(run_id); saveDraft(); render(); },
         add_attachments:async ({files}) => { ready(); if (!Array.isArray(files) || files.some(file => typeof file.name !== 'string' || typeof file.content !== 'string' && typeof file.data_base64 !== 'string')) throw new Error('Expected named text or image attachments.'); await checked(() => addFiles(files.map(file => typeof file.content === 'string' ? new File([file.content], file.name, {type:'text/plain'}) : new File([Uint8Array.from(atob(file.data_base64), char => char.charCodeAt(0))], file.name, {type:file.mime_type})))); },
         remove_attachment:({attachment_id}) => { ready(); if (!attachments.some(item => item.id === attachment_id)) throw new Error('Unknown attachment.'); attachments = attachments.filter(item => item.id !== attachment_id); saveDraft(); renderContext(); },
-        send:async () => {
+        send:async ({untrusted_request} = {}) => {
           ready(true);
           const message = $('#chat-input').value.trim(), selectedProject = projectId, selectedSession = session?.id || null;
           const previousTurns = new Set((session?.turns || []).map(turn => turn.id));
           const slashCommand = /^\/(new|history|export|explain|review|simulate)$/.test(message);
           if (!message || $('#chat-send').disabled || composing) throw new Error('Enter a message and choose an available backend first.');
-          await checked(send);
+          await checked(() => send(untrusted_request === true));
           const accepted = session?.turns?.find(turn => !previousTurns.has(turn.id) && turn.message === message);
           if (projectId !== selectedProject || (!slashCommand && (!session?.id || selectedSession && session.id !== selectedSession || !accepted))) {
             const cause = new Error('Frontend state version conflict: message acceptance could not be confirmed in the selected conversation; inspect history before retrying.');
@@ -632,6 +669,29 @@ window.AFAgents = {
           return {...summary(), ...(accepted ? {accepted_turn_id:accepted.id} : {})};
         },
         stop:async () => { ready(); if (!active(session)) throw new Error('No conversation is running.'); await checked(() => mutate('cancel', {})); return summary(); },
+        approve:async ({approval_id,approved}) => {
+          pendingApproval(approval_id);
+          if (typeof approved !== 'boolean') throw new Error(t('Expected an approval decision.'));
+          return sessionMutation('approval', {approval_id,approved});
+        },
+        review_approval:async ({approval_id}) => {
+          const approval = pendingApproval(approval_id);
+          if (approval.review?.status === 'reviewing') throw new Error(t('An AI review is already in progress.'));
+          if (session.mode === 'read-only') throw new Error(t('Read-only conversations cannot enable automatic approval.'));
+          if (!reviewCapability().available) throw new Error(reviewUnavailable());
+          return sessionMutation('approval/review', {approval_id});
+        },
+        set_auto_approval:async ({enabled}) => {
+          ready();
+          if (!session) throw new Error(t('Select an existing conversation first.'));
+          if (typeof enabled !== 'boolean') throw new Error(t('Expected an automatic approval setting.'));
+          if (enabled && session.mode === 'read-only') throw new Error(t('Read-only conversations cannot enable automatic approval.'));
+          if (enabled && !reviewCapability().available) throw new Error(reviewUnavailable());
+          const change = {project_id:projectId,session_id:session.id,enabled};
+          autoApprovalChange = change;
+          try { return await sessionMutation('auto-approval', {enabled}); }
+          finally { if (autoApprovalChange === change) { autoApprovalChange = null; render(); } }
+        },
         history:async ({open,query}) => { ready(); if (query !== undefined && (typeof query !== 'string' || query.length > 200)) throw new Error('Search must fit within 200 characters.'); historyOpen = Boolean(open); if (query !== undefined) $('#agent-history-search').value = query; closePopovers(); render(); if (open) await checked(searchHistory); return (historyResults || sessions).map(item => ({id:item.id,title:sessionTitle(item),status:item.status,backend:item.backend})); },
         search_models:({query}) => { if (typeof query !== 'string') throw new Error('Expected search text.'); $('#agent-model-search').value = query; renderModels(); },
         refresh_models:() => { ready(); if (!cliBackend(config.backend)) throw new Error('Model catalog refresh requires an installed CLI backend.'); return loadModels(true); },

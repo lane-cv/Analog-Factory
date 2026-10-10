@@ -188,6 +188,11 @@ window.AFAgentContent = (() => {
     const groups = toolGroups(events), content = [], emitted = new Set();
     events.forEach((event, index) => {
       if (['usage','session'].includes(event.type)) return;
+      if (event.type === 'approval_review') {
+        const labels = {approve:'AI approved this action',reject:'AI rejected this action',manual:'Human decision required',cancelled:'AI review stopped'};
+        content.push(`<div class="agent-event-status agent-approval-review" data-status="${escape(event.decision || 'manual')}"><strong>${escape(t(labels[event.decision] || 'Human decision required'))}</strong>${event.model ? `<span>${escape(asText(event.model))}</span>` : ''}<div class="agent-plain-text">${escape(asText(event.reason ?? event.text))}</div></div>`);
+        return;
+      }
       if (['tool_call','tool_result'].includes(event.type) || event.tool) {
         const group = groups.find(item => item.first === index);
         if (group && !emitted.has(group)) { content.push(toolMarkup(group, turn, t)); emitted.add(group); }

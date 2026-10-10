@@ -126,7 +126,8 @@
         <section id="agent-approval" class="agent-approval" aria-label="Action approval" data-i18n-aria-label="Action approval" hidden>
           <strong><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 3v6c0 4-5 8-8 9-3-1-8-5-8-9V6Z"/></svg> <span data-i18n="Approval required">Approval required</span></strong><span id="agent-approval-tool"></span><pre id="agent-approval-details"></pre>
           <details id="agent-proposed-file" data-operation-disclosure="agent.proposed_file" hidden><summary data-i18n="Proposed file contents">Proposed file contents</summary><pre id="agent-proposed-content"></pre></details>
-          <div class="button-row"><button id="agent-allow" class="primary-button" type="button" data-i18n="Allow once">Allow once</button><button id="agent-deny" class="secondary-button" type="button" data-i18n="Deny">Deny</button></div>
+          <p id="agent-review-status" class="agent-note" role="status" aria-live="polite" hidden></p>
+          <div class="button-row"><button id="agent-allow" class="primary-button" type="button" data-i18n="Allow once">Allow once</button><button id="agent-deny" class="secondary-button" type="button" data-i18n="Deny">Deny</button><button id="agent-review" class="secondary-button" type="button" aria-describedby="agent-review-status" data-i18n="Review for me">Review for me</button></div>
         </section>
         <div class="agent-compose-area">
           <form id="chat-form" class="chat-composer agent-composer">
@@ -144,6 +145,10 @@
               <button id="agent-commands" type="button" class="agent-icon-button" aria-label="Quick commands" title="Quick commands" data-i18n-aria-label="Quick commands" data-i18n-title="Quick commands" aria-expanded="false" aria-controls="agent-command-list"><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 3-6 18"/></svg></button>
               <button id="agent-stop" type="button" class="agent-submit agent-stop" aria-label="Stop" title="Stop" data-i18n-aria-label="Stop" data-i18n-title="Stop" hidden><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
               <button id="chat-send" type="submit" class="agent-submit" aria-label="Send message" title="Send message" data-i18n-aria-label="Send message" data-i18n-title="Send message"><svg class="agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m-6 6 6-6 6 6"/></svg></button>
+            </div>
+            <div class="agent-auto-approval-control">
+              <label class="agent-auto-approval-toggle"><input id="agent-auto-approval" type="checkbox" aria-describedby="agent-auto-approval-note"><span id="agent-auto-approval-label" data-i18n="Automatic approval">Automatic approval</span></label>
+              <p id="agent-auto-approval-note" class="agent-note"></p>
             </div>
           </form>
           <div class="agent-composer-footnote"><span id="agent-input-hint" data-i18n="Enter to send · Shift+Enter for a new line">Enter to send · Shift+Enter for a new line</span><span id="assistant-usage"></span></div>

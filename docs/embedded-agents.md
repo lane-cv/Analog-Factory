@@ -131,13 +131,43 @@ Claude model gates follow its [documented effort support](https://code.claude.co
 
 The HTTP API exposes `/api/agents` and project-scoped `/agent/sessions` routes for
 create/list/get, bounded `?q=` history search, title updates via `PUT`, deletion via
-`DELETE`, `messages`, `cancel`, and `approval`. Active or draining sessions cannot
+`DELETE`, `messages`, `cancel`, `approval`, `approval/review`, and `auto-approval`. Active or draining sessions cannot
 be renamed or deleted. IDs are scoped to projects;
 the existing same-origin/Host checks apply. Only one turn per project and at most
 four turns per server execute concurrently. Events and context are size bounded.
 Restarted servers mark abandoned active turns interrupted; they do not reconnect
 to orphaned processes after a hard crash. Normal server shutdown cancels workers.
 Conversations are local workspace data and are not included in project exports.
+
+The pending action card offers **Review for me** alongside the existing Allow and
+Deny controls. It asks the project's configured Model API to independently review
+that exact proposal, including when the executing agent is Codex or Claude CLI.
+The reviewer receives bounded request context and redacted action arguments, has
+no tools, and must return a validated approve, reject, or manual decision with a
+reason. Missing configuration, model errors, invalid responses, and insufficient
+context leave the action waiting for a human. Decisions and reasons remain in the
+conversation transcript. Review requests use the configured provider and may
+incur its normal inference charges.
+
+**Automatic approval** enables the same review for each subsequent pending action
+in the selected conversation. It is off by default, applies only to that session,
+survives page refreshes, and resets when the server restarts. The switch does not
+change the session's permission mode or the existing bounded `automatic` execution
+scope. Read-only sessions cannot acquire write permissions. Changing the review
+provider binding revokes the delegation. Humans can still Allow, Deny, Stop, or
+disable automatic approval while a review is running; results arriving after such
+changes cannot decide an obsolete proposal.
+
+Only a local human with approval authority can use
+`agent.session.review_approval` or `agent.session.set_auto_approval`, or their
+`ui.agent.*` counterparts. Agent, workflow, evaluation, and external callers cannot
+grant this authority to themselves through backend or browser operations.
+New turns record whether their message came from an authorized local human.
+Workflow and external messages remain untrusted when forwarded through a browser,
+cannot use an existing automatic approval grant, and cannot start AI approval of
+their own turn. Earlier untrusted or legacy messages are kept separate from human
+instructions in the reviewer context; the ordinary manual approval controls remain
+available.
 
 Selected files and optional run logs are explicit initial context. All agent
 backends inspect visible project files through shared operations. Codex receives

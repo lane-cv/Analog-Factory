@@ -55,7 +55,8 @@ PROJECT = object_schema({'id': ID, 'name': TEXT, 'config': OPEN_OBJECT, 'design'
 RUN = object_schema({'id': ID, 'kind': TEXT, 'status': TEXT, 'metrics': OPEN_OBJECT,
                      'verification': OPEN_OBJECT, 'stale': BOOLEAN}, ['id', 'kind', 'status'], extra=True)
 JOB = object_schema({'id': ID, 'kind': TEXT, 'status': TEXT}, ['id', 'kind', 'status'], extra=True)
-SESSION = object_schema({'id': ID, 'backend': TEXT, 'mode': TEXT, 'title': TEXT, 'status': TEXT, 'effort': EFFORT},
+SESSION = object_schema({'id': ID, 'backend': TEXT, 'mode': TEXT, 'title': TEXT, 'status': TEXT, 'effort': EFFORT,
+                         'auto_approval': BOOLEAN},
                         ['id', 'backend', 'mode', 'status'], extra=True)
 DOWNLOAD = object_schema({'filename': TEXT, 'content_type': TEXT, 'content_base64': TEXT},
                          ['filename', 'content_type', 'content_base64'])
@@ -240,6 +241,7 @@ ATTACHMENT = {'oneOf': [object_schema({
         ['name', 'mime_type', 'data_base64'])]}
 MESSAGE = {
     'message': {'type': 'string', 'minLength': 1, 'maxLength': 32000},
+    'untrusted_request': {**BOOLEAN, 'description': 'Marks a message forwarded from automation; it cannot authorize independent AI approval.'},
     'files': array_schema(PATH, maxItems=20, default=[]), 'run_id': ID,
     'attachments': array_schema(ATTACHMENT, maxItems=20, default=[]),
 }
@@ -265,6 +267,7 @@ _EXAMPLES = {
     'agent.session.update': {'title': 'Amplifier bias review'},
     'agent.session.send': {'message': 'Review this netlist and explain its measurements.', 'files': ['testbenches/pre.cir']},
     'agent.session.approve': {'approved': False},
+    'agent.session.set_auto_approval': {'enabled': False},
 }
 
 
@@ -369,6 +372,30 @@ def register_operations(registry):
             raise PermissionError('Agent and workflow callers cannot decide user approvals')
         return workspace.agents.approve(parameters['project_id'], parameters['session_id'],
                                         parameters['approval_id'], parameters['approved'])
+
+    def review_approval(context, parameters):
+        require_local_approval(context)
+        return workspace.agents.review_approval(parameters['project_id'], parameters['session_id'],
+                                                parameters['approval_id'], authorized=True)
+
+    def set_auto_approval(context, parameters):
+        require_local_approval(context)
+        return workspace.agents.set_auto_approval(parameters['project_id'], parameters['session_id'],
+                                                  parameters['enabled'], authorized=True)
+
+    def require_local_approval(context):
+        if not local_human(context):
+            raise PermissionError('Approval delegation requires a local human with approval authority')
+
+    def local_human(context):
+        return (context.principal == 'local-owner' and 'approve' in context.permissions
+                and context.source in ('ui', 'legacy', 'cli'))
+
+    def send_message(context, parameters):
+        body = _without(parameters, 'project_id', 'session_id')
+        untrusted = body.pop('untrusted_request', False)
+        return workspace.agents.send(parameters['project_id'], parameters['session_id'], body,
+                                      human_authorized=local_human(context) and not untrusted)
 
     add('workspace.status', 'Workspace status', 'Inspect actual toolchain, desktop and implemented capabilities.',
         object_schema({'project_id': ID}), WORKSPACE_STATUS,
@@ -538,8 +565,7 @@ def register_operations(registry):
         lambda c, p: workspace.agents.delete(p['project_id'], p['session_id']),
         permissions=('write',), versioned=True, side_effects=('Deletes a conversation record permanently',))
     add('agent.session.send', 'Send agent message', 'Start one bounded agent turn with selected files, text attachments or run context.',
-        _session(MESSAGE, ['message']), SESSION,
-        lambda c, p: workspace.agents.send(p['project_id'], p['session_id'], _without(p, 'project_id', 'session_id')),
+        _session(MESSAGE, ['message']), SESSION, send_message,
         permissions=('execute',), asynchronous=True, cancellable=True, task_kind='agent',
         preconditions=('No other active agent turn in the project', 'At most four active agent turns in the workspace'),
         side_effects=('Starts a model/CLI turn and persists its events and any explicitly permitted actions',))
@@ -550,6 +576,16 @@ def register_operations(registry):
     add('agent.session.approve', 'Decide agent approval', 'Accept or reject the exact pending API-agent proposal; agent callers cannot self-approve.',
         _session({'approval_id': ID, 'approved': BOOLEAN}, ['approval_id', 'approved']), SESSION, approve,
         permissions=('approve',), confirmation='none', side_effects=('Releases a pending API-agent tool approval decision',))
+    add('agent.session.review_approval', 'Review pending agent approval',
+        'Ask the project model API to review the exact pending action. Requires local human approval authority; uncertain results remain pending.',
+        _session({'approval_id': ID}, ['approval_id']), SESSION, review_approval,
+        permissions=('approve',), confirmation='none',
+        side_effects=('Starts an independent model review which may approve or reject the pending action',))
+    add('agent.session.set_auto_approval', 'Set automatic AI approval',
+        'Enable or disable independent AI review of subsequent pending actions in this conversation. Requires local human authority; resets on server restart.',
+        _session({'enabled': BOOLEAN}, ['enabled']), SESSION, set_auto_approval,
+        permissions=('approve',), confirmation='none',
+        side_effects=('Changes an in-memory conversation approval grant and may start review of a pending action',))
     from .operation_graph import register_operations as register_graph_operations
     register_graph_operations(registry)
     from .operation_waveforms import register_operations as register_waveform_operations
@@ -622,4 +658,6 @@ LEGACY_ROUTES = [
     ('POST', S + '/messages', 'agent.session.send', _body, {'status': 202}),
     ('POST', S + '/cancel', 'agent.session.cancel', _groups),
     ('POST', S + '/approval', 'agent.session.approve', _body),
+    ('POST', S + '/approval/review', 'agent.session.review_approval', _body),
+    ('POST', S + '/auto-approval', 'agent.session.set_auto_approval', _body),
 ]

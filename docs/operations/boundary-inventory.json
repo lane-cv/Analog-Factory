@@ -113,7 +113,7 @@
       "operation_id": "agent.backends",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 386
+      "handler_line": 413
     },
     {
       "operation_id": "agent.cli.check_updates",
@@ -137,55 +137,67 @@
       "operation_id": "agent.models",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 354
+      "handler_line": 357
     },
     {
       "operation_id": "agent.session.approve",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 367
+      "handler_line": 370
     },
     {
       "operation_id": "agent.session.cancel",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 547
+      "handler_line": 573
     },
     {
       "operation_id": "agent.session.create",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 527
+      "handler_line": 554
     },
     {
       "operation_id": "agent.session.delete",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 538
+      "handler_line": 565
     },
     {
       "operation_id": "agent.session.get",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 531
+      "handler_line": 558
     },
     {
       "operation_id": "agent.session.list",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 524
+      "handler_line": 551
+    },
+    {
+      "operation_id": "agent.session.review_approval",
+      "kind": "business",
+      "handler_file": "analog_factory/operation_catalog.py",
+      "handler_line": 376
     },
     {
       "operation_id": "agent.session.send",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 542
+      "handler_line": 394
+    },
+    {
+      "operation_id": "agent.session.set_auto_approval",
+      "kind": "business",
+      "handler_file": "analog_factory/operation_catalog.py",
+      "handler_line": 381
     },
     {
       "operation_id": "agent.session.update",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 534
+      "handler_line": 561
     },
     {
       "operation_id": "artifact.read",
@@ -203,31 +215,31 @@
       "operation_id": "chat.send",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 454
+      "handler_line": 481
     },
     {
       "operation_id": "evaluation.run",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 472
+      "handler_line": 499
     },
     {
       "operation_id": "file.change.preview",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 428
+      "handler_line": 455
     },
     {
       "operation_id": "file.history",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 440
+      "handler_line": 467
     },
     {
       "operation_id": "file.list",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 416
+      "handler_line": 443
     },
     {
       "operation_id": "file.move",
@@ -239,13 +251,13 @@
       "operation_id": "file.read",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 420
+      "handler_line": 447
     },
     {
       "operation_id": "file.restore",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 443
+      "handler_line": 470
     },
     {
       "operation_id": "file.restore_deleted",
@@ -269,13 +281,13 @@
       "operation_id": "file.write",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 434
+      "handler_line": 461
     },
     {
       "operation_id": "job.cancel",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 483
+      "handler_line": 510
     },
     {
       "operation_id": "job.control",
@@ -287,13 +299,13 @@
       "operation_id": "job.get",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 480
+      "handler_line": 507
     },
     {
       "operation_id": "job.list",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 477
+      "handler_line": 504
     },
     {
       "operation_id": "native.canvas.connect_pins",
@@ -401,25 +413,25 @@
       "operation_id": "project.configure",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 413
+      "handler_line": 440
     },
     {
       "operation_id": "project.create",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 397
+      "handler_line": 424
     },
     {
       "operation_id": "project.detail",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 410
+      "handler_line": 437
     },
     {
       "operation_id": "project.export",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 447
+      "handler_line": 474
     },
     {
       "operation_id": "project.import",
@@ -449,7 +461,7 @@
       "operation_id": "project.list",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 393
+      "handler_line": 420
     },
     {
       "operation_id": "project.rename",
@@ -479,7 +491,7 @@
       "operation_id": "provider.test",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 383
+      "handler_line": 410
     },
     {
       "operation_id": "reference.characterize",
@@ -491,49 +503,49 @@
       "operation_id": "reference.derive_netlists",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 399
+      "handler_line": 426
     },
     {
       "operation_id": "run.artifact",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 361
+      "handler_line": 364
     },
     {
       "operation_id": "run.cancel",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 508
+      "handler_line": 535
     },
     {
       "operation_id": "run.get",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 499
+      "handler_line": 526
     },
     {
       "operation_id": "run.list",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 487
+      "handler_line": 514
     },
     {
       "operation_id": "run.log",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 517
+      "handler_line": 544
     },
     {
       "operation_id": "run.retry",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 512
+      "handler_line": 539
     },
     {
       "operation_id": "run.start",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 318
+      "handler_line": 321
     },
     {
       "operation_id": "run.waveform_stats",
@@ -545,19 +557,19 @@
       "operation_id": "run.waveforms",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 519
+      "handler_line": 546
     },
     {
       "operation_id": "settings.get",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 377
+      "handler_line": 404
     },
     {
       "operation_id": "settings.update",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 380
+      "handler_line": 407
     },
     {
       "operation_id": "simulation.batch.capabilities",
@@ -581,7 +593,7 @@
       "operation_id": "simulation.configure",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 450
+      "handler_line": 477
     },
     {
       "operation_id": "simulation.statistics.qualify",
@@ -683,985 +695,1003 @@
       "operation_id": "ui.agent.add_attachments",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
+    },
+    {
+      "operation_id": "ui.agent.approve",
+      "kind": "frontend",
+      "handler_file": "analog_factory/operation_ui.py",
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.attach_run",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.copy_turn",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.disclosure",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.edit_turn",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.export",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.favorite_model",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.history",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.manage_quick",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.new",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.popover",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.prompt",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.quick_messages",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.read",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.read_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.refresh_models",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.remove_attachment",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.remove_quick",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
+    },
+    {
+      "operation_id": "ui.agent.review_approval",
+      "kind": "frontend",
+      "handler_file": "analog_factory/operation_ui.py",
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.save_quick",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.scroll_latest",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.search_models",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.select_session",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.send",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
+    },
+    {
+      "operation_id": "ui.agent.set_auto_approval",
+      "kind": "frontend",
+      "handler_file": "analog_factory/operation_ui.py",
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.set_config",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.set_context",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.set_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent.stop",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.check_updates",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.close",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.open",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.refresh",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.reset_paths",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.save_paths",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.set_paths",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.set_tracking",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.agent_cli.set_tracking_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.characterization.cancel",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.characterization.close",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.characterization.inspect",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.characterization.open",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.characterization.refresh",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.characterization.set_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.characterization.start",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.drc_navigation.focus",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.drc_navigation.refresh",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.drc_navigation.set_index",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.drc_navigation.stop",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor.history",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor.open",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor.read",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor.save",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor.set_content",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor_recovery.discard",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor_recovery.inspect",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor_recovery.list",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor_recovery.read",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor_recovery.resolve",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.editor_recovery.restore",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.form.read",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.form.set",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.layout.close_overlay",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.layout.expand_agent",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.layout.reset",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.layout.resize",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.layout.set_panel",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.lifecycle.backup",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.lifecycle.close",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.lifecycle.open",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.lifecycle.refresh_trash",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.lifecycle.set_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.lifecycle.submit",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.close",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.connect_pins",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.move",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.open",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.paint_box",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.refresh",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.save",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.select",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.set_options",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.start",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_canvas.stop",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_terminal.close",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_terminal.input",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_terminal.open",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_terminal.refresh",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_terminal.resize",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_terminal.set_options",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_terminal.start",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.native_terminal.stop",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.runs.compare",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.runs.copy_log",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.runs.derive_reference",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.runs.inspect_metric",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.runs.netlist_reference",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.runs.select",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.runs.simulate_reference_post",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.sessions",
       "kind": "query",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 387
+      "handler_line": 394
     },
     {
       "operation_id": "ui.settings.project_environment_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.settings.project_environment_read",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.settings.project_environment_reset",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.settings.project_environment_save",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.settings.project_provider_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.settings.project_provider_read",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.settings.project_provider_reset",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.settings.project_provider_save",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.settings.set_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.cancel",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.close",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.inspect",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.open",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.preview",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.qualify",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.refresh",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.set_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.simulation_batch.start",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.cancel",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.close",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.create_taskset",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.evaluate",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.open",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.refresh",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.replay",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.resume_evaluation",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.select_job",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.set_options",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.set_taskset_draft",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.start",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.training.validate_taskset",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.export",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.pan",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.reset",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.select_plot",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.set_cursor",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.set_display",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.set_traces",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.set_view",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.waveform.zoom",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.add_node",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.apply_document",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.apply_json",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.connect",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.disconnect",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.export",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.list_saved",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.new_graph",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.read",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.remove_node",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.save",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.select_node",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.set_graph",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workflow.update_node",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.dialog",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.disclosures",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.navigate",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.read",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.reconnect_desktop",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.refresh",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.scroll",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.select_project",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.set_context",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.set_disclosure",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.set_folder",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "ui.workspace.set_preferences",
       "kind": "frontend",
       "handler_file": "analog_factory/operation_ui.py",
-      "handler_line": 396
+      "handler_line": 403
     },
     {
       "operation_id": "verification.drc.focus",
@@ -1691,7 +1721,7 @@
       "operation_id": "workflow.list",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 457
+      "handler_line": 484
     },
     {
       "operation_id": "workflow.parse",
@@ -1703,19 +1733,19 @@
       "operation_id": "workflow.run",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 464
+      "handler_line": 491
     },
     {
       "operation_id": "workflow.save",
       "kind": "business",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 460
+      "handler_line": 487
     },
     {
       "operation_id": "workspace.status",
       "kind": "query",
       "handler_file": "analog_factory/operation_catalog.py",
-      "handler_line": 375
+      "handler_line": 402
     }
   ]
 }

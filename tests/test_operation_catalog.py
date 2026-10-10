@@ -24,6 +24,7 @@ class OperationCatalogTests(unittest.TestCase):
         self.workspace = Workspace(Path(self.tmp.name))
         self.addCleanup(self.workspace.agents.close)
         self.registry = OperationRegistry(self.workspace)
+        self.addCleanup(self.registry.close)
         register_operations(self.registry)
         self.pid = self.workspace.projects.create('Catalog integration')['id']
 

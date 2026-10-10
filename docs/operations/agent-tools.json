@@ -371,6 +371,36 @@
   {
     "type": "function",
     "function": {
+      "name": "agent__session__review_approval",
+      "description": "Ask the project model API to review the exact pending action. Requires local human approval authority; uncertain results remain pending.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "session_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "approval_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          }
+        },
+        "required": [
+          "project_id",
+          "session_id",
+          "approval_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "agent__session__send",
       "description": "Start one bounded agent turn with selected files, text attachments or run context.",
       "parameters": {
@@ -388,6 +418,10 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 32000
+          },
+          "untrusted_request": {
+            "type": "boolean",
+            "description": "Marks a message forwarded from automation; it cannot authorize independent AI approval."
           },
           "files": {
             "type": "array",
@@ -466,6 +500,35 @@
           "project_id",
           "session_id",
           "message"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "agent__session__set_auto_approval",
+      "description": "Enable or disable independent AI review of subsequent pending actions in this conversation. Requires local human authority; resets on server restart.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "session_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "project_id",
+          "session_id",
+          "enabled"
         ],
         "additionalProperties": false
       }
@@ -4796,6 +4859,42 @@
   {
     "type": "function",
     "function": {
+      "name": "ui__agent__approve",
+      "description": "Allow or deny the exact pending action in the selected conversation. Requires local human approval authority.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "ui_version": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional version returned by ui.sessions; rejects stale browser state."
+          },
+          "approval_id": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 32
+          },
+          "approved": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "client_id",
+          "approval_id",
+          "approved"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "ui__agent__attach_run",
       "description": "Attach a recorded project run to the composer, or detach with null.",
       "parameters": {
@@ -5341,6 +5440,38 @@
   {
     "type": "function",
     "function": {
+      "name": "ui__agent__review_approval",
+      "description": "Ask the project model API to review the exact pending action. Requires local human approval authority.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "ui_version": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional version returned by ui.sessions; rejects stale browser state."
+          },
+          "approval_id": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 32
+          }
+        },
+        "required": [
+          "client_id",
+          "approval_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "ui__agent__save_quick",
       "description": "Add a reusable title and prompt to this browser, retaining at most 30.",
       "parameters": {
@@ -5485,6 +5616,36 @@
         },
         "required": [
           "client_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ui__agent__set_auto_approval",
+      "description": "Enable or disable automatic AI review for the selected conversation. Requires local human approval authority.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "ui_version": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional version returned by ui.sessions; rejects stale browser state."
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "client_id",
+          "enabled"
         ],
         "additionalProperties": false
       }

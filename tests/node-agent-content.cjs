@@ -98,6 +98,20 @@ test('reply events are not repeated and reasoning is shown only when provided', 
   assert.match(content.renderTurn(turn), /Provider reasoning summary/);
 });
 
+test('completed approval reviews retain the decision, reviewer and escaped reason', () => {
+  const labels = {approve:'AI approved this action',reject:'AI rejected this action',manual:'Human decision required',cancelled:'AI review stopped'};
+  for (const [decision, label] of Object.entries(labels)) {
+    const result = content.renderTurn({id:'review-result',message:'Update the testbench',status:'succeeded',events:[
+      {type:'approval_review',decision,model:'review-model <img>',reason:'Reason <script>bad</script>',text:'Reason <script>bad</script>'},
+    ]}, {t:text => `translated:${text}`});
+    assert.ok(result.includes(`translated:${label}`), 'The persisted review explains its decision');
+    assert.match(result, /review-model &lt;img&gt;/);
+    assert.match(result, /Reason &lt;script&gt;bad&lt;\/script&gt;/);
+    assert.doesNotMatch(result, /<img|<script/);
+    assert.equal((result.match(/Reason &lt;script&gt;/g) || []).length, 1, 'Reason and text aliases do not duplicate the review');
+  }
+});
+
 test('tool error results are labeled failed and all unsafe detail text is escaped', () => {
   const result = content.renderTurn({id:'bad" onclick="bad', message:'<svg/onload=bad>', error:'<script>bad</script>', status:'failed', events:[
     {type:'tool_call', tool:'read_file', tool_call_id:'bad"', arguments:{path:'<unsafe>'}},
